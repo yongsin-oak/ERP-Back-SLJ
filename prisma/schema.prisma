@@ -1,0 +1,137 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BankName {
+  BBL
+  KBANK
+  KTB
+  TTB
+  SCB
+  KKP
+  BAY
+  CIMBT
+  TISCO
+  UOBT
+  CREDIT
+  LHFG
+  ICBCT
+  SME
+  BAAC
+  EXIM
+  GSB
+  GHB
+}
+
+enum AttendanceType {
+  Absent
+  Late
+  Sick
+  Vacation
+  Personal
+}
+
+enum DepartmentName {
+  HR
+  Accounting
+  Admin
+  Owner
+  Operator
+}
+
+enum PlatFormName {
+  Shopee
+  Lazada
+  Tiktok
+  StoreFront
+  Direct
+  Delivery
+}
+
+enum ShopName {
+  SupLonJai
+  JaoSua
+  SuperA
+  SomWang
+}
+
+model Employee {
+  id          Int            @id @default(autoincrement())
+  firstName   String
+  lastName    String
+  nickname    String
+  phoneNumber String
+  department  DepartmentName
+  startDate   DateTime
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  bankAccount String
+  bankName    BankName
+  attendance  Attendance[]
+  orders      Orders[]
+}
+
+model Attendance {
+  id         Int            @id @default(autoincrement())
+  employeeId Int
+  employee   Employee       @relation(fields: [employeeId], references: [id])
+  date       DateTime
+  type       AttendanceType
+  reason     String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+}
+
+model Orders {
+  id           String         @unique
+  employeeId   Int
+  employee     Employee       @relation(fields: [employeeId], references: [id])
+  platform     PlatFormName
+  shop         ShopName
+  orderDetails OrderDetails[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  price        Float?
+  getMoney     Float?
+}
+
+model Products {
+  barcode          String         @unique
+  category         String?
+  brand            String?
+  name             String
+  costPrice        Float
+  currentPrice     Float
+  currentAmount    Int
+  weight           Float?
+  width            Float?
+  height           Float?
+  length           Float?
+  packagePerCarton Int?
+  unitPerPackage   Int?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  orderDetails     OrderDetails[]
+}
+
+model OrderDetails {
+  id             Int      @id @default(autoincrement())
+  orderId        String
+  order          Orders   @relation(fields: [orderId], references: [id])
+  productBarcode String
+  product        Products @relation(fields: [productBarcode], references: [barcode])
+  productAmount  Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
