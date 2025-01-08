@@ -1,36 +1,92 @@
 import { PrismaClient } from "@prisma/client";
 import { Elysia, t } from "elysia";
-
 const products = (app: Elysia, db: PrismaClient) => {
   app
     .post(
-      "/product",
-      async ({ body }) => db.products.createMany({ data: body }),
+      "/products",
+      async ({ body: { data }, error }) => {
+        try {
+          await db.products.createMany({ data: data });
+          return error(200, {
+            message: "Products created successfully",
+          });
+        } catch (error: any) {
+          throw new Error(error.message);
+        }
+      },
       {
-        body: t.Array(
-          t.Object({
-            barcode: t.String(),
-            name: t.String(),
-            costPrice: t.Number(),
-            currentPrice: t.Number(),
-            currentAmount: t.Number(),
-          })
-        ),
+        body: t.Object({
+          data: t.Array(
+            t.Object({
+              barcode: t.String(),
+              category: t.Optional(t.String()),
+              brand: t.Optional(t.String()),
+              name: t.String(),
+              costPrice: t.Number(),
+              currentPrice: t.Number(),
+              currentAmount: t.Number(),
+              weight: t.Optional(t.Number()),
+              width: t.Optional(t.Number()),
+              height: t.Optional(t.Number()),
+              length: t.Optional(t.Number()),
+              packagePerCarton: t.Optional(t.Number()),
+              unitPerPackage: t.Optional(t.Number()),
+            })
+          ),
+        }),
+        response: t.Object({
+          message: t.String(),
+        }),
       }
     )
-    .get("/product", async ({ query: { page, limit } }) => {
-      const products = await db.products.findMany({
-        skip: (Number(page) - 1) * Number(limit),
-        take: Number(limit),
-      });
-      const total = await db.products.count();
-      return {
-        data: products,
-        limit: Number(limit),
-        page: Number(page),
-        total,
-      };
-    });
+    .get(
+      "/products",
+      async ({ query: { page, limit } }) => {
+        try {
+          const products = await db.products.findMany({
+            skip: (Number(page) - 1) * Number(limit),
+            take: Number(limit),
+          });
+          const total = await db.products.count();
+          return {
+            data: products,
+            limit: Number(limit),
+            page: Number(page),
+            total,
+          };
+        } catch (err: any) {
+          throw new Error(err.message);
+        }
+      },
+      {
+        query: t.Object({
+          page: t.Number(),
+          limit: t.Number(),
+        }),
+        response: {
+          data: t.Array(
+            t.Object({
+              barcode: t.String(),
+              category: t.Optional(t.String()),
+              brand: t.Optional(t.String()),
+              name: t.String(),
+              costPrice: t.Number(),
+              currentPrice: t.Number(),
+              currentAmount: t.Number(),
+              weight: t.Optional(t.Number()),
+              width: t.Optional(t.Number()),
+              height: t.Optional(t.Number()),
+              length: t.Optional(t.Number()),
+              packagePerCarton: t.Optional(t.Number()),
+              unitPerPackage: t.Optional(t.Number()),
+            })
+          ),
+          limit: t.Number(),
+          page: t.Number(),
+          total: t.Number(),
+        },
+      }
+    );
 };
 
 export default products;

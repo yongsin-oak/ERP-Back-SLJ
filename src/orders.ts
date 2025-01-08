@@ -3,7 +3,7 @@ import { Elysia, t } from "elysia";
 
 const orders = (app: Elysia, db: PrismaClient) => {
   app.post(
-    "/order",
+    "/orders",
     async ({ body }) => {
       // เริ่มต้น transaction
       const { products, ...orderData } = body; // products คือลิสต์ของสินค้าที่จะสั่งซื้อ
@@ -64,11 +64,13 @@ const orders = (app: Elysia, db: PrismaClient) => {
             productAmount: t.Number(),
           })
         ),
+        totalPrice: t.Optional(t.Number()),
+        totalGet: t.Optional(t.Number()),
       }),
     }
   );
 
-  app.get("/order", async ({ query: { page, limit } }) => {
+  app.get("/orders", async ({ query: { page, limit } }) => {
     const orders = await db.orders.findMany({
       skip: (Number(page) - 1) * Number(limit),
       take: Number(limit),

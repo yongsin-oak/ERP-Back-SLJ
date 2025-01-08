@@ -102,8 +102,8 @@ model Orders {
   orderDetails OrderDetails[]
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
-  price        Float?
-  getMoney     Float?
+  totalPrice   Float?
+  totalGet     Float?
 }
 
 model Products {

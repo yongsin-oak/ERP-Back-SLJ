@@ -1,6 +1,5 @@
 import { Elysia } from "elysia";
 import cors from "@elysiajs/cors";
-import test from "./test";
 import { PrismaClient } from "@prisma/client";
 import products from "./products";
 import orders from "./orders";
@@ -12,7 +11,6 @@ const db = new PrismaClient();
 const app = new Elysia()
   .use(
     swagger({
-      path: "/v2/swagger",
       documentation: {
         info: {
           title: "SLJ-ERP API",
@@ -22,9 +20,7 @@ const app = new Elysia()
     })
   )
   .use(cors())
-  .get("/", () => "Hello Elysia")
-  .get("/auth", () => "auth");
-test(app);
+  .get("/", () => "Hello Elysia");
 products(app, db);
 orders(app, db);
 employee(app, db);
