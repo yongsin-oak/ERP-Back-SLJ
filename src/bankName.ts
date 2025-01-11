@@ -1,65 +1,30 @@
-export const bankNameList: string[] = [
-  "BBL",
-  "KBANK",
-  "KTB",
-  "TTB",
-  "SCB",
-  "KKP",
-  "BAY",
-  "CIMBT",
-  "TISCO",
-  "UOBT",
-  "CREDIT",
-  "LHFG",
-  "ICBCT",
-  "SME",
-  "BAAC",
-  "EXIM",
-  "GSB",
-  "GHB",
-];
+import { zipObject } from "lodash";
+import banks from "./json/banks.json";
 
-export const bankNameObject: {
-  BBL: "BBL";
-  KBANK: "KBANK";
-  KTB: "KTB";
-  TTB: "TTB";
-  SCB: "SCB";
-  KKP: "KKP";
-  BAY: "BAY";
-  CIMBT: "CIMBT";
-  TISCO: "TISCO";
-  UOBT: "UOBT";
-  CREDIT: "CREDIT";
-  LHFG: "LHFG";
-  ICBCT: "ICBCT";
-  SME: "SME";
-  BAAC: "BAAC";
-  EXIM: "EXIM";
-  GSB: "GSB";
-  GHB: "GHB";
-} = {
-  BBL: "BBL",
-  KBANK: "KBANK",
-  KTB: "KTB",
-  TTB: "TTB",
-  SCB: "SCB",
-  KKP: "KKP",
-  BAY: "BAY",
-  CIMBT: "CIMBT",
-  TISCO: "TISCO",
-  UOBT: "UOBT",
-  CREDIT: "CREDIT",
-  LHFG: "LHFG",
-  ICBCT: "ICBCT",
-  SME: "SME",
-  BAAC: "BAAC",
-  EXIM: "EXIM",
-  GSB: "GSB",
-  GHB: "GHB",
-};
+export const bankKeys = Object.keys(banks.th);
+export const bankObjectSchema = zipObject(bankKeys, bankKeys);
+// export const bankObjectSchema = {
+//   bbl: "bbl",
+//   kbank: "kbank",
+//   ktb: "ktb",
+//   ttb: "ttb",
+//   scb: "scb",
+//   kkp: "kkp",
+//   bay: "bay",
+//   cimbt: "cimbt",
+//   tisco: "tisco",
+//   uobt: "uobt",
+//   credit: "credit",
+//   lhfg: "lhfg",
+//   icbct: "icbct",
+//   sme: "sme",
+//   baac: "baac",
+//   exim: "exim",
+//   gsb: "gsb",
+//   ghb: "ghb",
+// };
 
-export const bankThaiNameObject = {
+export const bankThaiName = {
   BBL: "ธนาคารกรุงเทพ",
   KBANK: "ธนาคารกสิกรไทย",
   KTB: "ธนาคารกรุงไทย",

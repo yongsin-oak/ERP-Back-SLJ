@@ -20,7 +20,7 @@ export const departmentObject: {
   Operator: "Operator",
 };
 
-export const departmentThaiNameObject = {
+export const departmentThaiName = {
   HR: "บุคคล",
   Accounting: "บัญชี",
   Admin: "แอดมิน",

@@ -1,7 +1,8 @@
 import { PrismaClient } from "@prisma/client";
+import { NodePgClient } from "drizzle-orm/node-postgres";
 import { Elysia, t } from "elysia";
 
-const orders = (app: Elysia, db: PrismaClient) => {
+const orders = (app: Elysia, db: NodePgClient) => {
   app.post(
     "/orders",
     async ({ body }) => {

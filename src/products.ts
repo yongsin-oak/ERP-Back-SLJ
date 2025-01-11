@@ -1,6 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+import { NodePgClient } from "drizzle-orm/node-postgres";
 import { Elysia, t } from "elysia";
-const products = (app: Elysia, db: PrismaClient) => {
+
+const products = (app: Elysia, db: NodePgClient) => {
   app
     .post(
       "/products",
@@ -57,35 +58,35 @@ const products = (app: Elysia, db: PrismaClient) => {
         } catch (err: any) {
           throw new Error(err.message);
         }
-      },
-      {
-        query: t.Object({
-          page: t.Number(),
-          limit: t.Number(),
-        }),
-        response: {
-          data: t.Array(
-            t.Object({
-              barcode: t.String(),
-              category: t.Optional(t.String()),
-              brand: t.Optional(t.String()),
-              name: t.String(),
-              costPrice: t.Number(),
-              currentPrice: t.Number(),
-              currentAmount: t.Number(),
-              weight: t.Optional(t.Number()),
-              width: t.Optional(t.Number()),
-              height: t.Optional(t.Number()),
-              length: t.Optional(t.Number()),
-              packagePerCarton: t.Optional(t.Number()),
-              unitPerPackage: t.Optional(t.Number()),
-            })
-          ),
-          limit: t.Number(),
-          page: t.Number(),
-          total: t.Number(),
-        },
       }
+      // {
+      //   query: t.Object({
+      //     page: t.Number(),
+      //     limit: t.Number(),
+      //   }),
+      //   response: {
+      //     data: t.Array(
+      //       t.Object({
+      //         barcode: t.String(),
+      //         category: t.Optional(t.String()),
+      //         brand: t.Optional(t.String()),
+      //         name: t.String(),
+      //         costPrice: t.Number(),
+      //         currentPrice: t.Number(),
+      //         currentAmount: t.Number(),
+      //         weight: t.Optional(t.Number()),
+      //         width: t.Optional(t.Number()),
+      //         height: t.Optional(t.Number()),
+      //         length: t.Optional(t.Number()),
+      //         packagePerCarton: t.Optional(t.Number()),
+      //         unitPerPackage: t.Optional(t.Number()),
+      //       })
+      //     ),
+      //     limit: t.Number(),
+      //     page: t.Number(),
+      //     total: t.Number(),
+      //   },
+      // }
     );
 };
 

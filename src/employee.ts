@@ -1,14 +1,17 @@
-import { PrismaClient } from "@prisma/client";
 import Elysia, { t } from "elysia";
-import { bankNameList, bankNameObject } from "./bankName";
+import { bankObjectSchema } from "./bankName";
+import { departmentObject } from "./department";
+import banks from "./json/banks.json";
+import { db } from ".";
+import { employeeTable } from "./db/employee";
 
-const employee = (app: Elysia, db: PrismaClient) => {
+const employee = (app: Elysia) => {
   app
     .post(
-      "/employees",
+      "/employee",
       async ({ body, error }) => {
         try {
-          db.employee.create({ data: body });
+          await db.insert(employeeTable).values(body);
           return error(200, {
             message: "Employee created successfully",
           });
@@ -22,16 +25,10 @@ const employee = (app: Elysia, db: PrismaClient) => {
           lastName: t.String(),
           nickname: t.String(),
           phoneNumber: t.String(),
-          department: t.Enum({
-            HR: "HR",
-            Accounting: "Accounting",
-            Admin: "Admin",
-            Owner: "Owner",
-            Operator: "Operator",
-          }),
+          department: t.Enum(departmentObject),
           startDate: t.Date(),
           bankAccount: t.String(),
-          bankName: t.Enum(bankNameObject),
+          bank: t.Enum(bankObjectSchema),
         }),
         response: t.Object({
           message: t.String(),
@@ -39,14 +36,15 @@ const employee = (app: Elysia, db: PrismaClient) => {
       }
     )
     .get(
-      "/employees",
+      "/employee",
       async ({ query: { page, limit } }) => {
         try {
-          const employee = await db.employee.findMany({
-            skip: (Number(page) - 1) * Number(limit),
-            take: Number(limit),
-          });
-          const total = await db.employee.count();
+          const employee = await db
+            .select()
+            .from(employeeTable)
+            .limit(Number(limit))
+            .offset((Number(page) - 1) * Number(limit));
+          const total = await db.$count(employeeTable);
           return {
             data: employee,
             limit: Number(limit),
@@ -70,16 +68,12 @@ const employee = (app: Elysia, db: PrismaClient) => {
               lastName: t.String(),
               nickname: t.String(),
               phoneNumber: t.String(),
-              department: t.Enum({
-                HR: "HR",
-                Accounting: "Accounting",
-                Admin: "Admin",
-                Owner: "Owner",
-                Operator: "Operator",
-              }),
+              department: t.Enum(departmentObject),
               startDate: t.Date(),
+              createdAt: t.Date(),
+              updatedAt: t.Date(),
               bankAccount: t.String(),
-              bankName: t.Enum(bankNameObject),
+              bank: t.Enum(bankObjectSchema),
             })
           ),
           limit: t.Number(),
@@ -88,10 +82,30 @@ const employee = (app: Elysia, db: PrismaClient) => {
         }),
       }
     )
-    .get("/bankNameList", () => {
-      return {
-        data: bankNameList,
-      };
-    });
+    .get(
+      "/bankNames",
+      () => {
+        return {
+          data: banks,
+        };
+      },
+      {
+        response: t.Object({
+          data: t.Record(
+            t.String(),
+            t.Record(
+              t.String(),
+              t.Object({
+                code: t.String(),
+                color: t.String(),
+                official_name: t.String(),
+                thai_name: t.String(),
+                nice_name: t.String(),
+              })
+            )
+          ),
+        }),
+      }
+    );
 };
 export default employee;

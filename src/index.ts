@@ -1,14 +1,16 @@
 import { Elysia } from "elysia";
 import cors from "@elysiajs/cors";
-import { PrismaClient } from "@prisma/client";
 import products from "./products";
 import orders from "./orders";
 import employee from "./employee";
 import orderDetails from "./orderDetails";
 import swagger from "@elysiajs/swagger";
+import { drizzle } from "drizzle-orm/node-postgres";
+import "dotenv/config";
 
-const db = new PrismaClient();
-const app = new Elysia()
+export const db = drizzle(process.env.DATABASE_URL!);
+// const result = await db.execute("SELECT * FROM Order");
+export const app = new Elysia()
   .use(
     swagger({
       documentation: {
@@ -21,10 +23,10 @@ const app = new Elysia()
   )
   .use(cors())
   .get("/", () => "Hello Elysia");
-products(app, db);
-orders(app, db);
-employee(app, db);
-orderDetails(app, db);
+employee(app);
+// products(app, db);
+// orders(app, db);
+// orderDetails(app, db);
 app.listen(3000, () => {
   console.log(
     `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`
