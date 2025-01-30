@@ -24,7 +24,7 @@ export const app = new Elysia()
   .use(cors())
   .get("/", () => "Hello Elysia");
 employee(app);
-// products(app, db);
+products(app);
 // orders(app, db);
 // orderDetails(app, db);
 app.listen(3000, () => {

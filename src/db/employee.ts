@@ -2,12 +2,14 @@ import {
   integer,
   pgEnum,
   pgTable,
+  text,
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { orderTable } from "./order";
 import { bankKeys } from "../bankName";
+import { v4 } from "uuid";
 
 export const attendanceTpye = pgEnum("AttendanceType", [
   "Absent",
@@ -25,20 +27,19 @@ export const departmentList = pgEnum("Department", [
 ]);
 export const banksList = pgEnum("Bank", ["none", ...bankKeys]);
 export const employeeTable = pgTable("Employee", {
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => v4()),
   firstName: varchar({ length: 256 }).notNull(),
   lastName: varchar({ length: 256 }).notNull(),
   nickname: varchar({ length: 256 }).notNull(),
-  phoneNumber: varchar({ length: 15 }).notNull(),
+  phoneNumber: varchar({ length: 10 }),
   department: departmentList().notNull(),
   startDate: timestamp().notNull(),
   createdAt: timestamp().defaultNow().notNull(),
-  updatedAt: timestamp()
-    .defaultNow()
-    .$onUpdateFn(() => new Date())
-    .notNull(),
-  bank: banksList().notNull(),
-  bankAccount: varchar({ length: 256 }).notNull(),
+  updatedAt: timestamp().defaultNow().notNull(),
+  bank: banksList(),
+  bankAccount: varchar({ length: 20 }),
 });
 
 export const employeeRelations = relations(employeeTable, ({ many }) => ({
@@ -47,16 +48,15 @@ export const employeeRelations = relations(employeeTable, ({ many }) => ({
 }));
 
 export const attendanceTable = pgTable("Attendance", {
-  id: integer().primaryKey().generatedAlwaysAsIdentity(),
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => v4()),
   employeeId: integer().notNull(),
   date: timestamp().notNull(),
   type: attendanceTpye().notNull(),
-  reason: varchar({ length: 256 }),
+  reason: text(),
   createdAt: timestamp().defaultNow().notNull(),
-  updatedAt: timestamp()
-    .defaultNow()
-    .$onUpdateFn(() => new Date())
-    .notNull(),
+  updatedAt: timestamp().defaultNow().notNull(),
 });
 export const attendanceRelations = relations(attendanceTable, ({ one }) => ({
   employee: one(employeeTable, {
@@ -64,3 +64,10 @@ export const attendanceRelations = relations(attendanceTable, ({ one }) => ({
     references: [employeeTable.id],
   }),
 }));
+
+export const tableEmployee = {
+  employee: employeeTable,
+  attendance: attendanceTable,
+} as const;
+
+export type TableEmployeeType = typeof tableEmployee;

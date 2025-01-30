@@ -1,13 +1,14 @@
-import { NodePgClient } from "drizzle-orm/node-postgres";
 import { Elysia, t } from "elysia";
+import { db } from ".";
+import { productTable } from "./db/product";
 
-const products = (app: Elysia, db: NodePgClient) => {
+const products = (app: Elysia) => {
   app
     .post(
       "/products",
-      async ({ body: { data }, error }) => {
+      async ({ body, error }) => {
         try {
-          await db.products.createMany({ data: data });
+          await db.insert(productTable).values(body.data);
           return error(200, {
             message: "Products created successfully",
           });

@@ -13,9 +13,11 @@
     "@types/lodash": "^4.17.14",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.38.3",
+    "drizzle-typebox": "^0.2.1",
     "elysia": "latest",
     "lodash": "^4.17.21",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "uuid": "^11.0.5"
   },
   "devDependencies": {
     "@types/pg": "^8.11.10",

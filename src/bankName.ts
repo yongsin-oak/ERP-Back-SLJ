@@ -2,7 +2,10 @@ import { zipObject } from "lodash";
 import banks from "./json/banks.json";
 
 export const bankKeys = Object.keys(banks.th);
-export const bankObjectSchema = zipObject(bankKeys, bankKeys);
+export const bankObjectSchema = zipObject(
+  ["none", ...bankKeys],
+  ["none", ...bankKeys]
+);
 // export const bankObjectSchema = {
 //   bbl: "bbl",
 //   kbank: "kbank",

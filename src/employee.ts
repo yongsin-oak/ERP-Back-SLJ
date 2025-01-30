@@ -3,8 +3,35 @@ import { bankObjectSchema } from "./bankName";
 import { departmentObject } from "./department";
 import banks from "./json/banks.json";
 import { db } from ".";
-import { employeeTable } from "./db/employee";
+import { employeeTable, tableEmployee } from "./db/employee";
+import { createInsertSchema } from "drizzle-typebox";
 
+const _employee = createInsertSchema(tableEmployee.employee, {
+  phoneNumber: t.Optional(
+    t.Nullable(t.String({ maxLength: 10, minLength: 10 }))
+  ),
+});
+const _employeeInsert = createInsertSchema(tableEmployee.employee, {
+  phoneNumber: t.Optional(
+    t.Nullable(
+      t.String({
+        maxLength: 10,
+        minLength: 10,
+        error: "Phone number must be 10 digits",
+      })
+    )
+  ),
+  department: t.Enum(departmentObject, { error: "Department is not valid" }),
+  bank: t.Enum(bankObjectSchema, { error: "Bank is not valid" }),
+  bankAccount: t.String({
+    maxLength: 20,
+    error: "Bank account must be less than 20 characters",
+  }),
+  firstName: t.String({ maxLength: 256, error: "First name is too long" }),
+  lastName: t.String({ maxLength: 256, error: "Last name is too long" }),
+  nickname: t.String({ maxLength: 256, error: "Nickname is too long" }),
+  startDate: t.Date({ error: "Start date is not valid" }),
+});
 const employee = (app: Elysia) => {
   app
     .post(
@@ -20,16 +47,7 @@ const employee = (app: Elysia) => {
         }
       },
       {
-        body: t.Object({
-          firstName: t.String(),
-          lastName: t.String(),
-          nickname: t.String(),
-          phoneNumber: t.String(),
-          department: t.Enum(departmentObject),
-          startDate: t.Date(),
-          bankAccount: t.String(),
-          bank: t.Enum(bankObjectSchema),
-        }),
+        body: t.Omit(_employeeInsert, ["id", "createdAt", "updatedAt"]),
         response: t.Object({
           message: t.String(),
         }),
@@ -61,21 +79,7 @@ const employee = (app: Elysia) => {
           limit: t.Number(),
         }),
         response: t.Object({
-          data: t.Array(
-            t.Object({
-              id: t.Number(),
-              firstName: t.String(),
-              lastName: t.String(),
-              nickname: t.String(),
-              phoneNumber: t.String(),
-              department: t.Enum(departmentObject),
-              startDate: t.Date(),
-              createdAt: t.Date(),
-              updatedAt: t.Date(),
-              bankAccount: t.String(),
-              bank: t.Enum(bankObjectSchema),
-            })
-          ),
+          data: t.Array(t.Omit(_employee, [])),
           limit: t.Number(),
           page: t.Number(),
           total: t.Number(),

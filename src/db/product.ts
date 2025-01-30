@@ -2,16 +2,15 @@ import {
   doublePrecision,
   integer,
   pgTable,
-  real,
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
 import { orderDetailTable } from "./order";
 import { relations } from "drizzle-orm";
 export const productTable = pgTable("Product", {
-  barcode: varchar({ length: 256 }).notNull().unique(),
-  category: varchar({ length: 256 }),
-  brand: varchar({ length: 256 }),
+  barcode: varchar({ length: 64 }).notNull().primaryKey(),
+  category: varchar({ length: 32 }),
+  brand: varchar({ length: 32 }),
   name: varchar({ length: 256 }).notNull(),
   costPrice: doublePrecision().notNull(),
   currentPrice: doublePrecision().notNull(),
@@ -22,12 +21,15 @@ export const productTable = pgTable("Product", {
   length: doublePrecision(),
   packagePerCarton: integer(),
   unitPerPackage: integer(),
-  updatedAt: timestamp()
-    .defaultNow()
-    .$onUpdateFn(() => new Date())
-    .notNull(),
+  updatedAt: timestamp().defaultNow().notNull(),
   createdAt: timestamp().defaultNow().notNull(),
 });
 export const productRelations = relations(productTable, ({ many }) => ({
   orderDetail: many(orderDetailTable),
 }));
+
+export const tableProduct = {
+  product: productTable,
+} as const;
+
+export type TableProduct = typeof tableProduct;
