@@ -4,8 +4,11 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
+import { Brand } from 'src/modules/brand/entities/brand.entity';
 
 @Entity()
 export class Product {
@@ -17,9 +20,9 @@ export class Product {
   @Column()
   name: string;
 
-  @ApiProperty()
-  @Column({ nullable: true })
-  brandId: number;
+  @ManyToOne(() => Brand, (brand) => brand.products)
+  @JoinColumn({ name: 'brand_id' })
+  brand: Brand;
 
   @ApiProperty()
   @Column({ nullable: true })
@@ -88,4 +91,5 @@ export class Product {
   @ApiProperty()
   @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
+  
 }

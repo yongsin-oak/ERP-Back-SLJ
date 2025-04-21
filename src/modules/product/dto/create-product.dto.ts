@@ -2,6 +2,7 @@
 
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Brand } from 'src/modules/brand/entities/brand.entity';
 
 export class CreateProductDto {
   @ApiProperty({ example: 'P001', description: 'Product barcode' })
@@ -17,7 +18,7 @@ export class CreateProductDto {
   @ApiProperty({ example: 1, required: false })
   @IsOptional()
   @IsNumber()
-  brandId?: number;
+  brandId?: Brand["id"];
 
   @ApiProperty({ example: 2, required: false })
   @IsOptional()
@@ -35,6 +36,8 @@ export class CreateProductDto {
   currentPrice?: number;
 
   @ApiProperty({ example: 100 })
+  @IsNotEmpty({ message: 'Remaining is required' })
+  @IsNumber()
   remaining: number;
 
   @ApiProperty({

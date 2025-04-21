@@ -11,13 +11,15 @@ import {
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
-import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import {
-  GetProductQueryDto,
-  PaginatedProductResponseDto,
-} from './dto/get-product.dto';
+  ApiBearerAuth,
+  ApiBody,
+  ApiOkResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { ProductGetAllDto } from './dto/get-product.dto';
 import { Product } from './entities/product.entity';
-import { ResponseEditProduct } from './dto/response.dto';
+import { ProductResponseAllDto, ProductResponseDto } from './dto/response.dto';
 import { Roles } from 'src/auth/role/roles.decorator';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/role/roles.guard';
@@ -34,38 +36,38 @@ export class ProductController {
   @Post()
   @ApiOkResponse({
     description: 'Create a new product',
-    type: ResponseEditProduct,
+    type: Product,
   })
   create(@Body() dto: CreateProductDto) {
-    return this.productService.insertProduct(dto);
+    return this.productService.createProduct(dto);
   }
 
   @Post('bulk')
   @ApiOkResponse({
     description: 'Create multiple products',
-    type: [ResponseEditProduct],
+    type: [Product],
   })
   @ApiBody({
     type: CreateProductDto,
     isArray: true,
   })
   createMany(@Body() dtos: CreateProductDto[]) {
-    return this.productService.insertMultipleProducts(dtos);
+    return this.productService.createMultipleProducts(dtos);
   }
 
   @Get()
   @ApiOkResponse({
     description: 'Get all products',
-    type: PaginatedProductResponseDto,
+    type: ProductResponseAllDto,
   })
-  findAll(@Query() query: GetProductQueryDto) {
+  findAll(@Query() query: ProductGetAllDto) {
     return this.productService.findProducts(query.page, query.limit);
   }
 
   @Get(':barcode')
   @ApiOkResponse({
     description: 'Get product by barcode',
-    type: Product,
+    type: ProductResponseDto,
   })
   findOne(@Param('barcode') barcode: string) {
     return this.productService.findProductByBarcode(barcode);
@@ -74,7 +76,7 @@ export class ProductController {
   @Patch(':barcode')
   @ApiOkResponse({
     description: 'Update product by barcode',
-    type: ResponseEditProduct,
+    type: Product,
   })
   update(@Param('barcode') barcode: string, @Body() dto: CreateProductDto) {
     return this.productService.updateProduct(barcode, dto);
@@ -83,7 +85,7 @@ export class ProductController {
   @Delete(':barcode')
   @ApiOkResponse({
     description: 'Delete product by barcode',
-    type: ResponseEditProduct,
+    type: Product,
   })
   remove(@Param('barcode') barcode: string) {
     return this.productService.removeProduct(barcode);

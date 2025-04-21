@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, Min } from 'class-validator';
 
-export class ProductGetAllDto {
+export class BrandGetAllDto {
   @ApiProperty({ example: 1, description: 'Page number' })
   @Type(() => Number)
   @IsInt({ message: 'Page must be an integer.' })
