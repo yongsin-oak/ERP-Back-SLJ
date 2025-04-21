@@ -18,11 +18,11 @@ export class Product {
   name: string;
 
   @ApiProperty()
-  @Column()
+  @Column({ nullable: true })
   brandId: number;
 
   @ApiProperty()
-  @Column()
+  @Column({ nullable: true })
   categoryId: number;
 
   @ApiProperty()
@@ -30,7 +30,7 @@ export class Product {
   costPrice: number;
 
   @ApiProperty()
-  @Column('decimal', { precision: 10, scale: 2 })
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
   currentPrice: number;
 
   @ApiProperty()
@@ -74,11 +74,11 @@ export class Product {
   };
 
   @ApiProperty()
-  @Column()
+  @Column({ nullable: true })
   piecesPerPack: number;
 
   @ApiProperty()
-  @Column()
+  @Column({ nullable: true })
   packPerCarton: number;
 
   @ApiProperty()

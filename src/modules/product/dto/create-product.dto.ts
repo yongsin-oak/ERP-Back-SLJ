@@ -47,6 +47,7 @@ export class CreateProductDto {
     required: false,
     description: 'Product dimensions in cm and weight in kg',
   })
+  @IsOptional()
   productDimensions: {
     length: number;
     width: number;
@@ -64,6 +65,7 @@ export class CreateProductDto {
     required: false,
     description: 'Carton dimensions in cm and weight in kg',
   })
+  @IsOptional()
   cartonDimensions: {
     length: number;
     width: number;
