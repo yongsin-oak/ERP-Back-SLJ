@@ -6,12 +6,15 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brand } from './entities/brand.entity';
 import { Repository } from 'typeorm';
-import { BrandGetAllDto } from './dto/get-brand.dto';
-import { BrandCreateDto } from './dto/create-beand.dto';
+import { BrandCreateDto } from './dto/create-brand.dto';
 import {
-  getEntityOrFail,
+  getEntityOrNotFound,
   throwIfEntityExists,
-} from 'src/helpers/entity.helper';
+} from 'src/common/helpers/entity.helper';
+import {
+  PaginatedGetAllDto,
+  PaginatedResponseDto,
+} from 'src/common/dto/paginated.dto';
 
 @Injectable()
 export class BrandService {
@@ -19,7 +22,9 @@ export class BrandService {
     @InjectRepository(Brand) private readonly brandRepo: Repository<Brand>,
   ) {}
 
-  async getAllBrands(query: BrandGetAllDto) {
+  async getAllBrands(
+    query: PaginatedGetAllDto,
+  ): Promise<PaginatedResponseDto<Brand>> {
     const { page, limit } = query;
     const skip = (page - 1) * limit;
     const take = limit;
@@ -28,30 +33,38 @@ export class BrandService {
       take,
     });
     return {
-      brands,
+      data: brands,
       total,
       page,
       limit,
     };
   }
 
-  async getBrandById(id: number) {
-    const brand = await getEntityOrFail(
-      this.brandRepo,
-      { where: { id } },
-      'Brand',
-    );
-    return brand;
-  }
-
-  async createBrand(name: string, description?: string) {
+  async brandThrowExists(name: string): Promise<void> {
     await throwIfEntityExists(
       this.brandRepo,
       {
         where: { name },
       },
-      'Brand',
+      `Brand ${name}`,
     );
+  }
+
+  async brandGetEntityOrNotFound(id: number): Promise<Brand> {
+    return await getEntityOrNotFound(
+      this.brandRepo,
+      { where: { id } },
+      `Brand ${id}`,
+    );
+  }
+
+  async getBrandById(id: number): Promise<Brand> {
+    const brand = await this.brandGetEntityOrNotFound(id);
+    return brand;
+  }
+
+  async createBrand(name: string, description?: string): Promise<Brand> {
+    await this.brandThrowExists(name);
     const brand = this.brandRepo.create({ name, description });
     return this.brandRepo.save(brand);
   }
@@ -60,13 +73,7 @@ export class BrandService {
     const brands: Brand[] = [];
 
     for (const dto of dtos) {
-      await throwIfEntityExists(
-        this.brandRepo,
-        {
-          where: { name: dto.name },
-        },
-        'Brand',
-      );
+      await this.brandThrowExists(dto.name);
 
       brands.push(this.brandRepo.create(dto));
     }
@@ -74,13 +81,17 @@ export class BrandService {
     return this.brandRepo.save(brands);
   }
 
-  async updateBrand(id: number, name: string, description?: string) {
-    await getEntityOrFail(this.brandRepo, { where: { id } }, 'Brand');
+  async updateBrand(
+    id: number,
+    name: string,
+    description?: string,
+  ): Promise<Brand> {
+    await getEntityOrNotFound(this.brandRepo, { where: { id } }, 'Brand');
     await this.brandRepo.update(id, { name, description });
     return this.getBrandById(id);
   }
 
-  async deleteBrand(id: number) {
+  async deleteBrand(id: number): Promise<Brand> {
     const brand = await this.getBrandById(id);
     await this.brandRepo.delete(id);
     return brand;

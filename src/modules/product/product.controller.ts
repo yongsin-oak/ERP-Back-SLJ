@@ -10,20 +10,25 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
-import { CreateProductDto } from './dto/create-product.dto';
+import { ProductCreateDto } from './dto/create-product.dto';
 import {
   ApiBearerAuth,
   ApiBody,
   ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { ProductGetAllDto } from './dto/get-product.dto';
 import { Product } from './entities/product.entity';
-import { ProductResponseAllDto, ProductResponseDto } from './dto/response.dto';
+import { ProductResponseDto } from './dto/response.dto';
 import { Roles } from 'src/auth/role/roles.decorator';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/role/roles.guard';
 import { Role } from 'src/auth/role/role.enum';
+import { ProductUpdateDto } from './dto/update-product.dto';
+import {
+  PaginatedGetAllDto,
+  PaginatedResponseDto,
+} from 'src/common/dto/paginated.dto';
+import { ApiOkResponsePaginated } from 'src/common/decorator/paginated.decorator';
 
 @ApiTags('Products')
 @ApiBearerAuth()
@@ -38,7 +43,7 @@ export class ProductController {
     description: 'Create a new product',
     type: Product,
   })
-  create(@Body() dto: CreateProductDto) {
+  create(@Body() dto: ProductCreateDto) {
     return this.productService.createProduct(dto);
   }
 
@@ -48,19 +53,18 @@ export class ProductController {
     type: [Product],
   })
   @ApiBody({
-    type: CreateProductDto,
+    type: ProductCreateDto,
     isArray: true,
   })
-  createMany(@Body() dtos: CreateProductDto[]) {
+  createMany(@Body() dtos: ProductCreateDto[]) {
     return this.productService.createMultipleProducts(dtos);
   }
 
   @Get()
-  @ApiOkResponse({
-    description: 'Get all products',
-    type: ProductResponseAllDto,
-  })
-  findAll(@Query() query: ProductGetAllDto) {
+  @ApiOkResponsePaginated(ProductResponseDto)
+  findAll(
+    @Query() query: PaginatedGetAllDto,
+  ): Promise<PaginatedResponseDto<ProductResponseDto>> {
     return this.productService.findProducts(query.page, query.limit);
   }
 
@@ -78,7 +82,7 @@ export class ProductController {
     description: 'Update product by barcode',
     type: Product,
   })
-  update(@Param('barcode') barcode: string, @Body() dto: CreateProductDto) {
+  update(@Param('barcode') barcode: string, @Body() dto: ProductUpdateDto) {
     return this.productService.updateProduct(barcode, dto);
   }
 

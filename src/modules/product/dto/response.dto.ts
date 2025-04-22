@@ -1,7 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ProductGetAllDto as ProductGetAllDto } from './get-product.dto';
-import { Product } from '../entities/product.entity';
-
 export class ProductResponseDto {
   @ApiProperty()
   barcode: string;
@@ -24,7 +21,16 @@ export class ProductResponseDto {
   @ApiProperty()
   remaining: number;
 
-  @ApiProperty()
+  @ApiProperty({
+    example: {
+      length: 0,
+      width: 0,
+      height: 0,
+      weight: 0,
+    },
+    required: false,
+    description: 'Product dimensions in cm and weight in kg',
+  })
   productDimensions: {
     length: number;
     width: number;
@@ -32,7 +38,16 @@ export class ProductResponseDto {
     weight: number;
   };
 
-  @ApiProperty()
+  @ApiProperty({
+    example: {
+      length: 0,
+      width: 0,
+      height: 0,
+      weight: 0,
+    },
+    required: false,
+    description: 'Carton dimensions in cm and weight in kg',
+  })
   cartonDimensions: {
     length: number;
     width: number;
@@ -51,11 +66,4 @@ export class ProductResponseDto {
 
   @ApiProperty()
   updatedAt: Date;
-}
-export class ProductResponseAllDto extends ProductGetAllDto {
-  @ApiProperty({ example: 100, description: 'Total number of items' })
-  total: number;
-  
-  @ApiProperty({ type: ProductResponseDto, isArray: true })
-  data: ProductResponseDto[];
 }

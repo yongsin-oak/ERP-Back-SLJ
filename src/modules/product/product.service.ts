@@ -3,15 +3,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateProductDto } from './dto/create-product.dto';
+import { ProductCreateDto } from './dto/create-product.dto';
 import { Product } from './entities/product.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ProductResponseAllDto, ProductResponseDto } from './dto/response.dto';
+import { ProductResponseDto } from './dto/response.dto';
 import {
-  getEntityOrFail,
+  getEntityOrNotFound,
   throwIfEntityExists,
-} from 'src/helpers/entity.helper';
+} from 'src/common/helpers/entity.helper';
+import { PaginatedResponseDto } from 'src/common/dto/paginated.dto';
 
 @Injectable()
 export class ProductService {
@@ -19,34 +20,38 @@ export class ProductService {
     @InjectRepository(Product)
     private readonly productRepo: Repository<Product>,
   ) {}
-  async createProduct(data: CreateProductDto): Promise<Product> {
+
+  async productGetEntityOrFail(barcode: string): Promise<Product> {
+    return await getEntityOrNotFound(
+      this.productRepo,
+      { where: { barcode } },
+      `barcode ${barcode}`,
+    );
+  }
+
+  async productThrowIfEntityExists(barcode: string): Promise<void> {
     await throwIfEntityExists(
       this.productRepo,
       {
         where: {
-          barcode: data.barcode,
+          barcode,
         },
       },
-      'Product',
+      `barcode ${barcode}`,
     );
+  }
+
+  async createProduct(data: ProductCreateDto): Promise<Product> {
+    await this.productThrowIfEntityExists(data.barcode);
     const newProduct = this.productRepo.create(data);
     return this.productRepo.save(newProduct);
   }
 
-  async createMultipleProducts(dtos: CreateProductDto[]) {
+  async createMultipleProducts(dtos: ProductCreateDto[]) {
     const products: Product[] = [];
 
     for (const dto of dtos) {
-      await throwIfEntityExists(
-        this.productRepo,
-        {
-          where: {
-            barcode: dto.barcode,
-          },
-        },
-        'Product',
-      );
-
+      await this.productThrowIfEntityExists(dto.barcode);
       products.push(this.productRepo.create(dto));
     }
 
@@ -56,7 +61,7 @@ export class ProductService {
   async findProducts(
     page: number,
     limit: number,
-  ): Promise<ProductResponseAllDto> {
+  ): Promise<PaginatedResponseDto<ProductResponseDto>> {
     const skip = (page - 1) * limit;
     const take = limit;
     const products = await this.productRepo.find({
@@ -79,7 +84,7 @@ export class ProductService {
   }
 
   async findProductByBarcode(barcode: string): Promise<ProductResponseDto> {
-    const product = await getEntityOrFail(
+    const product = await getEntityOrNotFound(
       this.productRepo,
       { where: { barcode }, relations: ['brand'] },
       'Product',
@@ -92,23 +97,15 @@ export class ProductService {
 
   async updateProduct(
     barcode: string,
-    dto: CreateProductDto | Partial<CreateProductDto>,
+    dto: ProductCreateDto | Partial<ProductCreateDto>,
   ): Promise<Product> {
-    const product = await getEntityOrFail(
-      this.productRepo,
-      { where: { barcode } },
-      'Product',
-    );
+    const product = await this.productGetEntityOrFail(barcode);
     await this.productRepo.update(barcode, dto);
     return product;
   }
 
   async removeProduct(barcode: string): Promise<Product> {
-    const product = await getEntityOrFail(
-      this.productRepo,
-      { where: { barcode } },
-      'Product',
-    );
+    const product = await this.productGetEntityOrFail(barcode);
     await this.productRepo.remove(product);
     return product;
   }

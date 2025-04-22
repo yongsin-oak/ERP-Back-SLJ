@@ -4,7 +4,7 @@ import { FindOneOptions, Repository } from 'typeorm';
 /**
  * เช็คว่า entity มีอยู่ไหม ถ้าไม่มีจะ throw NotFoundException
  */
-export async function getEntityOrFail<T>(
+export async function getEntityOrNotFound<T>(
   repo: Repository<T>,
   options: FindOneOptions<T>,
   entityName: string,

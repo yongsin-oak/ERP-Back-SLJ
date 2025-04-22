@@ -1,12 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, Min } from 'class-validator';
+import { IsArray, IsInt, Min } from 'class-validator';
 
-export class ProductGetAllDto {
+export class PaginatedGetAllDto {
   @ApiProperty({ example: 1, description: 'Page number' })
-  @Type(() => Number)
-  @IsInt({ message: 'Page must be an integer.' })
-  @Min(1, { message: 'Page must be at least 1.' })
   @Type(() => Number)
   @IsInt({ message: 'Page must be an integer.' })
   @Min(1, { message: 'Page must be at least 1.' })
@@ -17,4 +14,13 @@ export class ProductGetAllDto {
   @IsInt({ message: 'Limit must be an integer.' })
   @Min(1, { message: 'Limit must be at least 1.' })
   limit: number;
+}
+
+export class PaginatedResponseDto<T> extends PaginatedGetAllDto {
+  @IsArray()
+  @ApiProperty({ isArray: true })
+  data: T[];
+
+  @ApiProperty({ example: 100, description: 'Total number of items' })
+  total: number;
 }
