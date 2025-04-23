@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { Brand } from 'src/modules/brand/entities/brand.entity';
+import { Category } from 'src/modules/category/entities/category.entity';
 
 @Entity()
 export class Product {
@@ -20,13 +21,19 @@ export class Product {
   @Column()
   name: string;
 
-  @ManyToOne(() => Brand, (brand) => brand.products)
-  @JoinColumn({ name: 'brand_id' })
+  @ApiProperty()
+  @ManyToOne(() => Brand, (brand) => brand.products, {
+    nullable: true,
+  })
+  @JoinColumn({ name: 'brandId' })
   brand: Brand;
 
   @ApiProperty()
-  @Column({ nullable: true })
-  categoryId: number;
+  @ManyToOne(() => Category, (category) => category.products, {
+    nullable: true,
+  })
+  @JoinColumn({ name: 'categoryId' })
+  category: Category;
 
   @ApiProperty()
   @Column('decimal', { precision: 10, scale: 2 })
@@ -91,5 +98,4 @@ export class Product {
   @ApiProperty()
   @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
-  
 }

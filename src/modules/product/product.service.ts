@@ -64,17 +64,20 @@ export class ProductService {
   ): Promise<PaginatedResponseDto<ProductResponseDto>> {
     const skip = (page - 1) * limit;
     const take = limit;
-    const products = await this.productRepo.find({
+    const [products, total] = await this.productRepo.findAndCount({
       skip,
       take,
-      relations: ['brand'],
+      relations: ['brand', 'category'],
     });
-    const total = await this.productRepo.count();
     return {
       data: products.map((product) => {
+        const categoryName = product?.category?.name ?? null;
+        const brandName = product?.brand?.name ?? null;
+        const { category, brand, ...filteredProduct } = product;
         return {
-          ...product,
-          brand: product.brand.name,
+          ...filteredProduct,
+          categoryName,
+          brandName,
         };
       }),
       total,
@@ -83,16 +86,13 @@ export class ProductService {
     };
   }
 
-  async findProductByBarcode(barcode: string): Promise<ProductResponseDto> {
+  async findProductByBarcode(barcode: string): Promise<Product> {
     const product = await getEntityOrNotFound(
       this.productRepo,
-      { where: { barcode }, relations: ['brand'] },
+      { where: { barcode }, relations: ['brand', 'category'] },
       'Product',
     );
-    return {
-      ...product,
-      brand: product.brand.name,
-    };
+    return product;
   }
 
   async updateProduct(

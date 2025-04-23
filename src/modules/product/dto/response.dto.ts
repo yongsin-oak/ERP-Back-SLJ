@@ -7,10 +7,10 @@ export class ProductResponseDto {
   name: string;
 
   @ApiProperty()
-  brand: string;
+  brandName: string;
 
   @ApiProperty()
-  categoryId: number;
+  categoryName: string;
 
   @ApiProperty()
   costPrice: number;

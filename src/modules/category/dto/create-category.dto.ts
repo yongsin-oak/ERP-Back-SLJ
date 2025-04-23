@@ -11,5 +11,12 @@ export class CategoryCreateDto {
 
   @ApiProperty()
   @IsOptional()
-  parentId?: string;
+  description?: string;
+
+  @ApiProperty({
+    description: 'Parent category ID',
+    example: 1,
+  })
+  @IsOptional()
+  parentId?: number;
 }

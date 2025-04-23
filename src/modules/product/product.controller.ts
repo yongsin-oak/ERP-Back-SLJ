@@ -71,7 +71,7 @@ export class ProductController {
   @Get(':barcode')
   @ApiOkResponse({
     description: 'Get product by barcode',
-    type: ProductResponseDto,
+    type: Product,
   })
   findOne(@Param('barcode') barcode: string) {
     return this.productService.findProductByBarcode(barcode);

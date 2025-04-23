@@ -18,7 +18,7 @@ export class ProductCreateDto {
   @ApiProperty({ example: 1, required: false })
   @IsOptional()
   @IsNumber()
-  brandId?: Brand["id"];
+  brandId?: number;
 
   @ApiProperty({ example: 2, required: false })
   @IsOptional()

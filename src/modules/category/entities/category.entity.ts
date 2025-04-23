@@ -4,13 +4,15 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
 @Entity()
-export class Brand {
+export class Category {
   @ApiProperty({
     example: 1,
   })
@@ -21,11 +23,29 @@ export class Brand {
   @Column({ unique: true })
   name: string;
 
+  @ManyToOne(() => Category, (category) => category.children, {
+    nullable: true,
+  })
+  @JoinColumn({ name: 'parentId' })
+  @ApiProperty({ type: () => Category, nullable: true })
+  parent?: Category;
+
+  @Column({ nullable: true })
+  @ApiProperty({ nullable: true, example: 3 })
+  parentId?: number;
+
+  @OneToMany(() => Category, (category) => category.parent, {
+    nullable: true,
+  })
+  @JoinColumn({ name: 'parentId' })
+  @ApiProperty({ type: () => Category, isArray: true, nullable: true })
+  children?: Category[];
+
   @ApiProperty()
   @Column({ nullable: true })
-  description: string;
+  description?: string;
 
-  @OneToMany(() => Product, (product) => product.brand, {
+  @OneToMany(() => Product, (product) => product.category, {
     nullable: true,
   })
   products: Product[];
