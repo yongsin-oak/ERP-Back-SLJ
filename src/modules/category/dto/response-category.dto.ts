@@ -36,8 +36,8 @@ export class CategoryResponseWithChildrenDto {
   @ApiProperty()
   updatedAt: Date;
 
-  @ApiProperty({ type: () => CategoryResponseWithChildrenDto, isArray: true })
-  children?: CategoryResponseWithChildrenDto[];
+  @ApiProperty({ type: () => CategoryResponseDto, isArray: true })
+  children?: CategoryResponseDto[];
 }
 
 export class CategoryResponseWithParentDto {
