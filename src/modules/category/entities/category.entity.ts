@@ -37,7 +37,7 @@ export class Category {
   @OneToMany(() => Category, (category) => category.parent, {
     nullable: true,
   })
-  @JoinColumn({ name: 'parentId' })
+  @JoinColumn({ name: 'childrenId' })
   @ApiProperty({ type: () => Category, isArray: true, nullable: true })
   children?: Category[];
 

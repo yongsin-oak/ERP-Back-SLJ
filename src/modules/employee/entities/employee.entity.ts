@@ -9,22 +9,34 @@ import {
 } from 'typeorm';
 
 @Entity()
-export class Shop {
+export class Employee {
   @ApiProperty()
   @PrimaryGeneratedColumn()
   id: number;
 
   @ApiProperty()
-  @Column({ unique: true })
-  name: string;
-
-  @ApiProperty()
-  @Column({ nullable: true })
-  description?: string;
+  @Column()
+  firstName: string;
 
   @ApiProperty()
   @Column()
-  platform: string;
+  lastName: string;
+
+  @ApiProperty()
+  @Column()
+  nickname: string;
+
+  @ApiProperty()
+  @Column({ nullable: true })
+  phoneNumber?: string;
+
+  @ApiProperty()
+  @Column({ nullable: true })
+  startDate?: Date;
+
+  @ApiProperty()
+  @Column()
+  department: string;
 
   @ApiProperty()
   @CreateDateColumn({ type: 'timestamp' })

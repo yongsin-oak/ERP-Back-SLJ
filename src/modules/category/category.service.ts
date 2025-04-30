@@ -111,11 +111,16 @@ export class CategoryService {
   }
 
   async findOne(id: number): Promise<Category> {
-    const category = await getEntityOrNotFound(
-      this.categoryRepository,
-      { where: { id }, relations: ['parent', 'children'] },
-      `Category ${id}`,
-    );
+    // const category = await getEntityOrNotFound(
+    //   this.categoryRepository,
+    //   { where: { id }, relations: ['parent', 'children'] },
+    //   `Category ${id}`,
+    // );
+    const category = await this.categoryRepository.findOneOrFail({
+      where: { id },
+      relations: ['parent', 'parent'],
+    });
+    console.log(category);
     return category;
   }
 
