@@ -28,6 +28,9 @@ export class CategoryResponseWithChildrenDto {
   name: string;
 
   @ApiProperty()
+  parentId?: number;
+
+  @ApiProperty()
   description?: string;
 
   @ApiProperty()

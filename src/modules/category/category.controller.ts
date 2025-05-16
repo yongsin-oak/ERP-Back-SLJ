@@ -58,9 +58,11 @@ export class CategoryController {
   @Get(':id')
   @ApiOkResponse({
     description: 'Get category by ID',
-    type: Category,
+    type: CategoryResponseWithChildrenDto,
   })
-  async getCategoryById(@Param('id') id: number): Promise<Category> {
+  async getCategoryById(
+    @Param('id') id: number,
+  ): Promise<CategoryResponseWithChildrenDto> {
     return this.categoryservice.findOne(id);
   }
 

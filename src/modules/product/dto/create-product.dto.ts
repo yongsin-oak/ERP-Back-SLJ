@@ -2,7 +2,6 @@
 
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
-import { Brand } from 'src/modules/brand/entities/brand.entity';
 
 export class ProductCreateDto {
   @ApiProperty({ example: 'P001', description: 'Product barcode' })

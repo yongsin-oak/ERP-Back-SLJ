@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsArray } from 'class-validator';
 import { Product } from 'src/modules/product/entities/product.entity';
 import {
   Column,
@@ -10,6 +11,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { CategoryResponseDto } from '../dto/response-category.dto';
 
 @Entity()
 export class Category {
@@ -27,7 +29,6 @@ export class Category {
     nullable: true,
   })
   @JoinColumn({ name: 'parentId' })
-  @ApiProperty({ type: () => Category, nullable: true })
   parent?: Category;
 
   @Column({ nullable: true })
@@ -37,9 +38,13 @@ export class Category {
   @OneToMany(() => Category, (category) => category.parent, {
     nullable: true,
   })
-  @JoinColumn({ name: 'childrenId' })
-  @ApiProperty({ type: () => Category, isArray: true, nullable: true })
+  @JoinColumn({ name: 'childrenId', referencedColumnName: 'id' })
   children?: Category[];
+
+  @IsArray()
+  @ApiProperty({ nullable: true, isArray: true, example: [1, 2, 3] })
+  @Column('int', { array: true, nullable: true })
+  childrenId?: number[];
 
   @ApiProperty()
   @Column({ nullable: true })

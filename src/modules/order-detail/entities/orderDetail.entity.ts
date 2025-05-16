@@ -7,11 +7,9 @@ export class OrderDetail {
 
   orderId: number;
 
-  productId: number;
+  productBarcode: number;
 
   quantity: number;
-
-  price: number;
 
   createdAt: Date;
 
