@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Platform } from './platform.enum';
 
 @Entity()
 export class Shop {
@@ -23,7 +24,7 @@ export class Shop {
 
   @ApiProperty()
   @Column()
-  platform: string;
+  platform: Platform;
 
   @ApiProperty()
   @CreateDateColumn({ type: 'timestamp' })

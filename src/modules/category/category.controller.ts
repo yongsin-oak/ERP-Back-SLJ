@@ -7,28 +7,33 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOkResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiOkResponsePaginated } from 'src/common/decorator/paginated.decorator';
+import { PaginatedResponseDto } from 'src/common/dto/paginated.dto';
 import { CategoryService } from './category.service';
 import { CategoryCreateDto } from './dto/create-category.dto';
-import { Category } from './entities/category.entity';
-import { ApiOkResponse, ApiQuery } from '@nestjs/swagger';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from 'src/common/dto/paginated.dto';
-import { ApiOkResponsePaginated } from 'src/common/decorator/paginated.decorator';
 import { CategoryGetDto } from './dto/get-category.dto';
 import {
   CategoryResponseDto,
   CategoryResponseWithChildrenDto,
   CategoryResponseWithParentDto,
 } from './dto/response-category.dto';
+import { Category } from './entities/category.entity';
+import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
+import { RolesGuard } from 'src/auth/role/roles.guard';
+import { Roles } from 'src/auth/role/roles.decorator';
+import { Role } from 'src/auth/role/role.enum';
 
 @Controller('category')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class CategoryController {
   constructor(private readonly categoryservice: CategoryService) {}
 
   @Post()
+  @Roles(Role.SuperAdmin)
   @ApiOkResponse({
     description: 'Create a new category',
     type: Category,
@@ -38,6 +43,7 @@ export class CategoryController {
   }
 
   @Get()
+  @Roles('*')
   @ApiOkResponsePaginated(CategoryResponseDto)
   async getAllCategories(
     @Query() query: CategoryGetDto,
@@ -46,6 +52,7 @@ export class CategoryController {
   }
 
   @Get('tree')
+  @Roles('*')
   @ApiOkResponse({
     description: 'Get all categories as a tree structure',
     type: CategoryResponseWithChildrenDto,
@@ -56,6 +63,7 @@ export class CategoryController {
   }
 
   @Get(':id')
+  @Roles('*')
   @ApiOkResponse({
     description: 'Get category by ID',
     type: CategoryResponseWithChildrenDto,
@@ -67,6 +75,7 @@ export class CategoryController {
   }
 
   @Patch(':id')
+  @Roles(Role.SuperAdmin)
   @ApiOkResponse({
     description: 'Update category by ID',
     type: CategoryResponseWithParentDto,
@@ -79,6 +88,7 @@ export class CategoryController {
   }
 
   @Delete(':id')
+  @Roles(Role.SuperAdmin)
   @ApiOkResponse({
     description: 'Delete category by ID',
     type: CategoryResponseWithChildrenDto,

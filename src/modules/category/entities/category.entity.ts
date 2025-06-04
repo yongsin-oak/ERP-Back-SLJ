@@ -11,7 +11,6 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { CategoryResponseDto } from '../dto/response-category.dto';
 
 @Entity()
 export class Category {

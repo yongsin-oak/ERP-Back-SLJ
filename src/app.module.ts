@@ -12,6 +12,10 @@ import { BrandModule } from './modules/brand/brand.module';
 import { BrandController } from './modules/brand/brand.controller';
 import { CategoryController } from './modules/category/category.controller';
 import { CategoryModule } from './modules/category/category.module';
+import { EmployeeModule } from './modules/employee/employee.module';
+import { EmployeeController } from './modules/employee/employee.controller';
+import { ShopModule } from './modules/shop/shop.module';
+import { ShopController } from './modules/shop/shop.controller';
 
 @Module({
   imports: [
@@ -23,6 +27,8 @@ import { CategoryModule } from './modules/category/category.module';
     ProductModule,
     BrandModule,
     CategoryModule,
+    EmployeeModule,
+    ShopModule,
   ],
   controllers: [
     AppController,
@@ -30,6 +36,8 @@ import { CategoryModule } from './modules/category/category.module';
     ProductController,
     BrandController,
     CategoryController,
+    EmployeeController,
+    ShopController,
   ],
   providers: [AppService],
 })

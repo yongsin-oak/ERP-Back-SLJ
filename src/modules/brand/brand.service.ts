@@ -22,24 +22,6 @@ export class BrandService {
     @InjectRepository(Brand) private readonly brandRepo: Repository<Brand>,
   ) {}
 
-  async getAllBrands(
-    query: PaginatedGetAllDto,
-  ): Promise<PaginatedResponseDto<Brand>> {
-    const { page, limit } = query;
-    const skip = (page - 1) * limit;
-    const take = limit;
-    const [brands, total] = await this.brandRepo.findAndCount({
-      skip,
-      take,
-    });
-    return {
-      data: brands,
-      total,
-      page,
-      limit,
-    };
-  }
-
   async brandThrowExists(name: string): Promise<void> {
     await throwIfEntityExists(
       this.brandRepo,
@@ -58,18 +40,36 @@ export class BrandService {
     );
   }
 
-  async getBrandById(id: number): Promise<Brand> {
+  async findAll(
+    query: PaginatedGetAllDto,
+  ): Promise<PaginatedResponseDto<Brand>> {
+    const { page, limit } = query;
+    const skip = (page - 1) * limit;
+    const take = limit;
+    const [brands, total] = await this.brandRepo.findAndCount({
+      skip,
+      take,
+    });
+    return {
+      data: brands,
+      total,
+      page,
+      limit,
+    };
+  }
+
+  async findOne(id: number): Promise<Brand> {
     const brand = await this.brandGetEntityOrNotFound(id);
     return brand;
   }
 
-  async createBrand(name: string, description?: string): Promise<Brand> {
+  async create(name: string, description?: string): Promise<Brand> {
     await this.brandThrowExists(name);
     const brand = this.brandRepo.create({ name, description });
     return this.brandRepo.save(brand);
   }
 
-  async createMultipleBrand(dtos: BrandCreateDto[]) {
+  async createMultiple(dtos: BrandCreateDto[]) {
     const brands: Brand[] = [];
 
     for (const dto of dtos) {
@@ -81,18 +81,14 @@ export class BrandService {
     return this.brandRepo.save(brands);
   }
 
-  async updateBrand(
-    id: number,
-    name: string,
-    description?: string,
-  ): Promise<Brand> {
-    await getEntityOrNotFound(this.brandRepo, { where: { id } }, 'Brand');
+  async update(id: number, name: string, description?: string): Promise<Brand> {
+    await this.brandGetEntityOrNotFound(id);
     await this.brandRepo.update(id, { name, description });
-    return this.getBrandById(id);
+    return this.findOne(id);
   }
 
-  async deleteBrand(id: number): Promise<Brand> {
-    const brand = await this.getBrandById(id);
+  async remove(id: number): Promise<Brand> {
+    const brand = await this.findOne(id);
     await this.brandRepo.delete(id);
     return brand;
   }

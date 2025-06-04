@@ -41,15 +41,15 @@ export class ProductService {
     );
   }
 
-  async createProduct(data: ProductCreateDto): Promise<Product> {
+  async creat(data: ProductCreateDto): Promise<Product> {
     await this.productThrowIfEntityExists(data.barcode);
     const newProduct = this.productRepo.create(data);
     return this.productRepo.save(newProduct);
   }
 
-  async createMultipleProducts(dtos: ProductCreateDto[]) {
+  async createMultiple(dtos: ProductCreateDto[]) {
     const products: Product[] = [];
-
+    console.log(products);
     for (const dto of dtos) {
       await this.productThrowIfEntityExists(dto.barcode);
       products.push(this.productRepo.create(dto));
@@ -58,7 +58,7 @@ export class ProductService {
     return this.productRepo.save(products);
   }
 
-  async findProducts(
+  async findAll(
     page: number,
     limit: number,
   ): Promise<PaginatedResponseDto<ProductResponseDto>> {
@@ -86,7 +86,7 @@ export class ProductService {
     };
   }
 
-  async findProductByBarcode(barcode: string): Promise<Product> {
+  async findOne(barcode: string): Promise<Product> {
     const product = await getEntityOrNotFound(
       this.productRepo,
       { where: { barcode }, relations: ['brand', 'category'] },
@@ -95,7 +95,7 @@ export class ProductService {
     return product;
   }
 
-  async updateProduct(
+  async update(
     barcode: string,
     dto: ProductCreateDto | Partial<ProductCreateDto>,
   ): Promise<Product> {
@@ -104,7 +104,7 @@ export class ProductService {
     return product;
   }
 
-  async removeProduct(barcode: string): Promise<Product> {
+  async remove(barcode: string): Promise<Product> {
     const product = await this.productGetEntityOrFail(barcode);
     await this.productRepo.remove(product);
     return product;

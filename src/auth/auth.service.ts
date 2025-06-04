@@ -6,6 +6,7 @@ import { User } from './user/user.entity';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AuthPayloadDto } from './dto/auth.dto';
+import { Role } from './role/role.enum';
 
 @Injectable()
 export class AuthService {
@@ -24,10 +25,16 @@ export class AuthService {
     throw new UnauthorizedException('Invalid password');
   }
 
-  async login(user: any) {
+  async login(user: {
+    id: number;
+    username: string;
+    role: Role;
+  }): Promise<{ token: string; role: string; username: string }> {
     const payload = { username: user.username, sub: user.id, role: user.role };
     return {
       token: this.jwtService.sign(payload),
+      role: user.role,
+      username: user.username,
     };
   }
 

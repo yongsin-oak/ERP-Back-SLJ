@@ -33,20 +33,21 @@ import { ApiOkResponsePaginated } from 'src/common/decorator/paginated.decorator
 @ApiTags('Products')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.SuperAdmin, Role.Operator)
 @Controller('products')
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
+  @Roles(Role.SuperAdmin)
   @Post()
   @ApiOkResponse({
     description: 'Create a new product',
     type: Product,
   })
   create(@Body() dto: ProductCreateDto) {
-    return this.productService.createProduct(dto);
+    return this.productService.creat(dto);
   }
 
+  @Roles(Role.SuperAdmin)
   @Post('bulk')
   @ApiOkResponse({
     description: 'Create multiple products',
@@ -57,41 +58,45 @@ export class ProductController {
     isArray: true,
   })
   createMany(@Body() dtos: ProductCreateDto[]) {
-    return this.productService.createMultipleProducts(dtos);
+    return this.productService.createMultiple(dtos);
   }
 
+  @Roles('*')
   @Get()
   @ApiOkResponsePaginated(ProductResponseDto)
   findAll(
     @Query() query: PaginatedGetAllDto,
   ): Promise<PaginatedResponseDto<ProductResponseDto>> {
-    return this.productService.findProducts(query.page, query.limit);
+    return this.productService.findAll(query.page, query.limit);
   }
 
+  @Roles('*')
   @Get(':barcode')
   @ApiOkResponse({
     description: 'Get product by barcode',
     type: Product,
   })
   findOne(@Param('barcode') barcode: string) {
-    return this.productService.findProductByBarcode(barcode);
+    return this.productService.findOne(barcode);
   }
 
+  @Roles(Role.SuperAdmin)
   @Patch(':barcode')
   @ApiOkResponse({
     description: 'Update product by barcode',
     type: Product,
   })
   update(@Param('barcode') barcode: string, @Body() dto: ProductUpdateDto) {
-    return this.productService.updateProduct(barcode, dto);
+    return this.productService.update(barcode, dto);
   }
 
+  @Roles(Role.SuperAdmin)
   @Delete(':barcode')
   @ApiOkResponse({
     description: 'Delete product by barcode',
     type: Product,
   })
   remove(@Param('barcode') barcode: string) {
-    return this.productService.removeProduct(barcode);
+    return this.productService.remove(barcode);
   }
 }

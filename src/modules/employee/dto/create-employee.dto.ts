@@ -1,22 +1,42 @@
 import { ApiProperty } from '@nestjs/swagger';
+import {
+  IsDate,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import { Role } from 'src/auth/role/role.enum';
 
 export class EmployeeCreateDto {
   @ApiProperty({
     example: 'John',
     description: 'First name of the employee',
   })
+  @IsNotEmpty({
+    message: 'First name is required',
+  })
+  @IsString()
   firstName: string;
 
   @ApiProperty({
     example: 'Doe',
     description: 'Last name of the employee',
   })
+  @IsNotEmpty({
+    message: 'Last name is required',
+  })
+  @IsString()
   lastName: string;
 
   @ApiProperty({
     example: 'Johnny',
     description: 'Nickname of the employee',
   })
+  @IsNotEmpty({
+    message: 'Nickname is required',
+  })
+  @IsString()
   nickname: string;
 
   @ApiProperty({
@@ -24,6 +44,8 @@ export class EmployeeCreateDto {
     description: 'Phone number of the employee',
     required: false,
   })
+  @IsOptional()
+  @IsString()
   phoneNumber?: string;
 
   @ApiProperty({
@@ -33,11 +55,18 @@ export class EmployeeCreateDto {
     format: 'date-time',
     required: false,
   })
+  @IsOptional()
   startDate?: Date;
 
   @ApiProperty({
-    example: 'Sales',
+    example: Role.Operator,
     description: 'Department of the employee',
   })
-  department: string;
+  @IsNotEmpty({
+    message: 'Department is required',
+  })
+  @IsEnum(Role, {
+    message: 'Department must be one of the predefined roles',
+  })
+  department: Role;
 }

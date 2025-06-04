@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Role } from 'src/auth/role/role.enum';
 import {
   Column,
   CreateDateColumn,
@@ -35,7 +36,7 @@ export class Employee {
 
   @ApiProperty()
   @Column()
-  department: string;
+  department: Role;
 
   @ApiProperty()
   @CreateDateColumn({ type: 'timestamp' })

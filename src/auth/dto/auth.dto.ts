@@ -4,14 +4,14 @@ import { Role } from '../role/role.enum';
 
 export class AuthPayloadDto {
   @ApiProperty({ example: 'admin', description: 'Username for authentication' })
-  @IsNotEmpty({ message: 'Username is required' })
+  @IsNotEmpty({ message: 'username is required' })
   username: string;
 
   @ApiProperty({
     example: 'password123',
     description: 'Password for authentication',
   })
-  @IsNotEmpty({ message: 'Password is required' })
+  @IsNotEmpty({ message: 'password is required' })
   password: string;
 }
 
