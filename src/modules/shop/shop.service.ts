@@ -64,8 +64,8 @@ export class ShopService {
   async create(data: ShopCreateDto): Promise<ShopResponseDto> {
     await throwIfEntityExists(
       this.shopRepo,
-      { where: { name: data.name } },
-      `Shop with name ${data.name}`,
+      { where: { name: data.name, platform: data.platform } },
+      `Shop with name "${data.name}" and platform "${data.platform}" already exists`,
     );
     const shop = this.shopRepo.create(data);
     return this.shopRepo.save(shop);
@@ -76,6 +76,11 @@ export class ShopService {
     data: Partial<ShopUpdateDto>,
   ): Promise<ShopResponseDto> {
     await this.shopGetEntityOrNotFound(id);
+    await throwIfEntityExists(
+      this.shopRepo,
+      { where: { name: data.name } },
+      `Shop with name ${data.name}`,
+    );
     await this.shopRepo.update(id, data);
     return this.findOne(id);
   }

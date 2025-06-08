@@ -11,6 +11,7 @@ import {
   PaginatedGetAllDto,
   PaginatedResponseDto,
 } from 'src/common/dto/paginated.dto';
+import { EmployeeResponseDto } from './dto/response-employee.dto';
 
 @Injectable()
 export class EmployeeService {
@@ -29,7 +30,7 @@ export class EmployeeService {
     );
   }
 
-  async employeeGetEntityOrNotFound(id: number): Promise<Employee> {
+  async employeeGetEntityOrNotFound(id: number): Promise<EmployeeResponseDto> {
     return await getEntityOrNotFound(
       this.employeeRepo,
       { where: { id } },
@@ -39,7 +40,7 @@ export class EmployeeService {
 
   async findAll(
     query: PaginatedGetAllDto,
-  ): Promise<PaginatedResponseDto<Employee>> {
+  ): Promise<PaginatedResponseDto<EmployeeResponseDto>> {
     const { page, limit } = query;
     const skip = (page - 1) * limit;
     const take = limit;
@@ -55,11 +56,11 @@ export class EmployeeService {
     };
   }
 
-  async findOne(id: number): Promise<Employee> {
+  async findOne(id: number): Promise<EmployeeResponseDto> {
     return this.employeeGetEntityOrNotFound(id);
   }
 
-  async create(data: EmployeeCreateDto): Promise<Employee> {
+  async create(data: EmployeeCreateDto): Promise<EmployeeResponseDto> {
     await throwIfEntityExists(
       this.employeeRepo,
       {
@@ -75,13 +76,13 @@ export class EmployeeService {
     return this.employeeRepo.save(newEmployee);
   }
 
-  async update(id: number, data: Partial<Employee>): Promise<Employee> {
+  async update(id: number, data: Partial<Employee>): Promise<EmployeeResponseDto> {
     await this.employeeGetEntityOrNotFound(id);
     await this.employeeRepo.update(id, data);
     return this.findOne(id);
   }
 
-  async remove(id: number): Promise<Employee> {
+  async remove(id: number): Promise<EmployeeResponseDto> {
     const employee = await this.employeeGetEntityOrNotFound(id);
     await this.employeeRepo.delete(id);
     return employee;

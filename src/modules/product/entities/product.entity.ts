@@ -6,10 +6,12 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { Brand } from 'src/modules/brand/entities/brand.entity';
 import { Category } from 'src/modules/category/entities/category.entity';
+import { OrderDetail } from 'src/modules/order-detail/entities/orderDetail.entity';
 
 @Entity()
 export class Product {
@@ -24,9 +26,10 @@ export class Product {
   @ApiProperty()
   @ManyToOne(() => Brand, (brand) => brand.products, {
     nullable: true,
+    lazy: true,
   })
   @JoinColumn({ name: 'brandId' })
-  brand: Brand;
+  brand: Promise<Brand>;
 
   @ApiProperty()
   @ManyToOne(() => Category, (category) => category.products, {
@@ -34,6 +37,14 @@ export class Product {
   })
   @JoinColumn({ name: 'categoryId' })
   category: Category;
+
+  @ApiProperty()
+  @OneToMany(() => OrderDetail, (orderDetail) => orderDetail.product, {
+    nullable: true,
+    cascade: true,
+  })
+  @JoinColumn({ name: 'orderDetailId' })
+  orderDetails: OrderDetail[];
 
   @ApiProperty()
   @Column('decimal', { precision: 10, scale: 2 })

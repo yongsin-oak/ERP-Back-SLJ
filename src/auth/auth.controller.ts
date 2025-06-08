@@ -39,7 +39,7 @@ export class AuthController {
     if (!user) throw new UnauthorizedException('Invalid credentials');
     const authUser = await this.authService.login(user);
     res.cookie('token', authUser.token, {
-      httpOnly: false,
+      httpOnly: true,
       secure: false, // true ใน production + HTTPS เท่านั้น
       sameSite: 'lax', // บน production ควรใช้ 'strict' หรือ 'none' ขึ้นอยู่กับการใช้งาน
       maxAge: 86400000,

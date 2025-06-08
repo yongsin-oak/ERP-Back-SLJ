@@ -37,7 +37,9 @@ export class EmployeeController {
     type: EmployeeResponseDto,
     description: 'Create a new employee',
   })
-  async createEmployee(@Body() body: EmployeeCreateDto): Promise<Employee> {
+  async createEmployee(
+    @Body() body: EmployeeCreateDto,
+  ): Promise<EmployeeResponseDto> {
     return this.employerService.create(body);
   }
 
@@ -56,7 +58,7 @@ export class EmployeeController {
     type: EmployeeResponseDto,
     description: 'Get employee by ID',
   })
-  async getEmployeeById(@Param('id') id: number): Promise<Employee> {
+  async getEmployeeById(@Param('id') id: number): Promise<EmployeeResponseDto> {
     return this.employerService.findOne(id);
   }
 
@@ -79,7 +81,7 @@ export class EmployeeController {
     type: EmployeeResponseDto,
     description: 'Delete employee by ID',
   })
-  async deleteEmployee(@Param('id') id: number): Promise<Employee> {
+  async deleteEmployee(@Param('id') id: number): Promise<EmployeeResponseDto> {
     return this.employerService.remove(id);
   }
 }

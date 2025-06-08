@@ -27,6 +27,7 @@ export class Brand {
 
   @OneToMany(() => Product, (product) => product.brand, {
     nullable: true,
+    lazy: true,
   })
   products: Product[];
 

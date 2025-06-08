@@ -35,32 +35,3 @@ export class ShopCreateDto {
   })
   platform: Platform; // Assuming Platform is a string enum or similar
 }
-
-// // @Entity()
-// export class Shop {
-//   @ApiProperty()
-//   @PrimaryGeneratedColumn()
-//   id: number;
-
-//   @ApiProperty()
-//   @Column({ unique: true })
-//   name: string;
-
-//   @ApiProperty()
-//   @Column({ nullable: true })
-//   description?: string;
-
-//   @ApiProperty()
-//   @Column()
-//   platform: Platform;
-
-//   @ApiProperty()
-//   @CreateDateColumn({ type: 'timestamp' })
-//   createdAt: Date;
-
-//   @ApiProperty()
-//   @UpdateDateColumn({
-//     type: 'timestamp',
-//   })
-//   updatedAt: Date;
-// }

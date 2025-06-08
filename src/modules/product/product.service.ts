@@ -70,16 +70,18 @@ export class ProductService {
       relations: ['brand', 'category'],
     });
     return {
-      data: products.map((product) => {
-        const categoryName = product?.category?.name ?? null;
-        const brandName = product?.brand?.name ?? null;
-        const { category, brand, ...filteredProduct } = product;
-        return {
-          ...filteredProduct,
-          categoryName,
-          brandName,
-        };
-      }),
+      data: await Promise.all(
+        products.map(async (product) => {
+          const brand = await product.brand;
+          const category = await product.category;
+          const { brand: _, category: __, ...rest } = product;
+          return {
+            ...rest,
+            brandName: brand?.name ?? null,
+            categoryName: category?.name ?? null,
+          };
+        }),
+      ),
       total,
       page,
       limit,
