@@ -36,11 +36,11 @@ export class OrderController {
   }
 
   @Roles('*')
-  @ApiOkResponsePaginated(Order)
+  @ApiOkResponsePaginated(OrderResponseDto)
   @Get()
   async getAllOrders(
     @Query() query: PaginatedGetAllDto,
-  ): Promise<PaginatedResponseDto<Order>> {
+  ): Promise<PaginatedResponseDto<OrderResponseDto>> {
     return this.orderService.findAll(query);
   }
 

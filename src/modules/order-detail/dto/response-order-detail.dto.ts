@@ -1,30 +1,28 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Role } from 'src/auth/role/role.enum';
+import { Product } from 'src/modules/product/entities/product.entity';
 
 export class OrderDetailResponseDto {
-  @ApiProperty()
-  id: number;
+  @ApiProperty({
+    description: 'Unique identifier for the order detail',
+    example: 'ORD-DETAIL-20250608235923-TEST-001',
+  })
+  id: string;
 
   @ApiProperty()
-  firstName: string;
-
-  @ApiProperty()
-  lastName: string;
-
-  @ApiProperty()
-  nickname: string;
-
-  @ApiProperty()
-  phoneNumber?: string;
-
-  @ApiProperty()
-  startDate?: Date;
+  product: Product;
 
   @ApiProperty({
-    enum: Role,
-    example: Role.Operator,
+    description: 'Order ID associated with the order detail',
+    example: 'ORD-20250608235923-TEST',
   })
-  department: Role;
+  orderId: string;
+
+  @ApiProperty({
+    description: 'Quantity of the product in the order detail',
+    example: 2,
+  })
+  quantity: number;
 
   @ApiProperty()
   createdAt: Date;
@@ -32,44 +30,3 @@ export class OrderDetailResponseDto {
   @ApiProperty()
   updatedAt: Date;
 }
-
-// @Entity()
-// export class Employee {
-//   @ApiProperty()
-//   @PrimaryGeneratedColumn()
-//   id: number;
-
-//   @ApiProperty()
-//   @Column()
-//   firstName: string;
-
-//   @ApiProperty()
-//   @Column()
-//   lastName: string;
-
-//   @ApiProperty()
-//   @Column()
-//   nickname: string;
-
-//   @ApiProperty()
-//   @Column({ nullable: true })
-//   phoneNumber?: string;
-
-//   @ApiProperty()
-//   @Column({ nullable: true })
-//   startDate?: Date;
-
-//   @ApiProperty()
-//   @Column()
-//   department: Role;
-
-//   @ApiProperty()
-//   @CreateDateColumn({ type: 'timestamp' })
-//   createdAt: Date;
-
-//   @ApiProperty()
-//   @UpdateDateColumn({
-//     type: 'timestamp',
-//   })
-//   updatedAt: Date;
-// }

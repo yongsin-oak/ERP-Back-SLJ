@@ -5,7 +5,7 @@ export class ShopResponseDto {
   @ApiProperty({
     example: 1,
   })
-  id: number;
+  id: string;
 
   @ApiProperty({
     example: 'Shop Name',

@@ -22,6 +22,7 @@ import {
   CategoryResponseWithChildrenDto,
   CategoryResponseWithParentDto,
 } from './dto/response-category.dto';
+import { generateId } from 'src/common/helpers/generateIdWithPrefix';
 
 @Injectable()
 export class CategoryService {
@@ -40,7 +41,7 @@ export class CategoryService {
     );
   }
 
-  async categoryGetEntityOrNotFound(id: number): Promise<Category> {
+  async categoryGetEntityOrNotFound(id: string): Promise<Category> {
     return await getEntityOrNotFound(
       this.categoryRepository,
       { where: { id } },
@@ -50,13 +51,18 @@ export class CategoryService {
 
   async create(dto: CategoryCreateDto): Promise<Category> {
     await this.categoryThrowExists(dto.name);
+
     if (dto.parentId) {
       const parent = await this.findOne(dto.parentId);
       if (!parent) {
         throw new NotFoundException(`Parend id ${dto.parentId} not found`);
       }
     }
-    const category = this.categoryRepository.create(dto);
+    const id = generateId('CAT');
+    const category = this.categoryRepository.create({
+      ...dto,
+      id,
+    });
     return this.categoryRepository.save(category);
   }
 
@@ -110,7 +116,7 @@ export class CategoryService {
     return categoryTree;
   }
 
-  async findOne(id: number): Promise<Category> {
+  async findOne(id: string): Promise<Category> {
     const category = await getEntityOrNotFound(
       this.categoryRepository,
       { where: { id }, relations: ['parent', 'children'] },
@@ -120,7 +126,7 @@ export class CategoryService {
   }
 
   async update(
-    id: number,
+    id: string,
     updateCategoryDto: CategoryUpdateDto,
   ): Promise<CategoryResponseWithParentDto> {
     await this.categoryGetEntityOrNotFound(id);
@@ -140,7 +146,7 @@ export class CategoryService {
   }
 
   async remove(
-    id: number,
+    id: string,
     delChild?: boolean,
   ): Promise<CategoryResponseWithChildrenDto> {
     const category = await this.categoryRepository.findOne({

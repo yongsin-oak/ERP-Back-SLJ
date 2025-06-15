@@ -41,14 +41,8 @@ export class Order {
   @ManyToOne(() => Employee, (employee) => employee.id, {
     nullable: true,
   })
-  @JoinColumn({ name: 'employeeId' })
+  @JoinColumn({ name: 'createdBy' })
   employee: Employee;
-
-  @Column({
-    type: 'integer',
-    nullable: true,
-  })
-  employeeId: number;
 
   @ManyToOne(() => Shop, (shop) => shop.id, {
     nullable: true,
@@ -56,16 +50,10 @@ export class Order {
   @JoinColumn({ name: 'shopId' })
   shop: Shop;
 
-  @Column({
-    type: 'integer',
-    nullable: true,
-  })
-  shopId: number;
 
   @OneToMany(() => OrderDetail, (orderDetail) => orderDetail.order, {
     nullable: true,
     cascade: true,
-    eager: true,
   })
   @JoinColumn()
   orderDetails: OrderDetail[];

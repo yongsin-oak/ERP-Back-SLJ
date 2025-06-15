@@ -18,5 +18,5 @@ export class CategoryCreateDto {
     example: 1,
   })
   @IsOptional()
-  parentId?: number;
+  parentId?: string;
 }

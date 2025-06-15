@@ -12,6 +12,7 @@ import {
   PaginatedResponseDto,
 } from 'src/common/dto/paginated.dto';
 import { EmployeeResponseDto } from './dto/response-employee.dto';
+import { generateId } from 'src/common/helpers/generateIdWithPrefix';
 
 @Injectable()
 export class EmployeeService {
@@ -20,7 +21,7 @@ export class EmployeeService {
     private readonly employeeRepo: Repository<Employee>,
   ) {}
 
-  async employeeThrowExists(id: number): Promise<void> {
+  async employeeThrowExists(id: string): Promise<void> {
     await throwIfEntityExists(
       this.employeeRepo,
       {
@@ -30,7 +31,7 @@ export class EmployeeService {
     );
   }
 
-  async employeeGetEntityOrNotFound(id: number): Promise<EmployeeResponseDto> {
+  async employeeGetEntityOrNotFound(id: string): Promise<EmployeeResponseDto> {
     return await getEntityOrNotFound(
       this.employeeRepo,
       { where: { id } },
@@ -56,7 +57,7 @@ export class EmployeeService {
     };
   }
 
-  async findOne(id: number): Promise<EmployeeResponseDto> {
+  async findOne(id: string): Promise<EmployeeResponseDto> {
     return this.employeeGetEntityOrNotFound(id);
   }
 
@@ -69,20 +70,25 @@ export class EmployeeService {
       `Employee with name ${data.firstName} ${data.lastName}`,
     );
     const { startDate } = data;
+    const id = generateId('EMP');
     const newEmployee = this.employeeRepo.create({
+      id,
       ...data,
       startDate: startDate ? new Date(`${startDate}T09:00:00`) : null,
     });
     return this.employeeRepo.save(newEmployee);
   }
 
-  async update(id: number, data: Partial<Employee>): Promise<EmployeeResponseDto> {
+  async update(
+    id: string,
+    data: Partial<Employee>,
+  ): Promise<EmployeeResponseDto> {
     await this.employeeGetEntityOrNotFound(id);
     await this.employeeRepo.update(id, data);
     return this.findOne(id);
   }
 
-  async remove(id: number): Promise<EmployeeResponseDto> {
+  async remove(id: string): Promise<EmployeeResponseDto> {
     const employee = await this.employeeGetEntityOrNotFound(id);
     await this.employeeRepo.delete(id);
     return employee;

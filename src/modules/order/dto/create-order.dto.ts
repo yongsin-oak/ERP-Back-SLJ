@@ -4,18 +4,24 @@ import { OrderDetailCreateDto } from 'src/modules/order-detail/dto/create-order-
 
 export class OrderCreateDto {
   @ApiProperty({
+    description: 'Unique identifier for the order',
+    example: 'TH123456789',
+  })
+  id: string;
+
+  @ApiProperty({
     description: 'ID of the employee handling the order',
     example: 1,
   })
   @IsNotEmpty({ message: 'Employee ID is required' })
-  employeeId: number;
+  employeeId: string;
 
   @ApiProperty({
     description: 'ID of the shop where the order is placed',
     example: 1,
   })
   @IsNotEmpty({ message: 'Shop ID is required' })
-  shopId: number;
+  shopId: string;
 
   @ApiProperty({
     description: 'Details of the order items',

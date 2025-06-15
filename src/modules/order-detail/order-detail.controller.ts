@@ -1,16 +1,16 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
-import { OrderDetailService } from './order-detail.service';
-import { OrderDetailCreateDto } from './dto/create-order-detail.dto';
-import { OrderDetail } from './entities/orderDetail.entity';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/role/roles.guard';
 import { Roles } from 'src/auth/role/roles.decorator';
+import { RolesGuard } from 'src/auth/role/roles.guard';
 import { ApiOkResponsePaginated } from 'src/common/decorator/paginated.decorator';
 import {
   PaginatedGetAllDto,
   PaginatedResponseDto,
 } from 'src/common/dto/paginated.dto';
+import { OrderDetailResponseDto } from './dto/response-order-detail.dto';
+import { OrderDetail } from './entities/orderDetail.entity';
+import { OrderDetailService } from './order-detail.service';
 
 @Controller('order-detail')
 @ApiBearerAuth()
@@ -25,6 +25,15 @@ export class OrderDetailController {
     @Query() query: PaginatedGetAllDto,
   ): Promise<PaginatedResponseDto<OrderDetail>> {
     return this.orderDetailservice.findAll(query);
+  }
+
+  @Roles('*')
+  @Get('order/:orderId')
+  @ApiOkResponse({ type: OrderDetailResponseDto, isArray: true })
+  async findByOrderId(
+    @Param('orderId') orderId: string,
+  ): Promise<OrderDetailResponseDto[]> {
+    return this.orderDetailservice.findByOrderId(orderId);
   }
 
   @Roles('*')

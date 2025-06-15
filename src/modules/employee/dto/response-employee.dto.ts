@@ -3,7 +3,7 @@ import { Role } from 'src/auth/role/role.enum';
 
 export class EmployeeResponseDto {
   @ApiProperty()
-  id: number;
+  id: string;
 
   @ApiProperty()
   firstName: string;

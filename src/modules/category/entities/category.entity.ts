@@ -8,7 +8,7 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
@@ -17,8 +17,8 @@ export class Category {
   @ApiProperty({
     example: 1,
   })
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryColumn()
+  id: string;
 
   @ApiProperty()
   @Column({ unique: true })
@@ -32,18 +32,17 @@ export class Category {
 
   @Column({ nullable: true })
   @ApiProperty({ nullable: true, example: 3 })
-  parentId?: number;
+  parentId?: string;
 
   @OneToMany(() => Category, (category) => category.parent, {
     nullable: true,
   })
-  @JoinColumn({ name: 'childrenId', referencedColumnName: 'id' })
+  @JoinColumn({ name: 'childrenId' })
   children?: Category[];
 
-  @IsArray()
   @ApiProperty({ nullable: true, isArray: true, example: [1, 2, 3] })
-  @Column('int', { array: true, nullable: true })
-  childrenId?: number[];
+  @Column('text', { array: true, nullable: true })
+  childrenId?: string[];
 
   @ApiProperty()
   @Column({ nullable: true })

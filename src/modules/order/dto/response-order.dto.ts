@@ -1,5 +1,7 @@
 import { ApiProperty, getSchemaPath } from '@nestjs/swagger';
+import { Employee } from 'src/modules/employee/entities/employee.entity';
 import { OrderDetail } from 'src/modules/order-detail/entities/orderDetail.entity';
+import { Shop } from 'src/modules/shop/entities/shop.entity';
 
 export class OrderResponseDto {
   @ApiProperty({
@@ -25,15 +27,11 @@ export class OrderResponseDto {
   })
   totalQuantity: number;
 
-  @ApiProperty({
-    description: 'Total cost price of the order',
-  })
-  employeeId: number;
+  @ApiProperty()
+  employee: Employee;
 
-  @ApiProperty({
-    description: 'Total current price of the order',
-  })
-  shopId: number;
+  @ApiProperty()
+  shop: Shop;
 
   @ApiProperty()
   createdAt: Date;

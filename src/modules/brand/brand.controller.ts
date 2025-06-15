@@ -45,7 +45,7 @@ export class BrandController {
     description: 'Get brand by ID',
     type: Brand,
   })
-  async getBrandById(@Param('id') id: number): Promise<Brand> {
+  async getBrandById(@Param('id') id: string): Promise<Brand> {
     return this.brandService.findOne(id);
   }
 
@@ -81,7 +81,7 @@ export class BrandController {
     type: Brand,
   })
   async updateBrand(
-    @Param('id') id: number,
+    @Param('id') id: string,
     @Body() body: BrandUpdateDto,
   ): Promise<Brand> {
     return this.brandService.update(id, body.name, body.description);
@@ -93,7 +93,7 @@ export class BrandController {
     description: 'Delete a brand',
     type: Brand,
   })
-  async deleteBrand(@Param('id') id: number): Promise<Brand> {
+  async deleteBrand(@Param('id') id: string): Promise<Brand> {
     return this.brandService.remove(id);
   }
 }

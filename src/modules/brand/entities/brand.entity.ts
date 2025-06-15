@@ -15,7 +15,7 @@ export class Brand {
     example: 1,
   })
   @PrimaryGeneratedColumn()
-  id: number;
+  id: string;
 
   @ApiProperty()
   @Column({ unique: true })

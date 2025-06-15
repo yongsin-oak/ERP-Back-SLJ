@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Order } from './entities/order.entity';
 import { Repository } from 'typeorm';
@@ -17,6 +17,8 @@ import {
 } from 'src/common/dto/paginated.dto';
 import { OrderUpdateDto } from './dto/update-order.dto';
 import { isNotEmpty } from 'class-validator';
+import { Shop } from '../shop/entities/shop.entity';
+import { Employee } from '../employee/entities/employee.entity';
 
 @Injectable()
 export class OrderService {
@@ -26,6 +28,12 @@ export class OrderService {
 
     @InjectRepository(Product)
     private readonly productRepo: Repository<Product>,
+
+    @InjectRepository(Shop)
+    private readonly shopRepo: Repository<Shop>,
+
+    @InjectRepository(Employee)
+    private readonly employeeRepo: Repository<Employee>,
   ) {}
 
   async orderThrowExists(id: string): Promise<void> {
@@ -48,13 +56,27 @@ export class OrderService {
 
   async findAll(
     query: PaginatedGetAllDto,
-  ): Promise<PaginatedResponseDto<Order>> {
+  ): Promise<PaginatedResponseDto<OrderResponseDto>> {
     const { page, limit } = query;
     const skip = (page - 1) * limit;
     const take = limit;
     const [order, total] = await this.orderRepo.findAndCount({
       skip,
       take,
+      relations: ['employee', 'shop'],
+      select: {
+        employee: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          nickname: true,
+        },
+        shop: {
+          id: true,
+          name: true,
+          platform: true,
+        },
+      },
     });
     return {
       data: order,
@@ -67,17 +89,47 @@ export class OrderService {
   async findOne(id: string): Promise<OrderResponseDto> {
     const order = await getEntityOrNotFound(
       this.orderRepo,
-      { where: { id }, relations: ['orderDetails'], loadEagerRelations: true },
+      {
+        where: { id },
+        relations: ['orderDetails', 'employee', 'shop'],
+        select: {
+          employee: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            nickname: true,
+          },
+          shop: {
+            id: true,
+            name: true,
+            platform: true,
+          },
+        },
+      },
       `Order ${id}`,
     );
     return order;
   }
 
   async create(orderData: OrderCreateDto): Promise<OrderResponseDto> {
-    const orderId = generateId({
-      prefix: 'ORD',
-      withDateTime: true,
-    });
+    if (!orderData.id) {
+      throw new BadRequestException(
+        'Order ID is required. Please provide a unique order ID.',
+      );
+    }
+    const orderId = orderData.id;
+
+    const shop = await getEntityOrNotFound(
+      this.shopRepo,
+      { where: { id: orderData.shopId } },
+      `Shop ${orderData.shopId}`,
+    );
+
+    const employee = await getEntityOrNotFound(
+      this.employeeRepo,
+      { where: { id: orderData.employeeId } },
+      `Employee ${orderData.employeeId}`,
+    );
 
     const products = await Promise.all(
       orderData.orderDetails.map((detail) =>
@@ -90,8 +142,8 @@ export class OrderService {
     // สร้าง order entity
     const order = this.orderRepo.create({
       id: orderId,
-      employeeId: orderData.employeeId,
-      shopId: orderData.shopId,
+      shop,
+      employee,
     });
 
     // สร้าง orderDetails พร้อมตั้งค่าความสัมพันธ์ order แบบชัดเจน
@@ -150,6 +202,24 @@ export class OrderService {
   ): Promise<OrderResponseDto> {
     const order = await this.orderGetEntityOrNotFound(id);
 
+    if (orderData.shopId) {
+      const shop = await getEntityOrNotFound(
+        this.shopRepo,
+        { where: { id: orderData.shopId } },
+        `Shop ${orderData.shopId}`,
+      );
+      order.shop = shop;
+    }
+
+    if (orderData.employeeId) {
+      const employee = await getEntityOrNotFound(
+        this.employeeRepo,
+        { where: { id: orderData.employeeId } },
+        `Employee ${orderData.employeeId}`,
+      );
+      order.employee = employee;
+    }
+
     if (isNotEmpty(orderData.orderDetails)) {
       const products = await Promise.all(
         orderData?.orderDetails.map((detail) =>
@@ -197,11 +267,6 @@ export class OrderService {
         0,
       );
     }
-
-    // อัปเดตข้อมูล order
-    order.employeeId = orderData?.employeeId ?? order.employeeId;
-    order.shopId = orderData?.shopId ?? order.employeeId;
-
     // บันทึกการอัปเดต
     const updatedOrder = await this.orderRepo.save(order);
 

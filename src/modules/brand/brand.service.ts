@@ -32,7 +32,7 @@ export class BrandService {
     );
   }
 
-  async brandGetEntityOrNotFound(id: number): Promise<Brand> {
+  async brandGetEntityOrNotFound(id: string): Promise<Brand> {
     return await getEntityOrNotFound(
       this.brandRepo,
       { where: { id } },
@@ -58,7 +58,7 @@ export class BrandService {
     };
   }
 
-  async findOne(id: number): Promise<Brand> {
+  async findOne(id: string): Promise<Brand> {
     const brand = await this.brandGetEntityOrNotFound(id);
     return brand;
   }
@@ -81,13 +81,13 @@ export class BrandService {
     return this.brandRepo.save(brands);
   }
 
-  async update(id: number, name: string, description?: string): Promise<Brand> {
+  async update(id: string, name: string, description?: string): Promise<Brand> {
     await this.brandGetEntityOrNotFound(id);
     await this.brandRepo.update(id, { name, description });
     return this.findOne(id);
   }
 
-  async remove(id: number): Promise<Brand> {
+  async remove(id: string): Promise<Brand> {
     const brand = await this.findOne(id);
     await this.brandRepo.delete(id);
     return brand;

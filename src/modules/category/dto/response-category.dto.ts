@@ -2,13 +2,13 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class CategoryResponseDto {
   @ApiProperty()
-  id: number;
+  id: string;
 
   @ApiProperty()
   name: string;
 
   @ApiProperty()
-  parentId?: number;
+  parentId?: string;
 
   @ApiProperty()
   description?: string;
@@ -22,13 +22,13 @@ export class CategoryResponseDto {
 
 export class CategoryResponseWithChildrenDto {
   @ApiProperty()
-  id: number;
+  id: string;
 
   @ApiProperty()
   name: string;
 
   @ApiProperty()
-  parentId?: number;
+  parentId?: string;
 
   @ApiProperty()
   description?: string;
@@ -45,7 +45,7 @@ export class CategoryResponseWithChildrenDto {
 
 export class CategoryResponseWithParentDto {
   @ApiProperty()
-  id: number;
+  id: string;
 
   @ApiProperty()
   name: string;

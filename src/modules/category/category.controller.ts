@@ -69,7 +69,7 @@ export class CategoryController {
     type: CategoryResponseWithChildrenDto,
   })
   async getCategoryById(
-    @Param('id') id: number,
+    @Param('id') id: string,
   ): Promise<CategoryResponseWithChildrenDto> {
     return this.categoryservice.findOne(id);
   }
@@ -81,7 +81,7 @@ export class CategoryController {
     type: CategoryResponseWithParentDto,
   })
   async updateCategory(
-    @Param('id') id: number,
+    @Param('id') id: string,
     @Body() body: CategoryCreateDto,
   ): Promise<CategoryResponseWithParentDto> {
     return this.categoryservice.update(id, body);
@@ -100,7 +100,7 @@ export class CategoryController {
     description: 'Delete all child categories as well',
   })
   async deleteCategory(
-    @Param('id') id: number,
+    @Param('id') id: string,
     @Query('deleteChild') deleteChild?: string,
   ): Promise<CategoryResponseWithChildrenDto> {
     const deleteChildBool = deleteChild === 'true' || deleteChild === '1';

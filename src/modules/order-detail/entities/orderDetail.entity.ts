@@ -14,19 +14,18 @@ import {
 
 @Entity()
 export class OrderDetail {
-  @ApiProperty()
+  @ApiProperty({
+    description: 'Unique identifier for the order detail',
+    example: 'ORD-DETAIL-20250608235923-TEST-001',
+  })
   @PrimaryColumn()
   id: string;
 
   @ManyToOne(() => Product, (product) => product.orderDetails, {
     nullable: false,
   })
-  @JoinColumn({ name: 'productBarcode' })
+  @JoinColumn()
   product: Product;
-
-  @ApiProperty()
-  @Column({ nullable: false })
-  productBarcode: string;
 
   @Exclude()
   @ManyToOne(() => Order, (order) => order.orderDetails, {

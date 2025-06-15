@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  PrimaryColumn,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -11,8 +12,8 @@ import {
 @Entity()
 export class Employee {
   @ApiProperty()
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryColumn()
+  id: string;
 
   @ApiProperty()
   @Column()

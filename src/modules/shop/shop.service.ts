@@ -13,6 +13,8 @@ import {
   throwIfEntityExists,
 } from 'src/common/helpers/entity.helper';
 import { ShopUpdateDto } from './dto/update-product.dto';
+import { Platform } from './entities/platform.enum';
+import { generateId } from 'src/common/helpers/generateIdWithPrefix';
 
 @Injectable()
 export class ShopService {
@@ -21,17 +23,19 @@ export class ShopService {
     private readonly shopRepo: Repository<Shop>,
   ) {}
 
-  async shopThrowExists(id: number): Promise<void> {
+  async shopThrowExists({
+    data,
+  }: {
+    data: { name: string; platform: Platform };
+  }): Promise<void> {
     await throwIfEntityExists(
       this.shopRepo,
-      {
-        where: { id },
-      },
-      `Shop ${id}`,
+      { where: { name: data.name, platform: data.platform } },
+      `Shop with name "${data.name}" and platform "${data.platform}" already exists`,
     );
   }
 
-  async shopGetEntityOrNotFound(id: number): Promise<Shop> {
+  async shopGetEntityOrNotFound(id: string): Promise<Shop> {
     return await getEntityOrNotFound(
       this.shopRepo,
       { where: { id } },
@@ -57,35 +61,43 @@ export class ShopService {
     };
   }
 
-  async findOne(id: number): Promise<Shop> {
+  async findOne(id: string): Promise<Shop> {
     return this.shopGetEntityOrNotFound(id);
   }
 
   async create(data: ShopCreateDto): Promise<ShopResponseDto> {
-    await throwIfEntityExists(
-      this.shopRepo,
-      { where: { name: data.name, platform: data.platform } },
-      `Shop with name "${data.name}" and platform "${data.platform}" already exists`,
-    );
-    const shop = this.shopRepo.create(data);
+    await this.shopThrowExists({
+      data: { name: data.name, platform: data.platform },
+    });
+    const id = generateId({
+      prefix: 'SHOP',
+      withDateTime: false,
+      length: 10,
+    });
+    const shop = this.shopRepo.create({
+      ...data,
+      id,
+    });
     return this.shopRepo.save(shop);
   }
 
   async update(
-    id: number,
+    id: string,
     data: Partial<ShopUpdateDto>,
   ): Promise<ShopResponseDto> {
     await this.shopGetEntityOrNotFound(id);
-    await throwIfEntityExists(
-      this.shopRepo,
-      { where: { name: data.name } },
-      `Shop with name ${data.name}`,
-    );
+    await this.shopThrowExists({
+      data: { name: data.name, platform: data.platform },
+    });
     await this.shopRepo.update(id, data);
     return this.findOne(id);
   }
 
-  async remove(id: number): Promise<ShopResponseDto> {
+  async remove(id: string): Promise<ShopResponseDto> {
+    if (!id) {
+      
+    }
+    await this.shopGetEntityOrNotFound(id);
     const shop = await this.shopGetEntityOrNotFound(id);
     await this.shopRepo.delete(id);
     return shop;

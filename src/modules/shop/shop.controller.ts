@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Param,
   Patch,
   Post,
   Query,
@@ -55,7 +56,7 @@ export class ShopController {
     type: ShopResponseDto,
     description: 'Get shop by ID',
   })
-  async findOneShop(@Query('id') id: number): Promise<Shop> {
+  async findOneShop(@Query('id') id: string): Promise<Shop> {
     return this.shopService.findOne(id);
   }
 
@@ -66,7 +67,7 @@ export class ShopController {
   })
   @Patch(':id')
   async updateShop(
-    @Query('id') id: number,
+    @Query('id') id: string,
     @Body() body: ShopCreateDto,
   ): Promise<ShopResponseDto> {
     return this.shopService.update(id, body);
@@ -78,7 +79,7 @@ export class ShopController {
     description: 'Delete shop by ID',
   })
   @Delete(':id')
-  async deleteShop(@Query('id') id: number): Promise<ShopResponseDto> {
+  async deleteShop(@Param('id') id: string): Promise<ShopResponseDto> {
     return this.shopService.remove(id);
   }
 }

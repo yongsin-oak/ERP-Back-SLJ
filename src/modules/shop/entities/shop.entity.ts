@@ -3,6 +3,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  PrimaryColumn,
   PrimaryGeneratedColumn,
   Unique,
   UpdateDateColumn,
@@ -13,8 +14,8 @@ import { Platform } from './platform.enum';
 @Unique(['name', 'platform'])
 export class Shop {
   @ApiProperty()
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryColumn()
+  id: string;
 
   @ApiProperty()
   @Column()

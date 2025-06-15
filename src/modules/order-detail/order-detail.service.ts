@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   PaginatedGetAllDto,
@@ -43,5 +43,34 @@ export class OrderDetailService {
 
   async findOne(id: string): Promise<OrderDetail> {
     return this.orderGetEntityOrNotFound(id);
+  }
+
+  async findByOrderId(orderId: string): Promise<OrderDetail[]> {
+    console.log(orderId);
+    if (!orderId) {
+      throw new NotFoundException('Order ID is required');
+    }
+    const orderDetail = await this.orderDetailRepo.find({
+      where: { orderId },
+      relations: ['product'],
+      order: { updatedAt: 'DESC' },
+      select: {
+        id: true,
+        quantity: true,
+        product: {
+          barcode: true,
+          name: true,
+          costPrice: true,
+          currentPrice: true,
+          packPerCarton: true,
+        },
+      },
+    });
+    if (!orderDetail || orderDetail.length === 0) {
+      throw new NotFoundException(
+        `Order details not found for order ID: ${orderId}`,
+      );
+    }
+    return orderDetail;
   }
 }
