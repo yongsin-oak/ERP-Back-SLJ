@@ -48,7 +48,7 @@ export class EmployeeController {
   @ApiOkResponsePaginated(Employee)
   async getAllEmployees(
     @Query() query: PaginatedGetAllDto,
-  ): Promise<PaginatedResponseDto<Employee>> {
+  ): Promise<PaginatedResponseDto<EmployeeResponseDto>> {
     return this.employerService.findAll(query);
   }
 
@@ -71,7 +71,7 @@ export class EmployeeController {
   async updateEmployee(
     @Param('id') id: string,
     @Body() body: EmployeeUpdateDto,
-  ): Promise<Employee> {
+  ): Promise<EmployeeResponseDto> {
     return this.employerService.update(id, body);
   }
 

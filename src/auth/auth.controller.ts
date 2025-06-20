@@ -34,7 +34,7 @@ export class AuthController {
     type: AuthResponseDto,
   })
   async login(@Body() body: AuthPayloadDto, @Res() res: Response) {
-    const user: { id: number; username: string; role: Role } =
+    const user: { id: string; username: string; role: Role } =
       await this.authService.validateUser(body);
     if (!user) throw new UnauthorizedException('Invalid credentials');
     const authUser = await this.authService.login(user);

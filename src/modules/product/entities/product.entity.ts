@@ -12,6 +12,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Brand } from 'src/modules/brand/entities/brand.entity';
 import { Category } from 'src/modules/category/entities/category.entity';
 import { OrderDetail } from 'src/modules/order-detail/entities/orderDetail.entity';
+import { Dimensions, ProductUnitPrice } from './product.interface';
+import { IsInt, Min } from 'class-validator';
 
 @Entity()
 export class Product {
@@ -26,10 +28,12 @@ export class Product {
   @ApiProperty()
   @ManyToOne(() => Brand, (brand) => brand.products, {
     nullable: true,
-    lazy: true,
   })
   @JoinColumn({ name: 'brandId' })
-  brand: Promise<Brand>;
+  brand: Brand;
+
+  @Column({ nullable: true })
+  brandId: string;
 
   @ApiProperty()
   @ManyToOne(() => Category, (category) => category.products, {
@@ -38,25 +42,35 @@ export class Product {
   @JoinColumn({ name: 'categoryId' })
   category: Category;
 
+  @Column({ nullable: true })
+  categoryId: string;
+
   @ApiProperty()
   @OneToMany(() => OrderDetail, (orderDetail) => orderDetail.product, {
     nullable: true,
     cascade: true,
   })
-  @JoinColumn({ name: 'orderDetailId' })
   orderDetails: OrderDetail[];
 
   @ApiProperty()
-  @Column('decimal', { precision: 10, scale: 2 })
-  costPrice: number;
+  @Column('jsonb', { nullable: true })
+  costPrice: ProductUnitPrice;
 
   @ApiProperty()
-  @Column('decimal', { precision: 10, scale: 2, nullable: true })
-  currentPrice: number;
+  @Column('jsonb', { nullable: true })
+  sellPrice: ProductUnitPrice;
 
   @ApiProperty()
   @Column('int')
+  @IsInt()
+  @Min(0)
   remaining: number;
+
+  @ApiProperty()
+  @Column('int', { nullable: true })
+  @IsInt()
+  @Min(0)
+  minStock?: number;
 
   @ApiProperty({
     example: {
@@ -69,12 +83,7 @@ export class Product {
     description: 'Product dimensions in cm and weight in kg',
   })
   @Column('jsonb', { nullable: true })
-  productDimensions: {
-    length: number;
-    width: number;
-    height: number;
-    weight: number;
-  };
+  productDimensions: Dimensions;
 
   @ApiProperty({
     example: {
@@ -87,19 +96,18 @@ export class Product {
     description: 'Carton dimensions in cm and weight in kg',
   })
   @Column('jsonb', { nullable: true })
-  cartonDimensions: {
-    length: number;
-    width: number;
-    height: number;
-    weight: number;
-  };
+  cartonDimensions: Dimensions;
 
   @ApiProperty()
   @Column({ nullable: true })
+  @IsInt()
+  @Min(0)
   piecesPerPack: number;
 
   @ApiProperty()
   @Column({ nullable: true })
+  @IsInt()
+  @Min(0)
   packPerCarton: number;
 
   @ApiProperty()

@@ -11,10 +11,12 @@ export function generateId(options: GenerateIdOptions = {}): string {
   const { prefix = '', withDateTime = true, length = 10 } = options;
 
   const timePart = withDateTime
-    ? DateTime.now().setZone('Asia/Bangkok').toFormat('yyyyMMddHHmmss')
+    ? DateTime.now().setZone('Asia/Bangkok').toFormat('yyyyMMdd')
     : '';
 
   const randomPart = nanoid(length).toUpperCase();
 
-  return [prefix, timePart, randomPart].filter(Boolean).join('-');
+  const id = `${prefix}${timePart}${randomPart}`;
+
+  return id;
 }

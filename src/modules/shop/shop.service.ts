@@ -1,9 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Shop } from './entities/shop.entity';
-import { Repository } from 'typeorm';
-import { ShopCreateDto } from './dto/create-shop.dto';
-import { ShopResponseDto } from './dto/response.dto';
 import {
   PaginatedGetAllDto,
   PaginatedResponseDto,
@@ -12,9 +8,12 @@ import {
   getEntityOrNotFound,
   throwIfEntityExists,
 } from 'src/common/helpers/entity.helper';
+import { Repository } from 'typeorm';
+import { ShopCreateDto } from './dto/create-shop.dto';
+import { ShopResponseDto } from './dto/response.dto';
 import { ShopUpdateDto } from './dto/update-product.dto';
 import { Platform } from './entities/platform.enum';
-import { generateId } from 'src/common/helpers/generateIdWithPrefix';
+import { Shop } from './entities/shop.entity';
 
 @Injectable()
 export class ShopService {
@@ -69,15 +68,7 @@ export class ShopService {
     await this.shopThrowExists({
       data: { name: data.name, platform: data.platform },
     });
-    const id = generateId({
-      prefix: 'SHOP',
-      withDateTime: false,
-      length: 10,
-    });
-    const shop = this.shopRepo.create({
-      ...data,
-      id,
-    });
+    const shop = this.shopRepo.create(data);
     return this.shopRepo.save(shop);
   }
 
@@ -95,7 +86,6 @@ export class ShopService {
 
   async remove(id: string): Promise<ShopResponseDto> {
     if (!id) {
-      
     }
     await this.shopGetEntityOrNotFound(id);
     const shop = await this.shopGetEntityOrNotFound(id);

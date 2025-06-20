@@ -1,4 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Dimensions, ProductUnitPrice } from '../entities/product.interface';
+import { Brand } from 'src/modules/brand/entities/brand.entity';
+import { Category } from 'src/modules/category/entities/category.entity';
 export class ProductResponseDto {
   @ApiProperty()
   barcode: string;
@@ -7,19 +10,22 @@ export class ProductResponseDto {
   name: string;
 
   @ApiProperty()
-  brandName: string;
+  brand: Brand;
 
   @ApiProperty()
-  categoryName: string;
+  category: Category;
 
   @ApiProperty()
-  costPrice: number;
+  costPrice: ProductUnitPrice;
 
   @ApiProperty()
-  currentPrice: number;
+  sellPrice: ProductUnitPrice;
 
   @ApiProperty()
   remaining: number;
+
+  @ApiProperty()
+  minStock?: number;
 
   @ApiProperty({
     example: {
@@ -31,12 +37,7 @@ export class ProductResponseDto {
     required: false,
     description: 'Product dimensions in cm and weight in kg',
   })
-  productDimensions: {
-    length: number;
-    width: number;
-    height: number;
-    weight: number;
-  };
+  productDimensions: Dimensions;
 
   @ApiProperty({
     example: {
@@ -48,12 +49,7 @@ export class ProductResponseDto {
     required: false,
     description: 'Carton dimensions in cm and weight in kg',
   })
-  cartonDimensions: {
-    length: number;
-    width: number;
-    height: number;
-    weight: number;
-  };
+  cartonDimensions: Dimensions;
 
   @ApiProperty()
   piecesPerPack: number;

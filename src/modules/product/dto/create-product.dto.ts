@@ -1,7 +1,15 @@
 // product/dto/create-product.dto.ts
 
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
+import { Dimensions, ProductUnitPrice } from '../entities/product.interface';
 
 export class ProductCreateDto {
   @ApiProperty({ example: 'P001', description: 'Product barcode' })
@@ -16,28 +24,45 @@ export class ProductCreateDto {
 
   @ApiProperty({ example: 1, required: false })
   @IsOptional()
-  @IsNumber()
-  brandId?: number;
+  brandId?: string;
 
   @ApiProperty({ example: 2, required: false })
   @IsOptional()
-  @IsNumber()
-  categoryId?: number;
+  categoryId?: string;
 
-  @ApiProperty({ example: 5.0, required: false })
+  @ApiProperty({
+    example: {
+      pack: 10,
+      carton: 100,
+    },
+    required: false,
+    description: 'Cost price in the format { pack: number, carton: number }',
+  })
   @IsOptional()
-  @IsNumber()
-  costPrice?: number;
+  costPrice?: ProductUnitPrice;
 
-  @ApiProperty({ example: 7.0, required: false })
+  @ApiProperty({
+    example: {
+      pack: 15,
+      carton: 150,
+    },
+    required: false,
+    description: 'Sell price in the format { pack: number, carton: number }',
+  })
   @IsOptional()
-  @IsNumber()
-  currentPrice?: number;
+  sellPrice?: ProductUnitPrice;
 
   @ApiProperty({ example: 100 })
-  @IsNotEmpty({ message: 'Remaining is required' })
-  @IsNumber()
+  @IsNotEmpty({ message: 'Remaining stock is required' })
+  @IsInt()
+  @Min(0)
   remaining: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @ApiProperty()
+  minStock?: number;
 
   @ApiProperty({
     example: {
@@ -49,13 +74,17 @@ export class ProductCreateDto {
     required: false,
     description: 'Product dimensions in cm and weight in kg',
   })
+  @ApiProperty({
+    example: {
+      length: 10,
+      width: 5,
+      height: 2,
+      weight: 1,
+    },
+    required: false,
+  })
   @IsOptional()
-  productDimensions: {
-    length: number;
-    width: number;
-    height: number;
-    weight: number;
-  };
+  productDimensions: Dimensions;
 
   @ApiProperty({
     example: {
@@ -68,19 +97,17 @@ export class ProductCreateDto {
     description: 'Carton dimensions in cm and weight in kg',
   })
   @IsOptional()
-  cartonDimensions: {
-    length: number;
-    width: number;
-    height: number;
-    weight: number;
-  };
+  cartonDimensions: Dimensions;
+
   @ApiProperty({ example: 24, required: false })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(0)
   piecesPerPack?: number;
 
   @ApiProperty({ example: 2, required: false })
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(0)
   packPerCarton?: number;
 }

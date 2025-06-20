@@ -10,23 +10,6 @@ export class OrderResponseDto {
   })
   id: string;
 
-  @ApiProperty({
-    description: 'Total cost price of the order',
-    required: false,
-  })
-  totalCostPrice: number;
-
-  @ApiProperty({
-    description: 'Total current price of the order',
-    required: false,
-  })
-  totalCurrentPrice: number;
-
-  @ApiProperty({
-    description: 'Total quantity of items in the order',
-  })
-  totalQuantity: number;
-
   @ApiProperty()
   employee: Employee;
 

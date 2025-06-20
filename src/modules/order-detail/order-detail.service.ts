@@ -56,12 +56,12 @@ export class OrderDetailService {
       order: { updatedAt: 'DESC' },
       select: {
         id: true,
-        quantity: true,
+        quantityPack: true,
         product: {
           barcode: true,
           name: true,
           costPrice: true,
-          currentPrice: true,
+          sellPrice: true,
           packPerCarton: true,
         },
       },

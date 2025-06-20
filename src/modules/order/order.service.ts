@@ -158,32 +158,11 @@ export class OrderService {
       }
 
       const orderDetail = new OrderDetail();
-      orderDetail.id = generateId({ prefix: 'ORD-DETAIL', withDateTime: true });
-      orderDetail.quantity = detail.quantity;
+      orderDetail.quantityPack = detail.quantity;
       orderDetail.product = product;
       // ไม่ต้องตั้ง orderDetail.orderId ด้วยตัวเอง เพราะ TypeORM จะจัดการให้
       return orderDetail;
     });
-
-    // คำนวณ total
-    order.totalCostPrice = orderData.orderDetails.reduce((total, detail) => {
-      const product = products.find(
-        (p) => p?.barcode === detail.productBarcode,
-      );
-      return total + (product?.costPrice || 0) * detail.quantity;
-    }, 0);
-
-    order.totalCurrentPrice = orderData.orderDetails.reduce((total, detail) => {
-      const product = products.find(
-        (p) => p?.barcode === detail.productBarcode,
-      );
-      return total + (product?.currentPrice || 0) * detail.quantity;
-    }, 0);
-
-    order.totalQuantity = orderData.orderDetails.reduce(
-      (total, detail) => total + detail.quantity,
-      0,
-    );
 
     // บันทึก order พร้อม cascade orderDetails
     const savedOrder = await this.orderRepo.save(order);
@@ -240,32 +219,11 @@ export class OrderService {
         }
 
         const orderDetail = new OrderDetail();
-        orderDetail.quantity = detail.quantity;
+        orderDetail.quantityPack = detail.quantity;
         orderDetail.product = product;
         // ไม่ต้องตั้ง orderDetail.orderId ด้วยตัวเอง เพราะ TypeORM จะจัดการให้
         return orderDetail;
       });
-
-      order.totalCostPrice = orderData?.orderDetails.reduce((total, detail) => {
-        const product = products.find(
-          (p) => p?.barcode === detail.productBarcode,
-        );
-        return total + (product?.costPrice || 0) * detail.quantity;
-      }, 0);
-
-      order.totalCurrentPrice = orderData?.orderDetails.reduce(
-        (total, detail) => {
-          const product = products.find(
-            (p) => p?.barcode === detail.productBarcode,
-          );
-          return total + (product?.currentPrice || 0) * detail.quantity;
-        },
-        0,
-      );
-      order.totalQuantity = orderData?.orderDetails.reduce(
-        (total, detail) => total + detail.quantity,
-        0,
-      );
     }
     // บันทึกการอัปเดต
     const updatedOrder = await this.orderRepo.save(order);

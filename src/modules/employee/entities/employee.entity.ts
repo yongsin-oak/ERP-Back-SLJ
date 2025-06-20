@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Role } from 'src/auth/role/role.enum';
+import { generateId } from 'src/common/helpers/generateIdWithPrefix';
 import {
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
@@ -14,6 +16,14 @@ export class Employee {
   @ApiProperty()
   @PrimaryColumn()
   id: string;
+
+  @BeforeInsert()
+  generateId() {
+    this.id = generateId({
+      prefix: 'EMP',
+      withDateTime: false,
+    });
+  }
 
   @ApiProperty()
   @Column()

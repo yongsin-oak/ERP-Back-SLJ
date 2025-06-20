@@ -1,7 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsArray } from 'class-validator';
+import { generateId } from 'src/common/helpers/generateIdWithPrefix';
 import { Product } from 'src/modules/product/entities/product.entity';
 import {
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
@@ -19,6 +21,14 @@ export class Category {
   })
   @PrimaryColumn()
   id: string;
+
+  @BeforeInsert()
+  generateId() {
+    this.id = generateId({
+      prefix: 'CAT',
+      withDateTime: false,
+    });
+  }
 
   @ApiProperty()
   @Column({ unique: true })

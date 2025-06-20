@@ -18,7 +18,7 @@ export class AuthPayloadDto {
 export class UpdatePasswordDto {
   @ApiProperty({ example: 'admin', description: 'Username for authentication' })
   @IsNotEmpty({ message: 'Username is required' })
-  username: number;
+  username: string;
 
   @ApiProperty({ example: 'oldpassword', description: 'Current password' })
   @IsNotEmpty({ message: 'Current password is required' })

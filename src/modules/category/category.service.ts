@@ -58,10 +58,8 @@ export class CategoryService {
         throw new NotFoundException(`Parend id ${dto.parentId} not found`);
       }
     }
-    const id = generateId('CAT');
     const category = this.categoryRepository.create({
       ...dto,
-      id,
     });
     return this.categoryRepository.save(category);
   }

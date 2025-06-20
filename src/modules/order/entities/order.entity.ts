@@ -17,27 +17,6 @@ export class Order {
   @PrimaryColumn()
   id: string;
 
-  @Column({
-    type: 'decimal',
-    precision: 10,
-    scale: 2,
-    nullable: true,
-  })
-  totalCostPrice: number;
-
-  @Column({
-    type: 'decimal',
-    precision: 10,
-    scale: 2,
-    nullable: true,
-  })
-  totalCurrentPrice: number;
-
-  @Column({
-    type: 'integer',
-  })
-  totalQuantity: number;
-
   @ManyToOne(() => Employee, (employee) => employee.id, {
     nullable: true,
   })
@@ -49,7 +28,6 @@ export class Order {
   })
   @JoinColumn({ name: 'shopId' })
   shop: Shop;
-
 
   @OneToMany(() => OrderDetail, (orderDetail) => orderDetail.order, {
     nullable: true,

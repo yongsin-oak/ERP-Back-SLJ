@@ -1,10 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { generateId } from 'src/common/helpers/generateIdWithPrefix';
 import { Product } from 'src/modules/product/entities/product.entity';
 import {
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
   OneToMany,
+  PrimaryColumn,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -14,8 +17,16 @@ export class Brand {
   @ApiProperty({
     example: 1,
   })
-  @PrimaryGeneratedColumn()
+  @PrimaryColumn()
   id: string;
+
+  @BeforeInsert()
+  generateId() {
+    this.id = generateId({
+      prefix: 'BRD',
+      withDateTime: false,
+    });
+  }
 
   @ApiProperty()
   @Column({ unique: true })

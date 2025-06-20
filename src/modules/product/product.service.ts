@@ -68,20 +68,34 @@ export class ProductService {
       skip,
       take,
       relations: ['brand', 'category'],
+      order: {
+        barcode: 'ASC',
+      },
+      select: {
+        barcode: true,
+        name: true,
+        brand: {
+          id: true,
+          name: true,
+        },
+        category: {
+          id: true,
+          name: true,
+        },
+        costPrice: true,
+        sellPrice: true,
+        remaining: true,
+        minStock: true,
+        createdAt: true,
+        updatedAt: true,
+        packPerCarton: true,
+        piecesPerPack: true,
+        productDimensions: true,
+        cartonDimensions: true,
+      },
     });
     return {
-      data: await Promise.all(
-        products.map(async (product) => {
-          const brand = await product.brand;
-          const category = await product.category;
-          const { brand: _, category: __, ...rest } = product;
-          return {
-            ...rest,
-            brandName: brand?.name ?? null,
-            categoryName: category?.name ?? null,
-          };
-        }),
-      ),
+      data: products,
       total,
       page,
       limit,

@@ -26,7 +26,7 @@ export class AuthService {
   }
 
   async login(user: {
-    id: number;
+    id: string;
     username: string;
     role: Role;
   }): Promise<{ token: string; role: string; username: string }> {
@@ -38,8 +38,8 @@ export class AuthService {
     };
   }
 
-  async updatePassword(username: number, currentPass: string, newPass: string) {
-    const user = await this.usersRepo.findOne({ where: { id: username } });
+  async updatePassword(username: string, currentPass: string, newPass: string) {
+    const user = await this.usersRepo.findOne({ where: { username: username } });
     if (!user || !(await bcrypt.compare(currentPass, user.password))) {
       throw new UnauthorizedException('Invalid current password');
     }

@@ -3,6 +3,7 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../user/user.entity';
 import { config } from 'dotenv';
 import { Role } from '../role/role.enum';
+import { nanoid } from 'nanoid';
 
 config();
 
@@ -30,11 +31,13 @@ async function seed() {
 
   const users = [
     {
+      id: nanoid(12),
       username: process.env.SuperAdmin_USERNAME,
       password: passwordSuperAdmin,
       role: Role.SuperAdmin,
     },
     {
+      id: nanoid(12),
       username: process.env.Operator_USERNAME,
       password: passwordOperator,
       role: Role.Operator,

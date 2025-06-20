@@ -22,7 +22,13 @@ export class OrderDetailResponseDto {
     description: 'Quantity of the product in the order detail',
     example: 2,
   })
-  quantity: number;
+  quantityPack: number;
+
+  @ApiProperty({
+    description: 'Quantity of the product in the order detail',
+    example: 2,
+  })
+  quantityCarton: number;
 
   @ApiProperty()
   createdAt: Date;

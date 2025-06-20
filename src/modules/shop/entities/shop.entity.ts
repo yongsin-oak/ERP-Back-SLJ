@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
@@ -9,6 +10,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Platform } from './platform.enum';
+import { generateId } from 'src/common/helpers/generateIdWithPrefix';
 
 @Entity()
 @Unique(['name', 'platform'])
@@ -16,6 +18,14 @@ export class Shop {
   @ApiProperty()
   @PrimaryColumn()
   id: string;
+
+  @BeforeInsert()
+  generateId() {
+    this.id = generateId({
+      prefix: 'SHOP',
+      withDateTime: false,
+    });
+  }
 
   @ApiProperty()
   @Column()

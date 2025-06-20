@@ -13,6 +13,7 @@ import {
 } from 'src/common/dto/paginated.dto';
 import { EmployeeResponseDto } from './dto/response-employee.dto';
 import { generateId } from 'src/common/helpers/generateIdWithPrefix';
+import { EmployeeUpdateDto } from './dto/update-emplote.dto';
 
 @Injectable()
 export class EmployeeService {
@@ -69,20 +70,16 @@ export class EmployeeService {
       },
       `Employee with name ${data.firstName} ${data.lastName}`,
     );
-    const { startDate } = data;
-    const id = generateId('EMP');
     const newEmployee = this.employeeRepo.create({
-      id,
       ...data,
-      startDate: startDate ? new Date(`${startDate}T09:00:00`) : null,
     });
     return this.employeeRepo.save(newEmployee);
   }
 
   async update(
     id: string,
-    data: Partial<Employee>,
-  ): Promise<EmployeeResponseDto> {
+    data: Partial<EmployeeUpdateDto>,
+  ): Promise<EmployeeResponseDto>{
     await this.employeeGetEntityOrNotFound(id);
     await this.employeeRepo.update(id, data);
     return this.findOne(id);

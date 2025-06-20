@@ -1,8 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude } from 'class-transformer';
+import { generateId } from 'src/common/helpers/generateIdWithPrefix';
 import { Order } from 'src/modules/order/entities/order.entity';
 import { Product } from 'src/modules/product/entities/product.entity';
 import {
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
@@ -20,6 +22,11 @@ export class OrderDetail {
   })
   @PrimaryColumn()
   id: string;
+
+  @BeforeInsert()
+  generateId() {
+    this.id = generateId({ prefix: 'ORD-DETAIL', withDateTime: true });
+  }
 
   @ManyToOne(() => Product, (product) => product.orderDetails, {
     nullable: false,
@@ -39,8 +46,12 @@ export class OrderDetail {
   orderId: string;
 
   @ApiProperty()
-  @Column('integer', { nullable: false })
-  quantity: number;
+  @Column('integer', { nullable: true })
+  quantityPack: number;
+
+  @ApiProperty()
+  @Column('integer', { nullable: true })
+  quantityCarton: number;
 
   @ApiProperty()
   @CreateDateColumn({ type: 'timestamp' })
