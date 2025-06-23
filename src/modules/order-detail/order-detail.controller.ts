@@ -1,16 +1,13 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
-import { Roles } from 'src/auth/role/roles.decorator';
-import { RolesGuard } from 'src/auth/role/roles.guard';
-import { ApiOkResponsePaginated } from 'src/common/decorator/paginated.decorator';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from 'src/common/dto/paginated.dto';
 import { OrderDetailResponseDto } from './dto/response-order-detail.dto';
 import { OrderDetail } from './entities/orderDetail.entity';
 import { OrderDetailService } from './order-detail.service';
+import { RolesGuard } from '@app/auth/role/roles.guard';
+import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
+import { Roles } from '@app/auth/role/roles.decorator';
+import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 
 @Controller('order-detail')
 @ApiBearerAuth()

@@ -1,9 +1,11 @@
+import 'module-alias/register';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
 import { DateTime } from 'luxon';
+
 
 async function bootstrap() {
   DateTime.now().setZone('Asia/Bangkok').toISO();

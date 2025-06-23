@@ -1,3 +1,5 @@
+import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
+import { RolesGuard } from '@app/auth/role/roles.guard';
 import {
   Body,
   Controller,
@@ -10,19 +12,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/role/roles.guard';
 import { ShopService } from './shop.service';
-import { Role } from 'src/auth/role/role.enum';
-import { Roles } from 'src/auth/role/roles.decorator';
-import { ShopCreateDto } from './dto/create-shop.dto';
+import { Roles } from '@app/auth/role/roles.decorator';
+import { Role } from '@app/auth/role/role.enum';
 import { ShopResponseDto } from './dto/response.dto';
-import { ApiOkResponsePaginated } from 'src/common/decorator/paginated.decorator';
+import { ShopCreateDto } from './dto/create-shop.dto';
 import { Shop } from './entities/shop.entity';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from 'src/common/dto/paginated.dto';
+import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 
 @Controller('shop')
 @ApiTags('Shops')

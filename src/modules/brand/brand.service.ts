@@ -7,14 +7,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Brand } from './entities/brand.entity';
 import { Repository } from 'typeorm';
 import { BrandCreateDto } from './dto/create-brand.dto';
-import {
-  getEntityOrNotFound,
-  throwIfEntityExists,
-} from 'src/common/helpers/entity.helper';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from 'src/common/dto/paginated.dto';
+import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
+import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 
 @Injectable()
 export class BrandService {

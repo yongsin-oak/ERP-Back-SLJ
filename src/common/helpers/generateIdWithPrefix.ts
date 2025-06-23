@@ -7,7 +7,7 @@ interface GenerateIdOptions {
   length?: number; // ความยาวของ id ส่วนสุ่ม
 }
 
-export function generateId(options: GenerateIdOptions = {}): string {
+export function generateIdWithPrefix(options: GenerateIdOptions = {}): string {
   const { prefix = '', withDateTime = true, length = 10 } = options;
 
   const timePart = withDateTime

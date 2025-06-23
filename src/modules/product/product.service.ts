@@ -1,18 +1,13 @@
 import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
+  Injectable
 } from '@nestjs/common';
-import { ProductCreateDto } from './dto/create-product.dto';
-import { Product } from './entities/product.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ProductCreateDto } from './dto/create-product.dto';
 import { ProductResponseDto } from './dto/response.dto';
-import {
-  getEntityOrNotFound,
-  throwIfEntityExists,
-} from 'src/common/helpers/entity.helper';
-import { PaginatedResponseDto } from 'src/common/dto/paginated.dto';
+import { Product } from './entities/product.entity';
+import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
+import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 
 @Injectable()
 export class ProductService {

@@ -10,8 +10,6 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiQuery } from '@nestjs/swagger';
-import { ApiOkResponsePaginated } from 'src/common/decorator/paginated.decorator';
-import { PaginatedResponseDto } from 'src/common/dto/paginated.dto';
 import { CategoryService } from './category.service';
 import { CategoryCreateDto } from './dto/create-category.dto';
 import { CategoryGetDto } from './dto/get-category.dto';
@@ -21,10 +19,12 @@ import {
   CategoryResponseWithParentDto,
 } from './dto/response-category.dto';
 import { Category } from './entities/category.entity';
-import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/role/roles.guard';
-import { Roles } from 'src/auth/role/roles.decorator';
-import { Role } from 'src/auth/role/role.enum';
+import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
+import { RolesGuard } from '@app/auth/role/roles.guard';
+import { Roles } from '@app/auth/role/roles.decorator';
+import { Role } from '@app/auth/role/role.enum';
+import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 
 @Controller('category')
 @ApiBearerAuth()

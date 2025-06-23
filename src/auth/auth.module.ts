@@ -6,7 +6,9 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt/jwt.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './user/user.entity';
+import { config } from 'dotenv';
 
+config();
 @Module({
   imports: [
     TypeOrmModule.forFeature([User]), 

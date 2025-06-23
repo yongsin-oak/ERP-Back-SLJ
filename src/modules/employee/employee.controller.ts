@@ -14,16 +14,13 @@ import { EmployeeCreateDto } from './dto/create-employee.dto';
 import { Employee } from './entities/employee.entity';
 import { EmployeeUpdateDto } from './dto/update-emplote.dto';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/role/roles.guard';
-import { Roles } from 'src/auth/role/roles.decorator';
-import { Role } from 'src/auth/role/role.enum';
-import { ApiOkResponsePaginated } from 'src/common/decorator/paginated.decorator';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from 'src/common/dto/paginated.dto';
 import { EmployeeResponseDto } from './dto/response-employee.dto';
+import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
+import { RolesGuard } from '@app/auth/role/roles.guard';
+import { Roles } from '@app/auth/role/roles.decorator';
+import { Role } from '@app/auth/role/role.enum';
+import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 
 @Controller('employee')
 @ApiBearerAuth()

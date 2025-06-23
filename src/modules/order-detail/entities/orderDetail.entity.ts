@@ -1,8 +1,9 @@
+import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix';
+import { Order } from '@app/modules/order/entities/order.entity';
+import { Product } from '@app/modules/product/entities/product.entity';
+import { forwardRef } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude } from 'class-transformer';
-import { generateId } from 'src/common/helpers/generateIdWithPrefix';
-import { Order } from 'src/modules/order/entities/order.entity';
-import { Product } from 'src/modules/product/entities/product.entity';
 import {
   BeforeInsert,
   Column,
@@ -25,7 +26,10 @@ export class OrderDetail {
 
   @BeforeInsert()
   generateId() {
-    this.id = generateId({ prefix: 'ORD-DETAIL', withDateTime: true });
+    this.id = generateIdWithPrefix({
+      prefix: 'ORD-DETAIL',
+      withDateTime: true,
+    });
   }
 
   @ManyToOne(() => Product, (product) => product.orderDetails, {
@@ -34,7 +38,6 @@ export class OrderDetail {
   @JoinColumn()
   product: Product;
 
-  @Exclude()
   @ManyToOne(() => Order, (order) => order.orderDetails, {
     nullable: false,
   })

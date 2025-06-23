@@ -5,12 +5,11 @@ import {
   CreateDateColumn,
   Entity,
   PrimaryColumn,
-  PrimaryGeneratedColumn,
   Unique,
-  UpdateDateColumn,
+  UpdateDateColumn
 } from 'typeorm';
 import { Platform } from './platform.enum';
-import { generateId } from 'src/common/helpers/generateIdWithPrefix';
+import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix';
 
 @Entity()
 @Unique(['name', 'platform'])
@@ -21,7 +20,7 @@ export class Shop {
 
   @BeforeInsert()
   generateId() {
-    this.id = generateId({
+    this.id = generateIdWithPrefix({
       prefix: 'SHOP',
       withDateTime: false,
     });

@@ -1,6 +1,6 @@
+import { OrderDetailCreateDto } from '@app/modules/order-detail/dto/create-order-detail.dto';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsNotEmpty, IsOptional } from 'class-validator';
-import { OrderDetailCreateDto } from 'src/modules/order-detail/dto/create-order-detail.dto';
+import { IsArray, IsNotEmpty } from 'class-validator';
 
 export class OrderCreateDto {
   @ApiProperty({

@@ -1,24 +1,17 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Order } from './entities/order.entity';
+import { isNotEmpty } from 'class-validator';
 import { Repository } from 'typeorm';
-import {
-  getEntityOrNotFound,
-  throwIfEntityExists,
-} from 'src/common/helpers/entity.helper';
-import { OrderResponseDto } from './dto/response-order.dto';
-import { OrderCreateDto } from './dto/create-order.dto';
+import { Employee } from '../employee/entities/employee.entity';
 import { OrderDetail } from '../order-detail/entities/orderDetail.entity';
 import { Product } from '../product/entities/product.entity';
-import { generateId } from 'src/common/helpers/generateIdWithPrefix';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from 'src/common/dto/paginated.dto';
-import { OrderUpdateDto } from './dto/update-order.dto';
-import { isNotEmpty } from 'class-validator';
 import { Shop } from '../shop/entities/shop.entity';
-import { Employee } from '../employee/entities/employee.entity';
+import { OrderCreateDto } from './dto/create-order.dto';
+import { OrderResponseDto } from './dto/response-order.dto';
+import { OrderUpdateDto } from './dto/update-order.dto';
+import { Order } from './entities/order.entity';
+import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
+import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 
 @Injectable()
 export class OrderService {

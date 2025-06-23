@@ -3,26 +3,19 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Category } from './entities/category.entity';
-import { Repository } from 'typeorm';
-import {
-  getEntityOrNotFound,
-  throwIfEntityExists,
-} from 'src/common/helpers/entity.helper';
-import { CategoryCreateDto } from './dto/create-category.dto';
-import { CategoryUpdateDto } from './dto/update-category.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from 'src/common/dto/paginated.dto';
+import { Repository } from 'typeorm';
+import { CategoryCreateDto } from './dto/create-category.dto';
 import { CategoryGetDto } from './dto/get-category.dto';
 import {
   CategoryResponseDto,
   CategoryResponseWithChildrenDto,
   CategoryResponseWithParentDto,
 } from './dto/response-category.dto';
-import { generateId } from 'src/common/helpers/generateIdWithPrefix';
+import { CategoryUpdateDto } from './dto/update-category.dto';
+import { Category } from './entities/category.entity';
+import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
+import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 
 @Injectable()
 export class CategoryService {

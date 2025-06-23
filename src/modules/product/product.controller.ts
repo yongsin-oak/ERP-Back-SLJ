@@ -19,16 +19,13 @@ import {
 } from '@nestjs/swagger';
 import { Product } from './entities/product.entity';
 import { ProductResponseDto } from './dto/response.dto';
-import { Roles } from 'src/auth/role/roles.decorator';
-import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/role/roles.guard';
-import { Role } from 'src/auth/role/role.enum';
 import { ProductUpdateDto } from './dto/update-product.dto';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from 'src/common/dto/paginated.dto';
-import { ApiOkResponsePaginated } from 'src/common/decorator/paginated.decorator';
+import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
+import { RolesGuard } from '@app/auth/role/roles.guard';
+import { Roles } from '@app/auth/role/roles.decorator';
+import { Role } from '@app/auth/role/role.enum';
+import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 
 @ApiTags('Products')
 @ApiBearerAuth()

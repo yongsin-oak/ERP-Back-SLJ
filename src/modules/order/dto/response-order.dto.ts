@@ -1,7 +1,7 @@
+import { Employee } from '@app/modules/employee/entities/employee.entity';
+import { OrderDetail } from '@app/modules/order-detail/entities/orderDetail.entity';
+import { Shop } from '@app/modules/shop/entities/shop.entity';
 import { ApiProperty, getSchemaPath } from '@nestjs/swagger';
-import { Employee } from 'src/modules/employee/entities/employee.entity';
-import { OrderDetail } from 'src/modules/order-detail/entities/orderDetail.entity';
-import { Shop } from 'src/modules/shop/entities/shop.entity';
 
 export class OrderResponseDto {
   @ApiProperty({

@@ -1,3 +1,4 @@
+import { Role } from '@app/auth/role/role.enum';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsDate,
@@ -6,7 +7,6 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
-import { Role } from 'src/auth/role/role.enum';
 
 export class EmployeeCreateDto {
   @ApiProperty({

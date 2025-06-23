@@ -1,12 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from 'src/common/dto/paginated.dto';
-import { getEntityOrNotFound } from 'src/common/helpers/entity.helper';
 import { Repository } from 'typeorm';
 import { OrderDetail } from './entities/orderDetail.entity';
+import { getEntityOrNotFound } from '@app/common/helpers/entity.helper';
+import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 
 @Injectable()
 export class OrderDetailService {

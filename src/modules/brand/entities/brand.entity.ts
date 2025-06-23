@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { generateId } from 'src/common/helpers/generateIdWithPrefix';
-import { Product } from 'src/modules/product/entities/product.entity';
+import { generateIdWithPrefix } from '../../../common/helpers/generateIdWithPrefix';
 import {
   BeforeInsert,
   Column,
@@ -8,9 +7,9 @@ import {
   Entity,
   OneToMany,
   PrimaryColumn,
-  PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Product } from '@app/modules/product/entities/product.entity';
 
 @Entity()
 export class Brand {
@@ -22,7 +21,7 @@ export class Brand {
 
   @BeforeInsert()
   generateId() {
-    this.id = generateId({
+    this.id = generateIdWithPrefix({
       prefix: 'BRD',
       withDateTime: false,
     });
@@ -38,8 +37,8 @@ export class Brand {
 
   @OneToMany(() => Product, (product) => product.brand, {
     nullable: true,
-    lazy: true,
   })
+  @ApiProperty({ type: () => Product, isArray: true, required: false })
   products: Product[];
 
   @ApiProperty()

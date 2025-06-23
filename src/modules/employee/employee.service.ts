@@ -1,19 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Employee } from './entities/employee.entity';
 import { EmployeeCreateDto } from './dto/create-employee.dto';
+import { EmployeeResponseDto } from './dto/response-employee.dto';
+import { EmployeeUpdateDto } from './dto/update-emplote.dto';
+import { Employee } from './entities/employee.entity';
 import {
   getEntityOrNotFound,
   throwIfEntityExists,
-} from 'src/common/helpers/entity.helper';
+} from '@app/common/helpers/entity.helper';
 import {
   PaginatedGetAllDto,
   PaginatedResponseDto,
-} from 'src/common/dto/paginated.dto';
-import { EmployeeResponseDto } from './dto/response-employee.dto';
-import { generateId } from 'src/common/helpers/generateIdWithPrefix';
-import { EmployeeUpdateDto } from './dto/update-emplote.dto';
+} from '@app/common/dto/paginated.dto';
 
 @Injectable()
 export class EmployeeService {
@@ -79,7 +78,7 @@ export class EmployeeService {
   async update(
     id: string,
     data: Partial<EmployeeUpdateDto>,
-  ): Promise<EmployeeResponseDto>{
+  ): Promise<EmployeeResponseDto> {
     await this.employeeGetEntityOrNotFound(id);
     await this.employeeRepo.update(id, data);
     return this.findOne(id);

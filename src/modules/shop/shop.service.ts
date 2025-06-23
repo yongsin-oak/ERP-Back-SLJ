@@ -1,19 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from 'src/common/dto/paginated.dto';
-import {
-  getEntityOrNotFound,
-  throwIfEntityExists,
-} from 'src/common/helpers/entity.helper';
 import { Repository } from 'typeorm';
 import { ShopCreateDto } from './dto/create-shop.dto';
 import { ShopResponseDto } from './dto/response.dto';
 import { ShopUpdateDto } from './dto/update-product.dto';
 import { Platform } from './entities/platform.enum';
 import { Shop } from './entities/shop.entity';
+import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
+import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 
 @Injectable()
 export class ShopService {

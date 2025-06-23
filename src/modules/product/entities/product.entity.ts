@@ -9,11 +9,11 @@ import {
   OneToMany,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
-import { Brand } from 'src/modules/brand/entities/brand.entity';
-import { Category } from 'src/modules/category/entities/category.entity';
-import { OrderDetail } from 'src/modules/order-detail/entities/orderDetail.entity';
 import { Dimensions, ProductUnitPrice } from './product.interface';
 import { IsInt, Min } from 'class-validator';
+import { OrderDetail } from '@app/modules/order-detail/entities/orderDetail.entity';
+import { Brand } from '@app/modules/brand/entities/brand.entity';
+import { Category } from '@app/modules/category/entities/category.entity';
 
 @Entity()
 export class Product {
@@ -25,11 +25,11 @@ export class Product {
   @Column()
   name: string;
 
-  @ApiProperty()
   @ManyToOne(() => Brand, (brand) => brand.products, {
     nullable: true,
   })
   @JoinColumn({ name: 'brandId' })
+  @ApiProperty({ type: () => Brand, required: false })
   brand: Brand;
 
   @Column({ nullable: true })

@@ -1,14 +1,13 @@
+import { Role } from '@app/auth/role/role.enum';
+import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix';
 import { ApiProperty } from '@nestjs/swagger';
-import { Role } from 'src/auth/role/role.enum';
-import { generateId } from 'src/common/helpers/generateIdWithPrefix';
 import {
   BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
   PrimaryColumn,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
+  UpdateDateColumn
 } from 'typeorm';
 
 @Entity()
@@ -19,7 +18,7 @@ export class Employee {
 
   @BeforeInsert()
   generateId() {
-    this.id = generateId({
+    this.id = generateIdWithPrefix({
       prefix: 'EMP',
       withDateTime: false,
     });

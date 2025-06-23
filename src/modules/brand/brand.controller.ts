@@ -14,15 +14,12 @@ import { ApiBearerAuth, ApiBody, ApiOkResponse } from '@nestjs/swagger';
 import { Brand } from './entities/brand.entity';
 import { BrandCreateDto } from './dto/create-brand.dto';
 import { BrandUpdateDto } from './dto/update-brand.dto';
-import { ApiOkResponsePaginated } from 'src/common/decorator/paginated.decorator';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from 'src/common/dto/paginated.dto';
-import { JwtAuthGuard } from 'src/auth/jwt/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/role/roles.guard';
-import { Roles } from 'src/auth/role/roles.decorator';
-import { Role } from 'src/auth/role/role.enum';
+import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
+import { RolesGuard } from '@app/auth/role/roles.guard';
+import { Roles } from '@app/auth/role/roles.decorator';
+import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { Role } from '@app/auth/role/role.enum';
 
 @Controller('brand')
 @ApiBearerAuth()

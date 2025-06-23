@@ -1,15 +1,14 @@
-import { Employee } from 'src/modules/employee/entities/employee.entity';
-import { OrderDetail } from 'src/modules/order-detail/entities/orderDetail.entity';
-import { Shop } from 'src/modules/shop/entities/shop.entity';
+import { Employee } from '@app/modules/employee/entities/employee.entity';
+import { OrderDetail } from '@app/modules/order-detail/entities/orderDetail.entity';
+import { Shop } from '@app/modules/shop/entities/shop.entity';
 import {
-  Column,
   CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryColumn,
-  UpdateDateColumn,
+  UpdateDateColumn
 } from 'typeorm';
 
 @Entity()

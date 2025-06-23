@@ -1,25 +1,26 @@
-import { DataSource } from 'typeorm';
+import { datasource } from '@db/data-source';
 import * as bcrypt from 'bcrypt';
+import { nanoid } from 'nanoid';
+import { DataSource } from 'typeorm';
+import { Role } from '../role/role.enum';
 import { User } from '../user/user.entity';
 import { config } from 'dotenv';
-import { Role } from '../role/role.enum';
-import { nanoid } from 'nanoid';
 
 config();
-
 const AppDataSource = new DataSource({
   type: 'postgres',
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT, 10),
+  host: process.env.DB_HOST || 'localhost',
+  port: Number(process.env.DB_PORT),
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  synchronize: true, // สำหรับ dev เท่านั้น อย่าใช้ใน prod
+  synchronize: false,
   logging: false,
   entities: [User],
 });
 
 async function seed() {
+  console.log('🌱 Seeding users...');
   await AppDataSource.initialize();
   const userRepository = AppDataSource.getRepository(User);
 

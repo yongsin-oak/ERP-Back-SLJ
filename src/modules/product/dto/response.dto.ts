@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Dimensions, ProductUnitPrice } from '../entities/product.interface';
-import { Brand } from 'src/modules/brand/entities/brand.entity';
-import { Category } from 'src/modules/category/entities/category.entity';
+import { Brand } from '@app/modules/brand/entities/brand.entity';
+import { Category } from '@app/modules/category/entities/category.entity';
 export class ProductResponseDto {
   @ApiProperty()
   barcode: string;
@@ -9,7 +9,7 @@ export class ProductResponseDto {
   @ApiProperty()
   name: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: () => Brand, required: false })
   brand: Brand;
 
   @ApiProperty()

@@ -1,7 +1,6 @@
+import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix';
+import { Product } from '@app/modules/product/entities/product.entity';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray } from 'class-validator';
-import { generateId } from 'src/common/helpers/generateIdWithPrefix';
-import { Product } from 'src/modules/product/entities/product.entity';
 import {
   BeforeInsert,
   Column,
@@ -24,7 +23,7 @@ export class Category {
 
   @BeforeInsert()
   generateId() {
-    this.id = generateId({
+    this.id = generateIdWithPrefix({
       prefix: 'CAT',
       withDateTime: false,
     });
