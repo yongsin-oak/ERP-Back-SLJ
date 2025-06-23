@@ -40,8 +40,8 @@ export class AuthController {
     const authUser = await this.authService.login(user);
     res.cookie('token', authUser.token, {
       httpOnly: true,
-      secure: false, // true ใน production + HTTPS เท่านั้น
-      sameSite: 'lax', // บน production ควรใช้ 'strict' หรือ 'none' ขึ้นอยู่กับการใช้งาน
+      secure: true, // true ใน production + HTTPS เท่านั้น
+      sameSite: 'none', // บน production ควรใช้ 'strict' หรือ 'none' ขึ้นอยู่กับการใช้งาน
       maxAge: 86400000,
     });
 
@@ -75,8 +75,8 @@ export class AuthController {
     // ล้าง cookie ชื่อ 'token'
     res.clearCookie('token', {
       httpOnly: false,
-      sameSite: 'lax',
-      secure: false, // ใน production ควรเป็น true
+      sameSite: 'none',
+      secure: true, // ใน production ควรเป็น true
     });
     return { message: 'Logout successful' };
   }
