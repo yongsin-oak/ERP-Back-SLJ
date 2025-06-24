@@ -10,10 +10,11 @@ import { DateTime } from 'luxon';
 async function bootstrap() {
   DateTime.now().setZone('Asia/Bangkok').toISO();
   const app = await NestFactory.create(AppModule);
+  const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
   const port = process.env.PORT || 3001;
   app.use(cookieParser());
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    origin: corsOrigin,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
@@ -36,7 +37,7 @@ async function bootstrap() {
   );
   await app.listen(port);
 
-  console.log(`Application is running on: http://localhost:${port}`);
-  console.log(`Swagger is running on: http://localhost:${port}/api`);
+  console.log(`Application is running on: port ${port}`);
+  console.log(`Cors enabled for origin: ${corsOrigin}`);
 }
 bootstrap();
