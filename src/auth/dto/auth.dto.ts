@@ -30,11 +30,17 @@ export class UpdatePasswordDto {
 }
 
 export class AuthResponseDto {
+  @ApiProperty({ example: 'Login successful', description: 'Response message' })
+  message: string;
+
   @ApiProperty({
-    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-    description: 'JWT token',
+    example: { username: 'admin', role: Role.Operator },
+    description: 'User information',
   })
-  token: string;
+  user: {
+    username: string;
+    role: Role;
+  };
 }
 
 export class GetMeDto {

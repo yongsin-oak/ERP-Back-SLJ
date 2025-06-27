@@ -42,10 +42,16 @@ export class AuthController {
       httpOnly: true,
       secure: true, // true ใน production + HTTPS เท่านั้น
       sameSite: 'none', // บน production ควรใช้ 'strict' หรือ 'none' ขึ้นอยู่กับการใช้งาน
-      maxAge: 86400000,
+      maxAge: 1000 * 60 * 60 * 10, // 10 ชั่วโมง
     });
 
-    return res.send({ message: 'Login successful', user: authUser });
+    return res.send({
+      message: 'Login successful',
+      user: {
+        username: user.username,
+        role: user.role,
+      },
+    });
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
