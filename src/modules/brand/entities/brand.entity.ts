@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { generateIdWithPrefix } from '../../../common/helpers/generateIdWithPrefix';
+import { generateIdWithPrefix } from '../../../common/helpers/generateIdWithPrefix.helper';
 import {
   BeforeInsert,
   Column,

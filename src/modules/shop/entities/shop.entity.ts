@@ -6,10 +6,10 @@ import {
   Entity,
   PrimaryColumn,
   Unique,
-  UpdateDateColumn
+  UpdateDateColumn,
 } from 'typeorm';
 import { Platform } from './platform.enum';
-import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix';
+import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix.helper';
 
 @Entity()
 @Unique(['name', 'platform'])

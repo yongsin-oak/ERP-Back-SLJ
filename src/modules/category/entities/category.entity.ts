@@ -1,4 +1,4 @@
-import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix';
+import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix.helper';
 import { Product } from '@app/modules/product/entities/product.entity';
 import { ApiProperty } from '@nestjs/swagger';
 import {

@@ -1,4 +1,4 @@
-import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix';
+import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix.helper';
 import { Order } from '@app/modules/order/entities/order.entity';
 import { Product } from '@app/modules/product/entities/product.entity';
 import { forwardRef } from '@nestjs/common';

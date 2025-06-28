@@ -1,5 +1,5 @@
 import { Role } from '@app/auth/role/role.enum';
-import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix';
+import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix.helper';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   BeforeInsert,
@@ -7,7 +7,7 @@ import {
   CreateDateColumn,
   Entity,
   PrimaryColumn,
-  UpdateDateColumn
+  UpdateDateColumn,
 } from 'typeorm';
 
 @Entity()

@@ -6,11 +6,11 @@ import { ValidationPipe } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
 import { DateTime } from 'luxon';
 
-
 async function bootstrap() {
   DateTime.now().setZone('Asia/Bangkok').toISO();
   const app = await NestFactory.create(AppModule);
   const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
+  const key = process.env.ENCRYPTION_KEY;
   const port = process.env.PORT || 3001;
   app.use(cookieParser());
   app.enableCors({
@@ -37,7 +37,8 @@ async function bootstrap() {
   );
   await app.listen(port);
 
-  console.log(`Application is running on: port ${port}`);
+  console.log((await app.getUrl()).toString());
   console.log(`Cors enabled for origin: ${corsOrigin}`);
+  console.log('Encryption key:', key);
 }
 bootstrap();
