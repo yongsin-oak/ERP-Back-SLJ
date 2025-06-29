@@ -54,7 +54,8 @@ jobs:
             echo "Pulling new image: $IMAGE_NAME"
             docker pull $IMAGE_NAME
             echo "Starting Docker Compose..."
-            BACKEND_IMAGE_TAG=$IMAGE_NAME docker-compose -f docker-compose.yml up -d
+            export BACKEND_IMAGE_TAG=$IMAGE_NAME
+            docker-compose -f docker-compose.yml up -d
             echo "Cleaning up old Docker images..."
             docker image prune -af
             echo "Deployment successful!"
