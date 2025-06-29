@@ -1,0 +1,61 @@
+name: Build & Deploy Backend to GCE
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend:${{ github.sha }} .
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
+
+      - name: Push image to Artifact Registry
+        run: |
+          docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend:${{ github.sha }}
+
+      - name: Upload docker-compose.yml to GCE VM
+        run: |
+          gcloud compute scp docker-compose.yml ${{ secrets.GCE_USER }}@${{ secrets.GCE_INSTANCE_NAME }}:/home/${{ secrets.GCE_USER }}/backend/docker-compose.yml --zone=${{ secrets.GCE_INSTANCE_ZONE }}
+
+      - name: Upload .env.production to GCE VM
+        run: |
+          echo "${{ secrets.BACKEND_ENV_PRODUCTION }}" > .env.production
+          gcloud compute scp .env.production ${{ secrets.GCE_USER }}@${{ secrets.GCE_INSTANCE_NAME }}:/home/${{ secrets.GCE_USER }}/backend/.env.production --zone=${{ secrets.GCE_INSTANCE_ZONE }}
+
+      - name: Deploy to GCE VM
+        run: |
+          gcloud compute ssh ${{ secrets.GCE_USER }}@${{ secrets.GCE_INSTANCE_NAME }} --zone=${{ secrets.GCE_INSTANCE_ZONE }} --command='
+            set -e
+            echo "Configuring Docker on VM..."
+            gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
+            IMAGE_NAME="asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend:${{ github.sha }}"
+            cd /home/${{ secrets.GCE_USER }}/backend
+            echo "Pulling new image: $IMAGE_NAME"
+            docker pull $IMAGE_NAME
+            echo "Starting Docker Compose..."
+            FRONTEND_IMAGE_TAG=$IMAGE_NAME docker-compose -f docker-compose.yml up -d
+            echo "Cleaning up old Docker images..."
+            docker image prune -af
+            echo "Deployment successful!"
+          '
