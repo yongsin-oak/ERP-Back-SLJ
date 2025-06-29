@@ -53,9 +53,16 @@ jobs:
             cd /home/${{ secrets.GCE_USER }}/backend
             echo "Pulling new image: $IMAGE_NAME"
             docker pull $IMAGE_NAME
+
+            echo "Loading env variables..."
+            set -o allexport
+            source .env.production
+            set +o allexport
+
             echo "Starting Docker Compose..."
             export BACKEND_IMAGE_TAG=$IMAGE_NAME
             docker-compose -f docker-compose.yml up -d
+            
             echo "Cleaning up old Docker images..."
             docker image prune -af
             echo "Deployment successful!"
