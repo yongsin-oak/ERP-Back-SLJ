@@ -11,9 +11,5 @@ export const datasource: DataSourceOptions = {
   database: process.env.POSTGRES_DB,
   synchronize: true, // สำหรับ dev เท่านั้น อย่าใช้ใน prod
   logging: false,
-  ssl:
-    process.env.NODE_ENV === 'production'
-      ? { rejectUnauthorized: false }
-      : false,
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
 };
