@@ -17,9 +17,12 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    env_file:
+      - .env.production
 
   backend:
-    build: .
+    image: ${BACKEND_IMAGE_TAG}
+    restart: always
     ports:
       - '3000:3000'
     env_file:
