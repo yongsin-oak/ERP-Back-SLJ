@@ -9,7 +9,7 @@ import { DateTime } from 'luxon';
 async function bootstrap() {
   DateTime.now().setZone('Asia/Bangkok').toISO();
   const app = await NestFactory.create(AppModule);
-  const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
+  const corsOrigin = [process.env.CORS_ORIGIN, 'http://localhost:5173'];
   const key = process.env.ENCRYPTION_KEY;
   const port = process.env.PORT || 3001;
   app.use(cookieParser());
@@ -18,6 +18,7 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
+  app.setGlobalPrefix('api/v1');
 
   const config = new DocumentBuilder()
     .setTitle('ERP API')
