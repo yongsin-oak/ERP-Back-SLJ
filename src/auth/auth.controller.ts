@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
-import { Request, Response } from 'express';
+import { CookieOptions, Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import {
   AuthPayloadDto,
@@ -38,12 +38,22 @@ export class AuthController {
       await this.authService.validateUser(body);
     if (!user) throw new UnauthorizedException('Invalid credentials');
     const authUser = await this.authService.login(user);
+    const cookieOptions: CookieOptions =
+      process.env.NODE_ENV === 'production'
+        ? {
+            httpOnly: true,
+            secure: true, // true ใน production + HTTPS เท่านั้น
+            sameSite: 'none', // บน production ควรใช้ 'strict' หรือ 'none' ขึ้นอยู่กับการใช้งาน
+            domain: '.sljsupply-center.com',
+            path: '/',
+          }
+        : {
+            httpOnly: true,
+            secure: false, // ใน development สามารถใช้ false ได้
+            sameSite: 'lax', // ใน development สามารถใช้ lax ได้
+          };
     res.cookie('token', authUser.token, {
-      httpOnly: true,
-      secure: true, // true ใน production + HTTPS เท่านั้น
-      sameSite: 'none', // บน production ควรใช้ 'strict' หรือ 'none' ขึ้นอยู่กับการใช้งาน
-      domain: '.sljsupply-center.com',
-      path: '/',
+      ...cookieOptions,
       maxAge: 1000 * 60 * 60 * 10, // 10 ชั่วโมง
     });
 
