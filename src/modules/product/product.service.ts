@@ -1,13 +1,16 @@
-import {
-  Injectable
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProductCreateDto } from './dto/create-product.dto';
 import { ProductResponseDto } from './dto/response.dto';
 import { Product } from './entities/product.entity';
-import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
+import {
+  getEntityOrNotFound,
+  throwIfEntityExists,
+} from '@app/common/helpers/entity.helper';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { BulkUpdateProductDto } from './dto/bulk-update-product.dto';
+import { BulkDeleteProductDto } from './dto/bulk-delete-product.dto';
 
 @Injectable()
 export class ProductService {
@@ -119,5 +122,98 @@ export class ProductService {
     const product = await this.productGetEntityOrFail(barcode);
     await this.productRepo.remove(product);
     return product;
+  }
+
+  async bulkUpdate(bulkUpdateDto: BulkUpdateProductDto): Promise<Product[]> {
+    const updatedProducts: Product[] = [];
+    const errors: string[] = [];
+
+    // เช็คว่าทุก barcode มีอยู่จริงก่อนทำการอัปเดต
+    for (const item of bulkUpdateDto.products) {
+      try {
+        await this.productGetEntityOrFail(item.barcode);
+      } catch (error) {
+        errors.push(`Product with barcode ${item.barcode} not found`);
+      }
+    }
+
+    // หากมีข้อผิดพลาดใดๆ ให้ throw error ทันที
+    if (errors.length > 0) {
+      throw new Error(`Bulk update failed: ${errors.join(', ')}`);
+    }
+
+    // ทำการอัปเดตทุกรายการ
+    for (const item of bulkUpdateDto.products) {
+      try {
+        const product = await this.productGetEntityOrFail(item.barcode);
+
+        // อัปเดตข้อมูล
+        await this.productRepo.update({ barcode: item.barcode }, item.data);
+
+        // ดึงข้อมูลที่อัปเดตแล้วพร้อม relations
+        const updatedProduct = await this.productRepo.findOne({
+          where: { barcode: item.barcode },
+          relations: ['brand', 'category'],
+        });
+
+        if (updatedProduct) {
+          updatedProducts.push(updatedProduct);
+        }
+      } catch (error) {
+        errors.push(
+          `Failed to update product ${item.barcode}: ${error.message}`,
+        );
+      }
+    }
+
+    // หากมีข้อผิดพลาดในการอัปเดต
+    if (errors.length > 0) {
+      throw new Error(`Some products failed to update: ${errors.join(', ')}`);
+    }
+
+    return updatedProducts;
+  }
+
+  async bulkDelete(
+    bulkDeleteDto: BulkDeleteProductDto,
+  ): Promise<{ deleted: Product[]; errors: string[] }> {
+    const deletedProducts: Product[] = [];
+    const errors: string[] = [];
+    const productsToDelete: Product[] = [];
+
+    // เช็คว่าทุก barcode มีอยู่จริงและเก็บ products ที่จะลบ
+    for (const barcode of bulkDeleteDto.barcodes) {
+      try {
+        const product = await this.productGetEntityOrFail(barcode);
+        productsToDelete.push(product);
+      } catch (error) {
+        errors.push(`Product with barcode ${barcode} not found`);
+      }
+    }
+
+    // หากมีข้อผิดพลาดในการหา products ให้รายงาน
+    if (errors.length > 0) {
+      return {
+        deleted: [],
+        errors: errors,
+      };
+    }
+
+    // ทำการลบทีละรายการ
+    for (const product of productsToDelete) {
+      try {
+        await this.productRepo.remove(product);
+        deletedProducts.push(product);
+      } catch (error) {
+        errors.push(
+          `Failed to delete product ${product.barcode}: ${error.message}`,
+        );
+      }
+    }
+
+    return {
+      deleted: deletedProducts,
+      errors: errors,
+    };
   }
 }

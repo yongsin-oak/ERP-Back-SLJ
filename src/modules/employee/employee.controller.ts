@@ -20,7 +20,15 @@ import { RolesGuard } from '@app/auth/role/roles.guard';
 import { Roles } from '@app/auth/role/roles.decorator';
 import { Role } from '@app/auth/role/role.enum';
 import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
-import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import {
+  PaginatedGetAllDto,
+  PaginatedResponseDto,
+} from '@app/common/dto/paginated.dto';
+import {
+  CacheForMinutes,
+  CacheForHours,
+  NoCache,
+} from '@app/common/decorator/cache-control.decorator';
 
 @Controller('employee')
 @ApiBearerAuth()
@@ -30,6 +38,7 @@ export class EmployeeController {
 
   @Roles(Role.SuperAdmin)
   @Post()
+  @NoCache() // ไม่ cache การสร้าง employee
   @ApiOkResponse({
     type: EmployeeResponseDto,
     description: 'Create a new employee',
@@ -42,6 +51,7 @@ export class EmployeeController {
 
   @Roles('*')
   @Get()
+  @CacheForMinutes(5) // Cache รายการ employees เป็นเวลา 5 นาที
   @ApiOkResponsePaginated(Employee)
   async getAllEmployees(
     @Query() query: PaginatedGetAllDto,
@@ -51,6 +61,7 @@ export class EmployeeController {
 
   @Roles('*')
   @Get(':id')
+  @CacheForMinutes(30) // Cache ข้อมูล employee เฉพาะเป็นเวลา 30 นาที
   @ApiOkResponse({
     type: EmployeeResponseDto,
     description: 'Get employee by ID',
@@ -61,6 +72,7 @@ export class EmployeeController {
 
   @Roles(Role.SuperAdmin)
   @Patch(':id')
+  @NoCache() // ไม่ cache การอัปเดต employee
   @ApiOkResponse({
     type: EmployeeResponseDto,
     description: 'Update employee by ID',
@@ -74,6 +86,7 @@ export class EmployeeController {
 
   @Roles(Role.SuperAdmin)
   @Delete(':id')
+  @NoCache() // ไม่ cache การลบ employee
   @ApiOkResponse({
     type: EmployeeResponseDto,
     description: 'Delete employee by ID',

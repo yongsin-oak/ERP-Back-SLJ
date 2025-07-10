@@ -25,6 +25,11 @@ import { Roles } from '@app/auth/role/roles.decorator';
 import { Role } from '@app/auth/role/role.enum';
 import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import {
+  CacheForMinutes,
+  CacheForHours,
+  NoCache,
+} from '@app/common/decorator/cache-control.decorator';
 
 @Controller('category')
 @ApiBearerAuth()
@@ -34,6 +39,7 @@ export class CategoryController {
 
   @Post()
   @Roles(Role.SuperAdmin)
+  @NoCache() // ไม่ cache การสร้าง category
   @ApiOkResponse({
     description: 'Create a new category',
     type: Category,
@@ -44,6 +50,7 @@ export class CategoryController {
 
   @Get()
   @Roles('*')
+  @CacheForMinutes(15) // Cache รายการ categories เป็นเวลา 15 นาที
   @ApiOkResponsePaginated(CategoryResponseDto)
   async getAllCategories(
     @Query() query: CategoryGetDto,
@@ -53,6 +60,7 @@ export class CategoryController {
 
   @Get('tree')
   @Roles('*')
+  @CacheForHours(2) // Cache category tree เป็นเวลา 2 ชั่วโมง (ไม่เปลี่ยนบ่อย)
   @ApiOkResponse({
     description: 'Get all categories as a tree structure',
     type: CategoryResponseWithChildrenDto,
@@ -64,6 +72,7 @@ export class CategoryController {
 
   @Get(':id')
   @Roles('*')
+  @CacheForHours(1) // Cache ข้อมูล category เฉพาะเป็นเวลา 1 ชั่วโมง
   @ApiOkResponse({
     description: 'Get category by ID',
     type: CategoryResponseWithChildrenDto,
@@ -76,6 +85,7 @@ export class CategoryController {
 
   @Patch(':id')
   @Roles(Role.SuperAdmin)
+  @NoCache() // ไม่ cache การอัปเดต category
   @ApiOkResponse({
     description: 'Update category by ID',
     type: CategoryResponseWithParentDto,
@@ -89,6 +99,7 @@ export class CategoryController {
 
   @Delete(':id')
   @Roles(Role.SuperAdmin)
+  @NoCache() // ไม่ cache การลบ category
   @ApiOkResponse({
     description: 'Delete category by ID',
     type: CategoryResponseWithChildrenDto,
