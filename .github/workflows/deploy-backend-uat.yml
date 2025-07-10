@@ -1,0 +1,72 @@
+name: Build & Deploy Backend to GCE (UAT)
+
+on:
+  push:
+    branches: [uat]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend-uat:${{ github.sha }} .
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
+
+      - name: Push image to Artifact Registry
+        run: |
+          docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend-uat:${{ github.sha }}
+
+      - name: Upload docker-compose.yml to GCE VM
+        run: |
+          gcloud compute scp docker-compose.yml ${{ secrets.GCE_USER }}@${{ secrets.GCE_INSTANCE_NAME }}:/home/${{ secrets.GCE_USER }}/backend-uat/docker-compose.yml --zone=${{ secrets.GCE_INSTANCE_ZONE }}
+
+      - name: Upload .env.uat to GCE VM
+        run: |
+          echo "${{ secrets.BACKEND_ENV_PRODUCTION }}" > .env.uat
+          gcloud compute scp .env.uat ${{ secrets.GCE_USER }}@${{ secrets.GCE_INSTANCE_NAME }}:/home/${{ secrets.GCE_USER }}/backend-uat/.env.uat --zone=${{ secrets.GCE_INSTANCE_ZONE }}
+
+      - name: Deploy to GCE VM (UAT)
+        run: |
+          gcloud compute ssh ${{ secrets.GCE_USER }}@${{ secrets.GCE_INSTANCE_NAME }} --zone=${{ secrets.GCE_INSTANCE_ZONE }} --command='
+            set -e
+            echo "Configuring Docker on UAT VM..."
+            gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
+            IMAGE_NAME="asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend-uat:${{ github.sha }}"
+            cd /home/${{ secrets.GCE_USER }}/backend-uat
+            echo "Pulling new UAT image: $IMAGE_NAME"
+            docker pull $IMAGE_NAME
+
+            echo "Loading UAT env variables..."
+            set -o allexport
+            source .env.uat
+            set +o allexport
+
+            echo "Starting Docker Compose for UAT..."
+            export BACKEND_IMAGE_TAG=$IMAGE_NAME
+            docker-compose -f docker-compose.yml up -d
+            
+            echo "Cleaning up old Docker images..."
+            docker image prune -af
+            echo "UAT Deployment successful!"
+          '
