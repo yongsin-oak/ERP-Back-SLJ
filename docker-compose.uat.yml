@@ -1,0 +1,32 @@
+services:
+  db-uat:
+    image: postgres:17
+    restart: always
+    ports:
+      - '5433:5432'  # ใช้ port 5433 สำหรับ UAT เพื่อไม่ conflict กับ production
+    volumes:
+      - postgres-uat-data:/var/lib/postgresql/data
+    env_file:
+      - .env.uat
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $POSTGRES_USER']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend-uat:
+    image: ${BACKEND_IMAGE_TAG}
+    restart: always
+    ports:
+      - '3001:3000'  # ใช้ port 3001 สำหรับ UAT เพื่อไม่ conflict กับ production
+    env_file:
+      - .env.uat
+    environment:
+      NODE_ENV: production
+      POSTGRES_PORT: 5432  # ภายใน container ยังคงใช้ port 5432
+    depends_on:
+      db-uat:
+        condition: service_healthy
+
+volumes:
+  postgres-uat-data:

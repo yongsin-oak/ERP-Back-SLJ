@@ -37,9 +37,9 @@ jobs:
         run: |
           docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend-uat:${{ github.sha }}
 
-      - name: Upload docker-compose.yml to GCE VM
+      - name: Upload docker-compose.uat.yml to GCE VM
         run: |
-          gcloud compute scp docker-compose.yml ${{ secrets.GCE_USER }}@${{ secrets.GCE_INSTANCE_NAME }}:/home/${{ secrets.GCE_USER }}/backend-uat/docker-compose.yml --zone=${{ secrets.GCE_INSTANCE_ZONE }}
+          gcloud compute scp docker-compose.uat.yml ${{ secrets.GCE_USER }}@${{ secrets.GCE_INSTANCE_NAME }}:/home/${{ secrets.GCE_USER }}/backend-uat/docker-compose.uat.yml --zone=${{ secrets.GCE_INSTANCE_ZONE }}
 
       - name: Upload .env.uat to GCE VM
         run: |
@@ -64,7 +64,7 @@ jobs:
 
             echo "Starting Docker Compose for UAT..."
             export BACKEND_IMAGE_TAG=$IMAGE_NAME
-            docker-compose -f docker-compose.yml up -d
+            docker-compose -f docker-compose.uat.yml up -d
             
             echo "Cleaning up old Docker images..."
             docker image prune -af
