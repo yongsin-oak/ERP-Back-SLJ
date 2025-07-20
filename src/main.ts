@@ -40,6 +40,5 @@ async function bootstrap() {
 
   console.log((await app.getUrl()).toString());
   console.log(`Cors enabled for origin: ${corsOrigin}`);
-  console.log('Encryption key:', key);
 }
 bootstrap();

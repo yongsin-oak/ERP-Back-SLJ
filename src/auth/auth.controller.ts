@@ -24,7 +24,6 @@ import { RolesGuard } from './role/roles.guard';
 import { Roles } from './role/roles.decorator';
 import {
   NoCache,
-  PrivateCache,
 } from '@app/common/decorator/cache-control.decorator';
 
 @Controller()
@@ -33,7 +32,6 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  @NoCache() // ไม่ cache การ login
   @ApiOkResponse({
     description: 'Login successful',
     type: AuthResponseDto,
@@ -89,7 +87,6 @@ export class AuthController {
     type: GetMeDto,
   })
   getme(@Req() req: Request) {
-    console.log('req.user:', req);
     return req.user;
   }
 
