@@ -1,6 +1,7 @@
 services:
   db-uat:
     image: postgres:17
+    container_name: db-uat
     restart: always
     ports:
       - '5433:5432'  # ใช้ port 5433 สำหรับ UAT เพื่อไม่ conflict กับ production
@@ -16,6 +17,7 @@ services:
 
   backend-uat:
     image: ${BACKEND_IMAGE_TAG}
+    container_name: backend-uat
     restart: always
     ports:
       - '3001:3000'  # ใช้ port 3001 สำหรับ UAT เพื่อไม่ conflict กับ production

@@ -38,7 +38,15 @@ async function bootstrap() {
   );
   await app.listen(port);
 
-  console.log((await app.getUrl()).toString());
-  console.log(`Cors enabled for origin: ${corsOrigin}`);
+  const currentURL = await app.getUrl();
+  console.log(`|--------------------------------------------------|`);
+  console.log(`| SLJ Supply Center API                            |`);
+  console.log(`|--------------------------------------------------|`);
+  console.log(`| Environment: ${process.env.NODE_ENV || 'development'} |`);
+  console.log(`| Port: ${port}                                     |`);
+  console.log(`| CORS Origin: ${corsOrigin.join(', ')}           |`);
+  console.log(`| API Base URL: ${currentURL}/api/v1               |`);
+  console.log(`| Swagger URL: ${currentURL}/swagger               |`);
+  console.log(`|--------------------------------------------------|`);
 }
 bootstrap();
