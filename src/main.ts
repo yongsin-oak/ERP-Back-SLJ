@@ -39,14 +39,28 @@ async function bootstrap() {
   await app.listen(port);
 
   const currentURL = await app.getUrl();
-  console.log(`|--------------------------------------------------|`);
-  console.log(`| SLJ Supply Center API                            |`);
-  console.log(`|--------------------------------------------------|`);
-  console.log(`| Environment: ${process.env.NODE_ENV || 'development'} |`);
-  console.log(`| Port: ${port}                                     |`);
-  console.log(`| CORS Origin: ${corsOrigin.join(', ')}           |`);
-  console.log(`| API Base URL: ${currentURL}/api/v1               |`);
-  console.log(`| Swagger URL: ${currentURL}/swagger               |`);
-  console.log(`|--------------------------------------------------|`);
+
+  const LINE_WIDTH = 72;
+
+  const printLine = (content: string = '', repeat: string = '-') => {
+    const pad = Math.max(0, (LINE_WIDTH - 2 - content.length) / 2);
+    const padBeforeLength = pad;
+    const padAfterLength = pad % 1 === 0 ? pad : pad + 1 ;
+    const padded =
+      repeat.repeat(Math.max(0, padBeforeLength)) +
+      content +
+      repeat.repeat(Math.max(0, padAfterLength));
+    console.log(`|${padded}|`);
+  };
+
+  console.log('|' + '-'.repeat(LINE_WIDTH - 2) + '|');
+  printLine(' SLJ Supply Center API ', ' ');
+  console.log('|' + '-'.repeat(LINE_WIDTH - 2) + '|');
+  printLine(` Environment: ${process.env.NODE_ENV || 'development'} `);
+  printLine(` Port: ${port} `);
+  printLine(` CORS Origin: ${corsOrigin.join(', ')} `);
+  printLine(` API Base URL: ${currentURL}/api/v1 `);
+  printLine(` Swagger URL: ${currentURL}/swagger `);
+  console.log('|' + '-'.repeat(LINE_WIDTH - 2) + '|');
 }
 bootstrap();
