@@ -1,10 +1,10 @@
 services:
   db-uat:
-    image: postgres:17
+    image: ${DB_IMAGE_TAG:-asia-southeast1-docker.pkg.dev/${GCP_PROJECT:-SLJ-Supply-Center}/slj-repo/db-uat:latest}
     container_name: db-uat
     restart: always
     ports:
-      - '5433:5432'  # ใช้ port 5433 สำหรับ UAT เพื่อไม่ conflict กับ production
+      - '5433:5432' # ใช้ port 5433 สำหรับ UAT เพื่อไม่ conflict กับ production
     volumes:
       - postgres-uat-data:/var/lib/postgresql/data
     env_file:
@@ -14,21 +14,33 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - erp-uat-network
 
   backend-uat:
-    image: ${BACKEND_IMAGE_TAG}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${BACKEND_IMAGE_TAG:-erp-backend-uat:latest}
     container_name: backend-uat
     restart: always
     ports:
-      - '3001:3000'  # ใช้ port 3001 สำหรับ UAT เพื่อไม่ conflict กับ production
+      - '3001:3000' # ใช้ port 3001 สำหรับ UAT เพื่อไม่ conflict กับ production
     env_file:
       - .env.uat
     environment:
       NODE_ENV: production
-      POSTGRES_PORT: 5432  # ภายใน container ยังคงใช้ port 5432
+      POSTGRES_HOST: db-uat
+      POSTGRES_PORT: 5432 # ภายใน container ยังคงใช้ port 5432
     depends_on:
       db-uat:
         condition: service_healthy
+    networks:
+      - erp-uat-network
 
 volumes:
   postgres-uat-data:
+
+networks:
+  erp-uat-network:
+    driver: bridge

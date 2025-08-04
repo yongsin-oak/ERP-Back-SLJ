@@ -25,17 +25,31 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT }}
 
-      - name: Build Docker image
+      - name: Build Docker images
         run: |
+          # Build Backend UAT image
           docker build -t asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend-uat:${{ github.sha }} .
+          
+          # Build DB UAT image
+          docker build -t asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/db-uat:${{ github.sha }} -f Dockerfile.db .
+          
+          # Tag images as latest
+          docker tag asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend-uat:${{ github.sha }} asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend-uat:latest
+          docker tag asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/db-uat:${{ github.sha }} asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/db-uat:latest
 
       - name: Configure Docker for Artifact Registry
         run: |
           gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
 
-      - name: Push image to Artifact Registry
+      - name: Push images to Artifact Registry
         run: |
+          # Push Backend UAT images
           docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend-uat:${{ github.sha }}
+          docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend-uat:latest
+          
+          # Push DB UAT images
+          docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/db-uat:${{ github.sha }}
+          docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/db-uat:latest
 
       - name: Upload docker-compose.uat.yml to GCE VM
         run: |
@@ -52,10 +66,15 @@ jobs:
             set -e
             echo "Configuring Docker on UAT VM..."
             gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
-            IMAGE_NAME="asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend-uat:${{ github.sha }}"
+            
+            # กำหนด image tags สำหรับ backend และ db
+            BACKEND_IMAGE="asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend-uat:${{ github.sha }}"
+            DB_IMAGE="asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/db-uat:${{ github.sha }}"
+            
             cd /home/${{ secrets.GCE_USER }}/backend-uat
-            echo "Pulling new UAT image: $IMAGE_NAME"
-            docker pull $IMAGE_NAME
+            echo "Pulling new UAT images..."
+            docker pull $BACKEND_IMAGE
+            docker pull $DB_IMAGE
 
             echo "Loading UAT env variables..."
             set -o allexport
@@ -63,10 +82,23 @@ jobs:
             set +o allexport
 
             echo "Starting Docker Compose for UAT..."
-            export BACKEND_IMAGE_TAG=$IMAGE_NAME
-            docker-compose -f docker-compose.uat.yml up -d
+            export BACKEND_IMAGE_TAG=$BACKEND_IMAGE
+            export DB_IMAGE_TAG=$DB_IMAGE
+            
+            # ตรวจสอบว่า containers กำลังทำงานอยู่หรือไม่
+            if ! docker ps | grep -q "db-uat" && ! docker ps | grep -q "backend-uat"; then
+              echo "Starting all UAT services (database and backend)..."
+              docker-compose -f docker-compose.uat.yml up -d
+            else
+              if docker ps | grep -q "db-uat"; then
+                echo "UAT Database already running, stopping before update..."
+                docker-compose -f docker-compose.uat.yml stop db-uat
+              fi
+              echo "Updating UAT services..."
+              docker-compose -f docker-compose.uat.yml up -d
+            fi
             
             echo "Cleaning up old Docker images..."
-            docker image prune -af
+            docker image prune -af --filter "until=24h"
             echo "UAT Deployment successful!"
           '

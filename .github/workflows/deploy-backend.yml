@@ -25,17 +25,31 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT }}
 
-      - name: Build Docker image
+      - name: Build Docker images
         run: |
+          # Build Backend image
           docker build -t asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend:${{ github.sha }} .
+          
+          # Build DB image
+          docker build -t asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/db:${{ github.sha }} -f Dockerfile.db .
+          
+          # Tag images as latest
+          docker tag asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend:${{ github.sha }} asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend:latest
+          docker tag asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/db:${{ github.sha }} asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/db:latest
 
       - name: Configure Docker for Artifact Registry
         run: |
           gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
 
-      - name: Push image to Artifact Registry
+      - name: Push images to Artifact Registry
         run: |
+          # Push Backend images
           docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend:${{ github.sha }}
+          docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend:latest
+          
+          # Push DB images
+          docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/db:${{ github.sha }}
+          docker push asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/db:latest
 
       - name: Upload docker-compose.yml to GCE VM
         run: |
@@ -52,10 +66,15 @@ jobs:
             set -e
             echo "Configuring Docker on VM..."
             gcloud auth configure-docker asia-southeast1-docker.pkg.dev --quiet
-            IMAGE_NAME="asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend:${{ github.sha }}"
+            
+            # กำหนด image tags สำหรับ backend และ db
+            BACKEND_IMAGE="asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/backend:${{ github.sha }}"
+            DB_IMAGE="asia-southeast1-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/slj-repo/db:${{ github.sha }}"
+            
             cd /home/${{ secrets.GCE_USER }}/backend
-            echo "Pulling new image: $IMAGE_NAME"
-            docker pull $IMAGE_NAME
+            echo "Pulling new images..."
+            docker pull $BACKEND_IMAGE
+            docker pull $DB_IMAGE
 
             echo "Loading env variables..."
             set -o allexport
@@ -63,10 +82,23 @@ jobs:
             set +o allexport
 
             echo "Starting Docker Compose..."
-            export BACKEND_IMAGE_TAG=$IMAGE_NAME
-            docker-compose -f docker-compose.yml up -d
+            export BACKEND_IMAGE_TAG=$BACKEND_IMAGE
+            export DB_IMAGE_TAG=$DB_IMAGE
+            
+            # ตรวจสอบว่า containers กำลังทำงานอยู่หรือไม่
+            if ! docker ps | grep -q "db-production" && ! docker ps | grep -q "backend-production"; then
+              echo "Starting all services (database and backend)..."
+              docker-compose -f docker-compose.yml up -d
+            else
+              if docker ps | grep -q "db-production"; then
+                echo "Database already running, stopping before update..."
+                docker-compose -f docker-compose.yml stop db
+              fi
+              echo "Updating services..."
+              docker-compose -f docker-compose.yml up -d
+            fi
             
             echo "Cleaning up old Docker images..."
-            docker image prune -af
+            docker image prune -af --filter "until=24h"
             echo "Deployment successful!"
           '
