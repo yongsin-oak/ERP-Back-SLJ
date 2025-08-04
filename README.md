@@ -28,6 +28,53 @@
 
 ## Project setup
 
+## Docker Setup
+
+### Environment Setup
+1. Copy the example environment files to create your own configurations:
+```bash
+# For production environment
+cp .env.production.example .env.production
+
+# For UAT environment
+cp .env.uat.example .env.uat
+```
+
+2. Edit the environment files to set up your database credentials and other configurations.
+
+### Production Environment
+To run the application in production mode:
+
+```bash
+# Build and start the production containers
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+```
+
+### UAT Environment
+To run the application in UAT mode:
+
+```bash
+# Build and start the UAT containers
+docker-compose -f docker-compose.uat.yml up -d
+
+# View logs
+docker-compose -f docker-compose.uat.yml logs -f
+```
+
+### Manual Build (for development)
+```bash
+# Build the Docker image
+docker build -t erp-backend:latest .
+
+# Run the image (optional)
+docker run -p 3000:3000 --env-file .env.production erp-backend:latest
+```
+
+## Local Development Setup
+
 ```bash
 $ yarn install
 ```

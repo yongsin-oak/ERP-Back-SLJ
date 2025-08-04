@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:17
+    image: ${DB_IMAGE_TAG:-asia-southeast1-docker.pkg.dev/${GCP_PROJECT:-SLJ-Supply-Center}/slj-repo/db:latest}
     container_name: db-production
     restart: always
     ports:
@@ -14,9 +14,14 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - erp-network
 
   backend:
-    image: ${BACKEND_IMAGE_TAG}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${BACKEND_IMAGE_TAG:-erp-backend:latest}
     container_name: backend-production
     restart: always
     ports:
@@ -25,8 +30,16 @@ services:
       - .env.production
     environment:
       NODE_ENV: production
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - erp-network
 volumes:
   postgres-data:
+
+networks:
+  erp-network:
+    driver: bridge
