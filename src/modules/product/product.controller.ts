@@ -52,7 +52,7 @@ export class ProductController {
     type: Product,
   })
   create(@Body() dto: ProductCreateDto) {
-    return this.productService.creat(dto);
+    return this.productService.create(dto);
   }
 
   @Roles(Role.SuperAdmin)

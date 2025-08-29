@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProductCreateDto } from './dto/create-product.dto';
@@ -11,12 +11,21 @@ import {
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { BulkUpdateProductDto } from './dto/bulk-update-product.dto';
 import { BulkDeleteProductDto } from './dto/bulk-delete-product.dto';
+import { Brand } from '../brand/entities/brand.entity';
+import { Category } from '../category/entities/category.entity';
+import { ApiBadRequestResponse } from '@nestjs/swagger';
 
 @Injectable()
 export class ProductService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepo: Repository<Product>,
+
+    @InjectRepository(Brand)
+    private readonly brandRepo: Repository<Brand>,
+
+    @InjectRepository(Category)
+    private readonly categoryRepo: Repository<Category>,
   ) {}
 
   async productGetEntityOrFail(barcode: string): Promise<Product> {
@@ -39,16 +48,36 @@ export class ProductService {
     );
   }
 
-  async creat(data: ProductCreateDto): Promise<Product> {
+  async create(data: ProductCreateDto): Promise<Product> {
     await this.productThrowIfEntityExists(data.barcode);
     const newProduct = this.productRepo.create(data);
     return this.productRepo.save(newProduct);
   }
 
   async createMultiple(dtos: ProductCreateDto[]) {
+    if (dtos.length === 0) {
+      return [];
+    }
     const products: Product[] = [];
-    console.log(products);
     for (const dto of dtos) {
+      await this.productThrowIfEntityExists(dto.barcode);
+      const { brandId, categoryId } = dto;
+
+      if (brandId) {
+        const brand = await this.brandRepo.findOne({ where: { id: brandId } });
+        if (!brand) {
+          return new BadRequestException(`Brand with ID ${brandId} does not exist`);
+        }
+      }
+      if (categoryId) {
+        const category = await this.categoryRepo.findOne({
+          where: { id: categoryId },
+        });
+        if (!category) {
+          return new BadRequestException(`Category with ID ${categoryId} does not exist`);
+        }
+      }
+
       await this.productThrowIfEntityExists(dto.barcode);
       products.push(this.productRepo.create(dto));
     }
