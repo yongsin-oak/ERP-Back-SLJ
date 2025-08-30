@@ -36,7 +36,7 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
   const currentURL = await app.getUrl();
 
