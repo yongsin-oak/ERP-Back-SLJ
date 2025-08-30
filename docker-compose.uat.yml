@@ -29,7 +29,7 @@ services:
     env_file:
       - .env.uat
     environment:
-      NODE_ENV: production
+      NODE_ENV: uat
       POSTGRES_HOST: db-uat
       POSTGRES_PORT: 5432 # ภายใน container ยังคงใช้ port 5432
     depends_on:
