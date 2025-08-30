@@ -5,6 +5,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
 import { DateTime } from 'luxon';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
   DateTime.now().setZone('Asia/Bangkok').toISO();
@@ -12,14 +13,15 @@ async function bootstrap() {
   const corsOrigin = [process.env.CORS_ORIGIN, 'http://localhost:5173'];
   const key = process.env.ENCRYPTION_KEY;
   const port = process.env.PORT || 3000;
-  app.use(cookieParser());
+  const server = app.getHttpAdapter().getInstance();
+  server.set('trust proxy', 1);
   app.enableCors({
     origin: corsOrigin,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
   app.setGlobalPrefix('api/v1');
-
+  app.set('trust proxy', 1);
   const config = new DocumentBuilder()
     .setTitle('ERP API')
     .setDescription('SLJ Supply Center API')
@@ -45,7 +47,7 @@ async function bootstrap() {
   const printLine = (content: string = '', repeat: string = '-') => {
     const pad = Math.max(0, (LINE_WIDTH - 2 - content.length) / 2);
     const padBeforeLength = pad;
-    const padAfterLength = pad % 1 === 0 ? pad : pad + 1 ;
+    const padAfterLength = pad % 1 === 0 ? pad : pad + 1;
     const padded =
       repeat.repeat(Math.max(0, padBeforeLength)) +
       content +
