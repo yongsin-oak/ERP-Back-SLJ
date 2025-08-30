@@ -22,9 +22,7 @@ import { JwtAuthGuard } from './jwt/jwt-auth.guard';
 import { Role } from './role/role.enum';
 import { RolesGuard } from './role/roles.guard';
 import { Roles } from './role/roles.decorator';
-import {
-  NoCache,
-} from '@app/common/decorator/cache-control.decorator';
+import { NoCache } from '@app/common/decorator/cache-control.decorator';
 
 @Controller()
 @ApiBearerAuth()

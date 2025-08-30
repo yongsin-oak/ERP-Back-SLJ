@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BrandModule } from './modules/brand/brand.module';
@@ -20,6 +20,8 @@ import { AuthModule } from './auth/auth.module';
 import { ProductModule } from './modules/product/product.module';
 import { AuthController } from './auth/auth.controller';
 import { datasource } from '@db/data-source';
+import { LoggingMiddleware } from './common/middleware/logging.middleware';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 
 @Module({
   imports: [
@@ -49,4 +51,8 @@ import { datasource } from '@db/data-source';
   ],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestIdMiddleware, LoggingMiddleware).forRoutes('*'); // Apply to all routes
+  }
+}

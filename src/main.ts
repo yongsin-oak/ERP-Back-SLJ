@@ -2,14 +2,23 @@ import 'module-alias/register';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, LogLevel } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
 import { DateTime } from 'luxon';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
   DateTime.now().setZone('Asia/Bangkok').toISO();
-  const app = await NestFactory.create(AppModule);
+
+  // กำหนด log levels ตาม environment
+  const logLevels: LogLevel[] =
+    process.env.NODE_ENV === 'production'
+      ? ['error', 'warn', 'log']
+      : ['error', 'warn', 'log', 'debug', 'verbose'];
+
+  const app = await NestFactory.create(AppModule, {
+    logger: logLevels,
+  });
   const corsOrigin = [process.env.CORS_ORIGIN, 'http://localhost:5173'];
   const key = process.env.ENCRYPTION_KEY;
   const port = process.env.PORT || 3000;
@@ -20,6 +29,10 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
+
+  // เพิ่ม cookie parser
+  app.use(cookieParser());
+
   app.setGlobalPrefix('api/v1');
   const config = new DocumentBuilder()
     .setTitle('ERP API')
