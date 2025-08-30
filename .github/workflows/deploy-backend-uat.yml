@@ -57,7 +57,7 @@ jobs:
 
       - name: Upload .env.uat to GCE VM
         run: |
-          echo "${{ secrets.BACKEND_ENV_PRODUCTION }}" > .env.uat
+          echo "${{ secrets.BACKEND_ENV_UAT }}" > .env.uat
           gcloud compute scp .env.uat ${{ secrets.GCE_USER }}@${{ secrets.GCE_INSTANCE_NAME }}:/home/${{ secrets.GCE_USER }}/backend-uat/.env.uat --zone=${{ secrets.GCE_INSTANCE_ZONE }}
 
       - name: Deploy to GCE VM (UAT)
