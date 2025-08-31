@@ -1,3 +1,15 @@
+import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
+import { Role } from '@app/auth/role/role.enum';
+import { Roles } from '@app/auth/role/roles.decorator';
+import { RolesGuard } from '@app/auth/role/roles.guard';
+import {
+  NoCache
+} from '@app/common/decorator/cache-control.decorator';
+import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import {
+  PaginatedGetAllDto,
+  PaginatedResponseDto,
+} from '@app/common/dto/paginated.dto';
 import {
   Body,
   Controller,
@@ -9,35 +21,21 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { BrandService } from './brand.service';
 import { ApiBearerAuth, ApiBody, ApiOkResponse } from '@nestjs/swagger';
-import { Brand } from './entities/brand.entity';
+import { BrandService } from './brand.service';
 import { BrandCreateDto } from './dto/create-brand.dto';
 import { BrandUpdateDto } from './dto/update-brand.dto';
-import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
-import { RolesGuard } from '@app/auth/role/roles.guard';
-import { Roles } from '@app/auth/role/roles.decorator';
-import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from '@app/common/dto/paginated.dto';
-import { Role } from '@app/auth/role/role.enum';
-import {
-  CacheForMinutes,
-  CacheForHours,
-  NoCache,
-} from '@app/common/decorator/cache-control.decorator';
+import { Brand } from './entities/brand.entity';
 
 @Controller('brand')
 @ApiBearerAuth()
+@NoCache()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class BrandController {
   constructor(private readonly brandService: BrandService) {}
 
   @Get()
   @Roles('*')
-  @CacheForMinutes(10) // Cache รายการ brands เป็นเวลา 10 นาที
   @ApiOkResponsePaginated(Brand)
   async getAllBrands(
     @Query() query: PaginatedGetAllDto,
@@ -47,7 +45,6 @@ export class BrandController {
 
   @Get(':id')
   @Roles('*')
-  @CacheForHours(1) // Cache ข้อมูล brand เฉพาะเป็นเวลา 1 ชั่วโมง
   @ApiOkResponse({
     description: 'Get brand by ID',
     type: Brand,

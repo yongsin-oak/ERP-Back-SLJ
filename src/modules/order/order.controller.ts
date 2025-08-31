@@ -1,3 +1,14 @@
+import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
+import { Roles } from '@app/auth/role/roles.decorator';
+import { RolesGuard } from '@app/auth/role/roles.guard';
+import {
+  NoCache
+} from '@app/common/decorator/cache-control.decorator';
+import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import {
+  PaginatedGetAllDto,
+  PaginatedResponseDto,
+} from '@app/common/dto/paginated.dto';
 import {
   Body,
   Controller,
@@ -7,26 +18,15 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { OrderService } from './order.service';
+import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { OrderCreateDto } from './dto/create-order.dto';
 import { OrderResponseDto } from './dto/response-order.dto';
 import { OrderUpdateDto } from './dto/update-order.dto';
-import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
-import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
-import { RolesGuard } from '@app/auth/role/roles.guard';
-import { Roles } from '@app/auth/role/roles.decorator';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from '@app/common/dto/paginated.dto';
-import {
-  CacheForMinutes,
-  NoCache,
-} from '@app/common/decorator/cache-control.decorator';
+import { OrderService } from './order.service';
 
 @Controller('order')
 @ApiBearerAuth()
+@NoCache()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
@@ -42,7 +42,6 @@ export class OrderController {
   @Roles('*')
   @ApiOkResponsePaginated(OrderResponseDto)
   @Get()
-  @CacheForMinutes(3) // Cache รายการ orders เป็นเวลา 3 นาที (เปลี่ยนบ่อย)
   async getAllOrders(
     @Query() query: PaginatedGetAllDto,
   ): Promise<PaginatedResponseDto<OrderResponseDto>> {
@@ -52,7 +51,6 @@ export class OrderController {
   @Roles('*')
   @ApiOkResponse({ type: OrderResponseDto })
   @Get(':id')
-  @CacheForMinutes(5) // Cache ข้อมูล order เฉพาะเป็นเวลา 5 นาที
   async getOrderById(@Query('id') id: string): Promise<OrderResponseDto> {
     return this.orderService.findOne(id);
   }

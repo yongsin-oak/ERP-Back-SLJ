@@ -1,3 +1,13 @@
+import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
+import { Role } from '@app/auth/role/role.enum';
+import { Roles } from '@app/auth/role/roles.decorator';
+import { RolesGuard } from '@app/auth/role/roles.guard';
+import { NoCache } from '@app/common/decorator/cache-control.decorator';
+import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import {
+  PaginatedGetAllDto,
+  PaginatedResponseDto,
+} from '@app/common/dto/paginated.dto';
 import {
   Body,
   Controller,
@@ -9,29 +19,16 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { EmployeeService } from './employee.service';
-import { EmployeeCreateDto } from './dto/create-employee.dto';
-import { Employee } from './entities/employee.entity';
-import { EmployeeUpdateDto } from './dto/update-emplote.dto';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
+import { EmployeeCreateDto } from './dto/create-employee.dto';
 import { EmployeeResponseDto } from './dto/response-employee.dto';
-import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
-import { RolesGuard } from '@app/auth/role/roles.guard';
-import { Roles } from '@app/auth/role/roles.decorator';
-import { Role } from '@app/auth/role/role.enum';
-import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from '@app/common/dto/paginated.dto';
-import {
-  CacheForMinutes,
-  CacheForHours,
-  NoCache,
-} from '@app/common/decorator/cache-control.decorator';
+import { EmployeeUpdateDto } from './dto/update-emplote.dto';
+import { EmployeeService } from './employee.service';
+import { Employee } from './entities/employee.entity';
 
 @Controller('employee')
 @ApiBearerAuth()
+@NoCache()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class EmployeeController {
   constructor(private readonly employerService: EmployeeService) {}
@@ -51,7 +48,6 @@ export class EmployeeController {
 
   @Roles('*')
   @Get()
-  @CacheForMinutes(5) // Cache รายการ employees เป็นเวลา 5 นาที
   @ApiOkResponsePaginated(Employee)
   async getAllEmployees(
     @Query() query: PaginatedGetAllDto,
@@ -61,7 +57,6 @@ export class EmployeeController {
 
   @Roles('*')
   @Get(':id')
-  @CacheForMinutes(30) // Cache ข้อมูล employee เฉพาะเป็นเวลา 30 นาที
   @ApiOkResponse({
     type: EmployeeResponseDto,
     description: 'Get employee by ID',

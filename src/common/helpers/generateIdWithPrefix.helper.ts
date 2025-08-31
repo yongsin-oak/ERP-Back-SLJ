@@ -16,7 +16,7 @@ export function generateIdWithPrefix(options: GenerateIdOptions = {}): string {
 
   const randomPart = nanoid(length).toUpperCase();
 
-  const id = `${prefix}${timePart}${randomPart}`;
+  const id = `${prefix}-${timePart}${randomPart}`;
 
   return id;
 }

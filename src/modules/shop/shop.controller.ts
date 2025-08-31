@@ -1,5 +1,15 @@
 import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
+import { Role } from '@app/auth/role/role.enum';
+import { Roles } from '@app/auth/role/roles.decorator';
 import { RolesGuard } from '@app/auth/role/roles.guard';
+import {
+  NoCache
+} from '@app/common/decorator/cache-control.decorator';
+import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import {
+  PaginatedGetAllDto,
+  PaginatedResponseDto,
+} from '@app/common/dto/paginated.dto';
 import {
   Body,
   Controller,
@@ -12,26 +22,16 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
-import { ShopService } from './shop.service';
-import { Roles } from '@app/auth/role/roles.decorator';
-import { Role } from '@app/auth/role/role.enum';
-import { ShopResponseDto } from './dto/response.dto';
 import { ShopCreateDto } from './dto/create-shop.dto';
+import { ShopResponseDto } from './dto/response.dto';
 import { Shop } from './entities/shop.entity';
-import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from '@app/common/dto/paginated.dto';
-import {
-  CacheForMinutes,
-  CacheForHours,
-  NoCache,
-} from '@app/common/decorator/cache-control.decorator';
+import { ShopService } from './shop.service';
+import { ShopGetDto } from './dto/get-shop.dto';
 
 @Controller('shop')
 @ApiTags('Shops')
 @ApiBearerAuth()
+@NoCache()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ShopController {
   constructor(private readonly shopService: ShopService) {}
@@ -49,17 +49,15 @@ export class ShopController {
 
   @Roles('*')
   @Get()
-  @CacheForMinutes(10) // Cache รายการ shops เป็นเวลา 10 นาที
   @ApiOkResponsePaginated(Shop)
   async findAllShop(
-    @Query() query: PaginatedGetAllDto,
+    @Query() query: ShopGetDto,
   ): Promise<PaginatedResponseDto<Shop>> {
     return this.shopService.findAll(query);
   }
 
   @Roles('*')
   @Get(':id')
-  @CacheForHours(1) // Cache ข้อมูล shop เฉพาะเป็นเวลา 1 ชั่วโมง
   @ApiOkResponse({
     type: ShopResponseDto,
     description: 'Get shop by ID',

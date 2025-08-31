@@ -33,6 +33,7 @@ import {
 
 @Controller('category')
 @ApiBearerAuth()
+@NoCache()
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class CategoryController {
   constructor(private readonly categoryservice: CategoryService) {}
@@ -50,7 +51,6 @@ export class CategoryController {
 
   @Get()
   @Roles('*')
-  @CacheForMinutes(15) // Cache รายการ categories เป็นเวลา 15 นาที
   @ApiOkResponsePaginated(CategoryResponseDto)
   async getAllCategories(
     @Query() query: CategoryGetDto,
@@ -60,7 +60,6 @@ export class CategoryController {
 
   @Get('tree')
   @Roles('*')
-  @CacheForHours(2) // Cache category tree เป็นเวลา 2 ชั่วโมง (ไม่เปลี่ยนบ่อย)
   @ApiOkResponse({
     description: 'Get all categories as a tree structure',
     type: CategoryResponseWithChildrenDto,
@@ -72,7 +71,6 @@ export class CategoryController {
 
   @Get(':id')
   @Roles('*')
-  @CacheForHours(1) // Cache ข้อมูล category เฉพาะเป็นเวลา 1 ชั่วโมง
   @ApiOkResponse({
     description: 'Get category by ID',
     type: CategoryResponseWithChildrenDto,

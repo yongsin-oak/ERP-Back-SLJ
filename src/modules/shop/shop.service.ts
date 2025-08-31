@@ -8,6 +8,7 @@ import { Platform } from './entities/platform.enum';
 import { Shop } from './entities/shop.entity';
 import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
 import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { ShopGetDto } from './dto/get-shop.dto';
 
 @Injectable()
 export class ShopService {
@@ -37,14 +38,17 @@ export class ShopService {
   }
 
   async findAll(
-    query: PaginatedGetAllDto,
+    query: ShopGetDto,
   ): Promise<PaginatedResponseDto<Shop>> {
-    const { page, limit } = query;
+    const { page, limit, platform } = query;
     const skip = (page - 1) * limit;
     const take = limit;
     const [shops, total] = await this.shopRepo.findAndCount({
       skip,
       take,
+      where: {
+        ...(platform && { platform }),
+      },
     });
     return {
       data: shops,

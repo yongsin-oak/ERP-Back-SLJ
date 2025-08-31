@@ -1,44 +1,43 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Patch,
-  Delete,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
-import { ProductService } from './product.service';
-import { ProductCreateDto } from './dto/create-product.dto';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiOkResponse,
-  ApiTags,
-} from '@nestjs/swagger';
-import { Product } from './entities/product.entity';
-import { ProductResponseDto } from './dto/response.dto';
-import { ProductUpdateDto } from './dto/update-product.dto';
-import { BulkUpdateProductDto } from './dto/bulk-update-product.dto';
-import { BulkDeleteProductDto } from './dto/bulk-delete-product.dto';
 import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
-import { RolesGuard } from '@app/auth/role/roles.guard';
-import { Roles } from '@app/auth/role/roles.decorator';
 import { Role } from '@app/auth/role/role.enum';
+import { Roles } from '@app/auth/role/roles.decorator';
+import { RolesGuard } from '@app/auth/role/roles.guard';
+import {
+  NoCache
+} from '@app/common/decorator/cache-control.decorator';
 import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
 import {
   PaginatedGetAllDto,
   PaginatedResponseDto,
 } from '@app/common/dto/paginated.dto';
 import {
-  CacheForMinutes,
-  CacheForHours,
-  NoCache,
-} from '@app/common/decorator/cache-control.decorator';
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOkResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { BulkDeleteProductDto } from './dto/bulk-delete-product.dto';
+import { BulkUpdateProductDto } from './dto/bulk-update-product.dto';
+import { ProductCreateDto } from './dto/create-product.dto';
+import { ProductResponseDto } from './dto/response.dto';
+import { ProductUpdateDto } from './dto/update-product.dto';
+import { Product } from './entities/product.entity';
+import { ProductService } from './product.service';
 
 @ApiTags('Products')
 @ApiBearerAuth()
+@NoCache()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('products')
 export class ProductController {
@@ -72,7 +71,6 @@ export class ProductController {
 
   @Roles('*')
   @Get()
-  @CacheForMinutes(5) // Cache รายการ products เป็นเวลา 5 นาที
   @ApiOkResponsePaginated(ProductResponseDto)
   findAll(
     @Query() query: PaginatedGetAllDto,
@@ -82,7 +80,6 @@ export class ProductController {
 
   @Roles('*')
   @Get(':barcode')
-  @CacheForHours(1) // Cache ข้อมูล product เฉพาะเป็นเวลา 1 ชั่วโมง
   @ApiOkResponse({
     description: 'Get product by barcode',
     type: Product,
