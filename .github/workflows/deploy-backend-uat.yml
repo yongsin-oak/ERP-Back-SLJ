@@ -99,6 +99,6 @@ jobs:
             fi
             
             echo "Cleaning up old Docker images..."
-            docker image prune -af --filter "until=24h"
+            docker image prune -af --filter "until=24h" || true
             echo "UAT Deployment successful!"
           '
