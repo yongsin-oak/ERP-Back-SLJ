@@ -1,12 +1,14 @@
 import { OrderDetailCreateDto } from '@app/modules/order-detail/dto/create-order-detail.dto';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsNotEmpty } from 'class-validator';
+import { IsArray, IsNotEmpty, IsString } from 'class-validator';
 
 export class OrderCreateDto {
   @ApiProperty({
     description: 'Unique identifier for the order',
     example: 'TH123456789',
   })
+  @IsString()
+  @IsNotEmpty()
   id: string;
 
   @ApiProperty({
