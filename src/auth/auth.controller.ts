@@ -57,6 +57,10 @@ export class AuthController {
       ...cookieOptions,
       maxAge: 1000 * 60 * 60 * 10, // 10 ชั่วโมง
     });
+    res.cookie('refreshToken', authUser.refreshToken, {
+      ...cookieOptions,
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 วัน
+    });
 
     return res.send({
       message: 'Login successful',
@@ -65,6 +69,47 @@ export class AuthController {
         role: user.role,
       },
     });
+  }
+
+  @Post('refresh-token')
+  @NoCache()
+  @ApiOkResponse({ description: 'Refresh successful' })
+  async refresh(@Req() req: Request, @Res() res: Response) {
+    const refreshToken =
+      (req.cookies && (req.cookies as any).refreshToken) ||
+      req.body?.refreshToken;
+    const userId = (req.user as any)?.sub || req.body?.userId;
+    if (!refreshToken || !userId)
+      throw new UnauthorizedException('Unauthorized');
+
+    const { token, refreshToken: newRefreshToken } =
+      await this.authService.refresh(userId, refreshToken);
+
+    const cookieOptions: CookieOptions =
+      process.env.NODE_ENV === 'production'
+        ? {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'none',
+            domain: '.sljsupply-center.com',
+            path: '/',
+          }
+        : {
+            httpOnly: true,
+            secure: false,
+            sameSite: 'lax',
+          };
+
+    res.cookie('token', token, {
+      ...cookieOptions,
+      maxAge: 1000 * 60 * 60 * 10,
+    });
+    res.cookie('refreshToken', newRefreshToken, {
+      ...cookieOptions,
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+    });
+
+    return res.send({ message: 'Refresh successful' });
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -110,6 +155,9 @@ export class AuthController {
             sameSite: 'lax', // ใน development สามารถใช้ lax ได้
           };
     res.clearCookie('token', {
+      ...cookieOptions,
+    });
+    res.clearCookie('refreshToken', {
       ...cookieOptions,
     });
     return { message: 'Logout successful' };

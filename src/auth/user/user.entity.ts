@@ -1,5 +1,11 @@
 // user.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, PrimaryColumn, BeforeInsert } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  PrimaryColumn,
+  BeforeInsert,
+} from 'typeorm';
 import { Role } from '../role/role.enum';
 import { nanoid } from 'nanoid';
 
@@ -21,4 +27,7 @@ export class User {
 
   @Column({ type: 'enum', enum: Role })
   role: Role;
+
+  @Column({ nullable: true })
+  refreshTokenHash?: string;
 }

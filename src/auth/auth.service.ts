@@ -19,27 +19,99 @@ export class AuthService {
     const user = await this.usersRepo.findOneBy({ username });
     if (!user) throw new UnauthorizedException('User not found');
     if (user && (await bcrypt.compare(password, user.password))) {
-      const { password, ...result } = user;
+      const { password, refreshTokenHash, ...result } = user as any;
       return result;
     }
     throw new UnauthorizedException('Invalid password');
+  }
+
+  private signAccessToken(user: {
+    id: string;
+    username: string;
+    role: Role;
+  }): string {
+    const payload = { username: user.username, sub: user.id, role: user.role };
+    return this.jwtService.sign(payload);
+  }
+
+  private async signRefreshToken(user: { id: string }): Promise<string> {
+    const payload = { sub: user.id, type: 'refresh' };
+    return this.jwtService.sign(payload, {
+      secret: process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET,
+      expiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '7d',
+    });
   }
 
   async login(user: {
     id: string;
     username: string;
     role: Role;
-  }): Promise<{ token: string; role: string; username: string }> {
-    const payload = { username: user.username, sub: user.id, role: user.role };
+  }): Promise<{
+    token: string;
+    refreshToken: string;
+    role: string;
+    username: string;
+  }> {
+    const token = this.signAccessToken(user);
+    const refreshToken = await this.signRefreshToken(user);
+
+    const hash = await bcrypt.hash(refreshToken, 10);
+    await this.usersRepo.update({ id: user.id }, { refreshTokenHash: hash });
+
     return {
-      token: this.jwtService.sign(payload),
+      token,
+      refreshToken,
       role: user.role,
       username: user.username,
     };
   }
 
+  async refresh(
+    userId: string,
+    providedRefreshToken: string,
+  ): Promise<{ token: string; refreshToken: string }> {
+    const user = await this.usersRepo.findOne({ where: { id: userId } });
+    if (!user || !user.refreshTokenHash)
+      throw new UnauthorizedException('Unauthorized');
+
+    const isMatch = await bcrypt.compare(
+      providedRefreshToken,
+      user.refreshTokenHash,
+    );
+    if (!isMatch) throw new UnauthorizedException('Unauthorized');
+
+    // verify token validity and type
+    try {
+      const decoded = this.jwtService.verify(providedRefreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET,
+      }) as any;
+      if (decoded.sub !== userId || decoded.type !== 'refresh')
+        throw new Error('Invalid refresh token');
+    } catch {
+      throw new UnauthorizedException('Unauthorized');
+    }
+
+    const newAccessToken = this.signAccessToken({
+      id: user.id,
+      username: user.username,
+      role: user.role,
+    });
+    const newRefreshToken = await this.signRefreshToken({ id: user.id });
+
+    const newHash = await bcrypt.hash(newRefreshToken, 10);
+    await this.usersRepo.update({ id: user.id }, { refreshTokenHash: newHash });
+
+    return { token: newAccessToken, refreshToken: newRefreshToken };
+  }
+
+  async revokeRefreshToken(userId: string): Promise<void> {
+    await this.usersRepo.update({ id: userId }, { refreshTokenHash: null });
+  }
+
   async updatePassword(username: string, currentPass: string, newPass: string) {
-    const user = await this.usersRepo.findOne({ where: { username: username } });
+    const user = await this.usersRepo.findOne({
+      where: { username: username },
+    });
     if (!user || !(await bcrypt.compare(currentPass, user.password))) {
       throw new UnauthorizedException('Invalid current password');
     }
