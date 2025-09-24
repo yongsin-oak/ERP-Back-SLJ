@@ -8,7 +8,7 @@ export class OrderDetailResponseDto {
   })
   id: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: () => Product })
   product: Product;
 
   @ApiProperty({

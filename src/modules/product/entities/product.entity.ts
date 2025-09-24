@@ -35,7 +35,7 @@ export class Product {
   @Column({ nullable: true })
   brandId: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: () => Category })
   @ManyToOne(() => Category, (category) => category.products, {
     nullable: true,
   })
@@ -45,7 +45,7 @@ export class Product {
   @Column({ nullable: true })
   categoryId: string;
 
-  @ApiProperty()
+  @ApiProperty({ type: () => OrderDetail, isArray: true })
   @OneToMany(() => OrderDetail, (orderDetail) => orderDetail.product, {
     nullable: true,
     cascade: true,

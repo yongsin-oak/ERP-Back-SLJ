@@ -32,14 +32,14 @@ export class OrderDetail {
     });
   }
 
-  @ApiProperty()
+  @ApiProperty({ type: () => Product })
   @ManyToOne(() => Product, (product) => product.orderDetails, {
     nullable: false,
   })
   @JoinColumn()
   product: Product;
 
-  @ApiProperty()
+  @ApiProperty({ type: () => Order })
   @ManyToOne(() => Order, (order) => order.orderDetails, {
     nullable: false,
   })

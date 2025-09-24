@@ -12,7 +12,7 @@ export class ProductResponseDto {
   @ApiProperty({ type: () => Brand, required: false })
   brand: Brand;
 
-  @ApiProperty()
+  @ApiProperty({ type: () => Category })
   category: Category;
 
   @ApiProperty()
