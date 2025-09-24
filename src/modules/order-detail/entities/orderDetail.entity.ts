@@ -19,7 +19,7 @@ import {
 export class OrderDetail {
   @ApiProperty({
     description: 'Unique identifier for the order detail',
-    example: 'ORD-DETAIL-20250608235923-TEST-001',
+    example: 'ORDDETAIL-20250608235923-TEST-001',
   })
   @PrimaryColumn()
   id: string;
@@ -27,17 +27,19 @@ export class OrderDetail {
   @BeforeInsert()
   generateId() {
     this.id = generateIdWithPrefix({
-      prefix: 'ORD-DETAIL',
+      prefix: 'ORDDETAIL',
       withDateTime: true,
     });
   }
 
+  @ApiProperty()
   @ManyToOne(() => Product, (product) => product.orderDetails, {
     nullable: false,
   })
   @JoinColumn()
   product: Product;
 
+  @ApiProperty()
   @ManyToOne(() => Order, (order) => order.orderDetails, {
     nullable: false,
   })

@@ -3,7 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { OrderDetail } from './entities/orderDetail.entity';
 import { getEntityOrNotFound } from '@app/common/helpers/entity.helper';
-import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import {
+  PaginatedGetAllDto,
+  PaginatedResponseDto,
+} from '@app/common/dto/paginated.dto';
 
 @Injectable()
 export class OrderDetailService {
@@ -38,12 +41,7 @@ export class OrderDetailService {
     };
   }
 
-  async findOne(id: string): Promise<OrderDetail> {
-    return this.orderGetEntityOrNotFound(id);
-  }
-
   async findByOrderId(orderId: string): Promise<OrderDetail[]> {
-    console.log(orderId);
     if (!orderId) {
       throw new NotFoundException('Order ID is required');
     }
@@ -54,15 +52,14 @@ export class OrderDetailService {
       select: {
         id: true,
         quantityPack: true,
+        quantityCarton: true,
         product: {
           barcode: true,
           name: true,
-          costPrice: true,
-          sellPrice: true,
-          packPerCarton: true,
         },
       },
     });
+
     if (!orderDetail || orderDetail.length === 0) {
       throw new NotFoundException(
         `Order details not found for order ID: ${orderId}`,

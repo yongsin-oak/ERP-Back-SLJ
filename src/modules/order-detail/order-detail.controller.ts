@@ -25,18 +25,11 @@ export class OrderDetailController {
   }
 
   @Roles('*')
-  @Get('order/:orderId')
+  @Get(':orderId')
   @ApiOkResponse({ type: OrderDetailResponseDto, isArray: true })
   async findByOrderId(
     @Param('orderId') orderId: string,
   ): Promise<OrderDetailResponseDto[]> {
     return this.orderDetailservice.findByOrderId(orderId);
-  }
-
-  @Roles('*')
-  @Get(':id')
-  @ApiOkResponse({ type: OrderDetail })
-  async findOne(@Query('id') id: string): Promise<OrderDetail> {
-    return this.orderDetailservice.findOne(id);
   }
 }
