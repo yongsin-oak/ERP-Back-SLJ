@@ -33,6 +33,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       exp: payload.exp ? new Date(payload.exp * 1000) : 'no expiry',
     });
     return {
+      sub: payload.sub,
       username: payload.username,
       role: payload.role,
     };

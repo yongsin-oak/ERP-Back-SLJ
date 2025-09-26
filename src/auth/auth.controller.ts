@@ -78,12 +78,11 @@ export class AuthController {
     const refreshToken =
       (req.cookies && (req.cookies as any).refreshToken) ||
       req.body?.refreshToken;
-    const userId = (req.user as any)?.sub || req.body?.userId;
-    if (!refreshToken || !userId)
+    if (!refreshToken)
       throw new UnauthorizedException('Unauthorized');
 
     const { token, refreshToken: newRefreshToken } =
-      await this.authService.refresh(userId, refreshToken);
+      await this.authService.refresh(refreshToken);
 
     const cookieOptions: CookieOptions =
       process.env.NODE_ENV === 'production'

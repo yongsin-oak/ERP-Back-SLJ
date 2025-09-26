@@ -31,7 +31,10 @@ export class AuthService {
     role: Role;
   }): string {
     const payload = { username: user.username, sub: user.id, role: user.role };
-    return this.jwtService.sign(payload);
+    return this.jwtService.sign(payload, {
+      secret: process.env.JWT_SECRET,
+      expiresIn: process.env.JWT_EXPIRES_IN ?? '1m',
+    });
   }
 
   private async signRefreshToken(user: { id: string }): Promise<string> {
@@ -42,11 +45,7 @@ export class AuthService {
     });
   }
 
-  async login(user: {
-    id: string;
-    username: string;
-    role: Role;
-  }): Promise<{
+  async login(user: { id: string; username: string; role: Role }): Promise<{
     token: string;
     refreshToken: string;
     role: string;
@@ -67,9 +66,27 @@ export class AuthService {
   }
 
   async refresh(
-    userId: string,
     providedRefreshToken: string,
   ): Promise<{ token: string; refreshToken: string }> {
+    if (!providedRefreshToken) {
+      throw new UnauthorizedException('Unauthorized');
+    }
+
+    // 1) Verify and decode refresh token to get userId (sub) and ensure type is 'refresh'
+    let userId: string | undefined;
+    try {
+      const decoded = this.jwtService.verify(providedRefreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET,
+      }) as any;
+      if (decoded?.type !== 'refresh' || !decoded?.sub) {
+        throw new Error('Invalid refresh token');
+      }
+      userId = decoded.sub as string;
+    } catch {
+      throw new UnauthorizedException('Unauthorized');
+    }
+
+    // 2) Find user and validate stored refresh token hash
     const user = await this.usersRepo.findOne({ where: { id: userId } });
     if (!user || !user.refreshTokenHash)
       throw new UnauthorizedException('Unauthorized');
@@ -80,17 +97,7 @@ export class AuthService {
     );
     if (!isMatch) throw new UnauthorizedException('Unauthorized');
 
-    // verify token validity and type
-    try {
-      const decoded = this.jwtService.verify(providedRefreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET ?? process.env.JWT_SECRET,
-      }) as any;
-      if (decoded.sub !== userId || decoded.type !== 'refresh')
-        throw new Error('Invalid refresh token');
-    } catch {
-      throw new UnauthorizedException('Unauthorized');
-    }
-
+    // 3) Issue new tokens
     const newAccessToken = this.signAccessToken({
       id: user.id,
       username: user.username,
@@ -98,6 +105,7 @@ export class AuthService {
     });
     const newRefreshToken = await this.signRefreshToken({ id: user.id });
 
+    // 4) Rotate refresh token: store new hash
     const newHash = await bcrypt.hash(newRefreshToken, 10);
     await this.usersRepo.update({ id: user.id }, { refreshTokenHash: newHash });
 
