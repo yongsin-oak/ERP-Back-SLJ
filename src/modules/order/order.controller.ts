@@ -1,18 +1,18 @@
 import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
 import { Roles } from '@app/auth/role/roles.decorator';
 import { RolesGuard } from '@app/auth/role/roles.guard';
-import {
-  NoCache
-} from '@app/common/decorator/cache-control.decorator';
+import { NoCache } from '@app/common/decorator/cache-control.decorator';
 import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
 import {
   PaginatedGetAllDto,
   PaginatedResponseDto,
 } from '@app/common/dto/paginated.dto';
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
+  Param,
   Patch,
   Post,
   Query,
@@ -20,7 +20,10 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { OrderCreateDto } from './dto/create-order.dto';
-import { OrderResponseDto } from './dto/response-order.dto';
+import {
+  OrderIsExistsResponseDto,
+  OrderResponseDto,
+} from './dto/response-order.dto';
 import { OrderUpdateDto } from './dto/update-order.dto';
 import { OrderService } from './order.service';
 
@@ -64,5 +67,19 @@ export class OrderController {
     @Body() body: OrderUpdateDto,
   ): Promise<OrderResponseDto> {
     return this.orderService.update(id, body);
+  }
+
+  @Roles('*')
+  @Get('check-exists/:id')
+  @ApiOkResponse({ type: OrderIsExistsResponseDto })
+  async checkOrderExists(@Param('id') id: string): Promise<OrderIsExistsResponseDto> {
+    try {
+      await this.orderService.orderThrowExists(id);
+      return {
+        exists: false,
+      };
+    } catch {
+       throw new BadRequestException(`Order ${id} already exists`);
+    }
   }
 }

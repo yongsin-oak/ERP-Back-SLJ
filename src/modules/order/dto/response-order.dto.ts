@@ -32,3 +32,11 @@ export class OrderResponseDto {
   })
   orderDetails: OrderDetail[];
 }
+
+export class OrderIsExistsResponseDto {
+  @ApiProperty({
+    description: 'Indicates whether the order exists',
+    example: true,
+  })
+  exists: boolean;
+}
