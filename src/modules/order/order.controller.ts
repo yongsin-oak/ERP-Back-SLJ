@@ -74,12 +74,12 @@ export class OrderController {
   @ApiOkResponse({ type: OrderIsExistsResponseDto })
   async checkOrderExists(@Param('id') id: string): Promise<OrderIsExistsResponseDto> {
     try {
-      await this.orderService.orderThrowExists(id);
+      await this.orderService.orderThrowExists(id.toUpperCase());
       return {
         exists: false,
       };
     } catch {
-       throw new BadRequestException(`Order ${id} already exists`);
+       throw new BadRequestException(`Order already exists`);
     }
   }
 }

@@ -56,7 +56,7 @@ export class OrderService {
     const [order, total] = await this.orderRepo.findAndCount({
       skip,
       take,
-      relations: ['employee', 'shop'],
+      relations: ['employee', 'shop', 'orderDetails'],
       select: {
         employee: {
           id: true,
