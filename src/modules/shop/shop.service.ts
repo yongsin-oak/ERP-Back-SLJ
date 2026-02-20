@@ -6,9 +6,16 @@ import { ShopResponseDto } from './dto/response.dto';
 import { ShopUpdateDto } from './dto/update-product.dto';
 import { Platform } from './entities/platform.enum';
 import { Shop } from './entities/shop.entity';
-import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
-import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import {
+  getEntityOrNotFound,
+  throwIfEntityExists,
+} from '@app/common/helpers/entity.helper';
+import {
+  PaginatedGetAllDto,
+  PaginatedResponseDto,
+} from '@app/common/dto/paginated.dto';
 import { ShopGetDto } from './dto/get-shop.dto';
+import { formattedResponsePaginated } from '@app/common/helpers/response';
 
 @Injectable()
 export class ShopService {
@@ -37,9 +44,7 @@ export class ShopService {
     );
   }
 
-  async findAll(
-    query: ShopGetDto,
-  ): Promise<PaginatedResponseDto<Shop>> {
+  async findAll(query: ShopGetDto): Promise<PaginatedResponseDto<Shop>> {
     const { page, limit, platform } = query;
     const skip = (page - 1) * limit;
     const take = limit;
@@ -50,12 +55,7 @@ export class ShopService {
         ...(platform && { platform }),
       },
     });
-    return {
-      data: shops,
-      total,
-      page,
-      limit,
-    };
+    return formattedResponsePaginated(shops, page, limit, total);
   }
 
   async findOne(id: string): Promise<Shop> {

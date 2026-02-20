@@ -35,8 +35,13 @@ export class AuthController {
     type: AuthResponseDto,
   })
   async login(@Body() body: AuthPayloadDto, @Res() res: Response) {
+    const { username, password } = body;
+    const cleanedUsername = username.trim().toLocaleLowerCase();
     const user: { id: string; username: string; role: Role } =
-      await this.authService.validateUser(body);
+      await this.authService.validateUser({
+        username: cleanedUsername,
+        password,
+      });
     if (!user) throw new UnauthorizedException('Invalid credentials');
     const authUser = await this.authService.login(user);
     const cookieOptions: CookieOptions =
@@ -78,8 +83,7 @@ export class AuthController {
     const refreshToken =
       (req.cookies && (req.cookies as any).refreshToken) ||
       req.body?.refreshToken;
-    if (!refreshToken)
-      throw new UnauthorizedException('Unauthorized');
+    if (!refreshToken) throw new UnauthorizedException('Unauthorized');
 
     const { token, refreshToken: newRefreshToken } =
       await this.authService.refresh(refreshToken);

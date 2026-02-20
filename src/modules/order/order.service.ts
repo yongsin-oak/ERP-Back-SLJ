@@ -10,8 +10,15 @@ import { OrderCreateDto } from './dto/create-order.dto';
 import { OrderResponseDto } from './dto/response-order.dto';
 import { OrderUpdateDto } from './dto/update-order.dto';
 import { Order } from './entities/order.entity';
-import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
-import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import {
+  getEntityOrNotFound,
+  throwIfEntityExists,
+} from '@app/common/helpers/entity.helper';
+import {
+  PaginatedGetAllDto,
+  PaginatedResponseDto,
+} from '@app/common/dto/paginated.dto';
+import { formattedResponsePaginated } from '@app/common/helpers/response';
 
 @Injectable()
 export class OrderService {
@@ -71,12 +78,8 @@ export class OrderService {
         },
       },
     });
-    return {
-      data: order,
-      total,
-      page,
-      limit,
-    };
+
+    return formattedResponsePaginated(order, page, limit, total);
   }
 
   async findOne(id: string): Promise<OrderResponseDto> {

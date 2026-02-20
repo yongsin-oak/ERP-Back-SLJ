@@ -14,8 +14,12 @@ import {
 } from './dto/response-category.dto';
 import { CategoryUpdateDto } from './dto/update-category.dto';
 import { Category } from './entities/category.entity';
-import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
+import {
+  getEntityOrNotFound,
+  throwIfEntityExists,
+} from '@app/common/helpers/entity.helper';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { formattedResponsePaginated } from '@app/common/helpers/response';
 
 @Injectable()
 export class CategoryService {
@@ -73,18 +77,18 @@ export class CategoryService {
       },
     });
 
-    return {
-      data: categories.map((category) => {
+    return formattedResponsePaginated(
+      categories.map((category) => {
         const { parent, ...rest } = category;
         return {
           ...rest,
           parentId: category.parent?.id ?? null,
         };
       }),
-      total,
       page,
       limit,
-    };
+      total,
+    );
   }
 
   async findAllTree(): Promise<CategoryResponseWithChildrenDto[]> {

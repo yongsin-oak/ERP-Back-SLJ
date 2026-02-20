@@ -14,6 +14,7 @@ import { BulkDeleteProductDto } from './dto/bulk-delete-product.dto';
 import { Brand } from '../brand/entities/brand.entity';
 import { Category } from '../category/entities/category.entity';
 import { ApiBadRequestResponse } from '@nestjs/swagger';
+import { formattedResponsePaginated } from '@app/common/helpers/response';
 
 @Injectable()
 export class ProductService {
@@ -66,7 +67,9 @@ export class ProductService {
       if (brandId) {
         const brand = await this.brandRepo.findOne({ where: { id: brandId } });
         if (!brand) {
-          return new BadRequestException(`Brand with ID ${brandId} does not exist`);
+          return new BadRequestException(
+            `Brand with ID ${brandId} does not exist`,
+          );
         }
       }
       if (categoryId) {
@@ -74,7 +77,9 @@ export class ProductService {
           where: { id: categoryId },
         });
         if (!category) {
-          return new BadRequestException(`Category with ID ${categoryId} does not exist`);
+          return new BadRequestException(
+            `Category with ID ${categoryId} does not exist`,
+          );
         }
       }
 
@@ -121,12 +126,7 @@ export class ProductService {
         cartonDimensions: true,
       },
     });
-    return {
-      data: products,
-      total,
-      page,
-      limit,
-    };
+    return formattedResponsePaginated(products, page, limit, total);
   }
 
   async findOne(barcode: string): Promise<Product> {

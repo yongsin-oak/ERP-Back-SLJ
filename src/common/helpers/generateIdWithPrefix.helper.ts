@@ -10,13 +10,15 @@ interface GenerateIdOptions {
 export function generateIdWithPrefix(options: GenerateIdOptions = {}): string {
   const { prefix = '', withDateTime = true, length = 10 } = options;
 
+  const formattedPrefix = prefix ? `${prefix}-` : '';
+
   const timePart = withDateTime
-    ? DateTime.now().setZone('Asia/Bangkok').toFormat('yyyyMMdd')
+    ? `${DateTime.now().setZone('Asia/Bangkok').toFormat('yyyyMMdd')}-`
     : '';
 
   const randomPart = nanoid(length).toUpperCase();
 
-  const id = `${prefix}-${timePart}-${randomPart}`;
+  const id = `${formattedPrefix}${timePart}${randomPart}`;
 
   return id;
 }

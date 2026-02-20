@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { BrandCreateDto } from './dto/create-brand.dto';
 import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
 import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { formattedResponsePaginated } from '@app/common/helpers/response';
 
 @Injectable()
 export class BrandService {
@@ -44,12 +45,7 @@ export class BrandService {
       skip,
       take,
     });
-    return {
-      data: brands,
-      total,
-      page,
-      limit,
-    };
+    return formattedResponsePaginated(brands, page, limit, total);
   }
 
   async findOne(id: string): Promise<Brand> {

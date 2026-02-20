@@ -13,6 +13,7 @@ import {
   PaginatedGetAllDto,
   PaginatedResponseDto,
 } from '@app/common/dto/paginated.dto';
+import { formattedResponsePaginated } from '@app/common/helpers/response';
 
 @Injectable()
 export class EmployeeService {
@@ -49,12 +50,7 @@ export class EmployeeService {
       skip,
       take,
     });
-    return {
-      data: employee,
-      total,
-      page,
-      limit,
-    };
+    return formattedResponsePaginated(employee, page, limit, total);
   }
 
   async findOne(id: string): Promise<EmployeeResponseDto> {

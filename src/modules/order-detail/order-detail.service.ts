@@ -7,6 +7,7 @@ import {
   PaginatedGetAllDto,
   PaginatedResponseDto,
 } from '@app/common/dto/paginated.dto';
+import { formattedResponsePaginated } from '@app/common/helpers/response';
 
 @Injectable()
 export class OrderDetailService {
@@ -33,12 +34,7 @@ export class OrderDetailService {
       skip,
       take,
     });
-    return {
-      data: orderDetail,
-      total,
-      page,
-      limit,
-    };
+    return formattedResponsePaginated(orderDetail, page, limit, total);
   }
 
   async findByOrderId(orderId: string): Promise<OrderDetail[]> {
