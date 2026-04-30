@@ -2,38 +2,35 @@ import 'module-alias/register';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { ValidationPipe, LogLevel } from '@nestjs/common';
-import * as cookieParser from 'cookie-parser';
+import { ValidationPipe, LogLevel, VersioningType } from '@nestjs/common';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import cookieParser from 'cookie-parser';
 import { DateTime } from 'luxon';
-import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
   DateTime.now().setZone('Asia/Bangkok').toISO();
 
-  // กำหนด log levels ตาม environment
   const logLevels: LogLevel[] =
     process.env.NODE_ENV === 'production'
       ? ['error', 'warn', 'log']
       : ['error', 'warn', 'log', 'debug', 'verbose'];
 
-  const app = await NestFactory.create(AppModule, {
-    logger: logLevels,
-  });
+  const app = await NestFactory.create(AppModule, { logger: logLevels });
   const corsOrigin = [process.env.CORS_ORIGIN, 'http://localhost:5173'];
-  const key = process.env.ENCRYPTION_KEY;
   const port = process.env.PORT || 3000;
-  const server = app.getHttpAdapter().getInstance();
-  server.set('trust proxy', 1);
+
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
   app.enableCors({
     origin: corsOrigin,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
-
-  // เพิ่ม cookie parser
   app.use(cookieParser());
+  app.setGlobalPrefix('api');
+  app.enableVersioning({ type: VersioningType.URI });
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
+  app.useGlobalFilters(new AllExceptionsFilter());
 
-  app.setGlobalPrefix('api/v1');
   const config = new DocumentBuilder()
     .setTitle('ERP API')
     .setDescription('SLJ Supply Center API')
@@ -41,29 +38,18 @@ async function bootstrap() {
     .addTag('API')
     .addBearerAuth()
     .build();
-  const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('swagger', app, documentFactory);
+  SwaggerModule.setup('swagger', app, () => SwaggerModule.createDocument(app, config));
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
   await app.listen(port, '0.0.0.0');
 
   const currentURL = await app.getUrl();
-
   const LINE_WIDTH = 72;
-
-  const printLine = (content: string = '', repeat: string = '-') => {
+  const printLine = (content = '', repeat = '-') => {
     const pad = Math.max(0, (LINE_WIDTH - 2 - content.length) / 2);
-    const padBeforeLength = pad;
-    const padAfterLength = pad % 1 === 0 ? pad : pad + 1;
     const padded =
-      repeat.repeat(Math.max(0, padBeforeLength)) +
+      repeat.repeat(Math.max(0, pad)) +
       content +
-      repeat.repeat(Math.max(0, padAfterLength));
+      repeat.repeat(Math.max(0, pad % 1 === 0 ? pad : pad + 1));
     console.log(`|${padded}|`);
   };
 

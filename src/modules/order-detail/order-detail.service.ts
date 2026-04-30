@@ -1,13 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { OrderDetail } from './entities/orderDetail.entity';
 import { getEntityOrNotFound } from '@app/common/helpers/entity.helper';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from '@app/common/dto/paginated.dto';
-import { formattedResponsePaginated } from '@app/common/helpers/response';
+import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { notFound, paginatedResponse } from '@app/common/helpers/response';
 
 @Injectable()
 export class OrderDetailService {
@@ -16,51 +13,35 @@ export class OrderDetailService {
     private readonly orderDetailRepo: Repository<OrderDetail>,
   ) {}
 
-  async orderGetEntityOrNotFound(id: string): Promise<OrderDetail> {
-    return await getEntityOrNotFound(
-      this.orderDetailRepo,
-      { where: { id } },
-      `Order ${id}`,
-    );
-  }
-
-  async findAll(
-    query: PaginatedGetAllDto,
-  ): Promise<PaginatedResponseDto<OrderDetail>> {
+  async findAll(query: PaginatedGetAllDto): Promise<PaginatedResponseDto<OrderDetail>> {
     const { page, limit } = query;
-    const skip = (page - 1) * limit;
-    const take = limit;
-    const [orderDetail, total] = await this.orderDetailRepo.findAndCount({
-      skip,
-      take,
+    const [orderDetails, total] = await this.orderDetailRepo.findAndCount({
+      skip: (page - 1) * limit,
+      take: limit,
     });
-    return formattedResponsePaginated(orderDetail, page, limit, total);
+    return paginatedResponse(orderDetails, page, limit, total);
   }
 
   async findByOrderId(orderId: string): Promise<OrderDetail[]> {
-    if (!orderId) {
-      throw new NotFoundException('Order ID is required');
-    }
-    const orderDetail = await this.orderDetailRepo.find({
+    const details = await this.orderDetailRepo.find({
       where: { orderId },
       relations: ['product'],
       order: { updatedAt: 'DESC' },
       select: {
         id: true,
+        orderId: true,
         quantityPack: true,
         quantityCarton: true,
-        product: {
-          barcode: true,
-          name: true,
-        },
+        createdAt: true,
+        updatedAt: true,
+        product: { barcode: true, name: true },
       },
     });
 
-    if (!orderDetail || orderDetail.length === 0) {
-      throw new NotFoundException(
-        `Order details not found for order ID: ${orderId}`,
-      );
+    if (!details.length) {
+      throw notFound(`No order details found for order ${orderId}`);
     }
-    return orderDetail;
+
+    return details;
   }
 }

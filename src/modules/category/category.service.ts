@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CategoryCreateDto } from './dto/create-category.dto';
@@ -14,12 +10,9 @@ import {
 } from './dto/response-category.dto';
 import { CategoryUpdateDto } from './dto/update-category.dto';
 import { Category } from './entities/category.entity';
-import {
-  getEntityOrNotFound,
-  throwIfEntityExists,
-} from '@app/common/helpers/entity.helper';
+import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
-import { formattedResponsePaginated } from '@app/common/helpers/response';
+import { badRequest, notFound, paginatedResponse } from '@app/common/helpers/response';
 
 @Injectable()
 export class CategoryService {
@@ -28,63 +21,36 @@ export class CategoryService {
     private readonly categoryRepository: Repository<Category>,
   ) {}
 
-  async categoryThrowExists(name: string): Promise<void> {
-    await throwIfEntityExists(
-      this.categoryRepository,
-      {
-        where: { name },
-      },
-      `Category ${name}`,
-    );
+  private async categoryGetEntityOrFail(id: string): Promise<Category> {
+    return getEntityOrNotFound(this.categoryRepository, { where: { id } }, `Category ${id}`);
   }
 
-  async categoryGetEntityOrNotFound(id: string): Promise<Category> {
-    return await getEntityOrNotFound(
-      this.categoryRepository,
-      { where: { id } },
-      `Category ${id}`,
-    );
+  private async categoryThrowIfExists(name: string): Promise<void> {
+    await throwIfEntityExists(this.categoryRepository, { where: { name } }, `Category "${name}"`);
   }
 
   async create(dto: CategoryCreateDto): Promise<Category> {
-    await this.categoryThrowExists(dto.name);
-
+    await this.categoryThrowIfExists(dto.name);
     if (dto.parentId) {
-      const parent = await this.findOne(dto.parentId);
-      if (!parent) {
-        throw new NotFoundException(`Parend id ${dto.parentId} not found`);
-      }
+      await this.categoryGetEntityOrFail(dto.parentId);
     }
-    const category = this.categoryRepository.create({
-      ...dto,
-    });
+    const category = this.categoryRepository.create(dto);
     return this.categoryRepository.save(category);
   }
 
-  async findAll({
-    page,
-    limit,
-    parentId: parentQuery,
-  }: CategoryGetDto): Promise<PaginatedResponseDto<CategoryResponseDto>> {
-    const skip = (page - 1) * limit;
-    const take = limit;
+  async findAll({ page, limit, parentId }: CategoryGetDto): Promise<PaginatedResponseDto<CategoryResponseDto>> {
     const [categories, total] = await this.categoryRepository.findAndCount({
-      take,
-      skip,
+      skip: (page - 1) * limit,
+      take: limit,
       relations: ['parent'],
-      where: {
-        ...(parentQuery && { parent: { id: parentQuery } }),
-      },
+      where: { ...(parentId && { parent: { id: parentId } }) },
     });
 
-    return formattedResponsePaginated(
-      categories.map((category) => {
-        const { parent, ...rest } = category;
-        return {
-          ...rest,
-          parentId: category.parent?.id ?? null,
-        };
-      }),
+    return paginatedResponse(
+      categories.map(({ parent, ...rest }) => ({
+        ...rest,
+        parentId: parent?.id ?? null,
+      })),
       page,
       limit,
       total,
@@ -92,86 +58,62 @@ export class CategoryService {
   }
 
   async findAllTree(): Promise<CategoryResponseWithChildrenDto[]> {
-    const categories = await this.categoryRepository.find({
+    const roots = await this.categoryRepository.find({
       relations: ['children'],
+      where: { parent: null },
     });
-    const categoryTree = categories.map((category) => {
-      const { parent, ...rest } = category;
-      return {
-        ...rest,
-        children: category.children.map((child) => ({
-          id: child.id,
-          name: child.name,
-          description: child.description,
-          createdAt: child.createdAt,
-          updatedAt: child.updatedAt,
-        })),
-      };
-    });
-    return categoryTree;
+    return roots.map(({ parent, ...rest }) => ({
+      ...rest,
+      children: rest.children.map((child) => ({
+        id: child.id,
+        name: child.name,
+        description: child.description,
+        createdAt: child.createdAt,
+        updatedAt: child.updatedAt,
+      })),
+    }));
   }
 
   async findOne(id: string): Promise<Category> {
-    const category = await getEntityOrNotFound(
+    return getEntityOrNotFound(
       this.categoryRepository,
       { where: { id }, relations: ['parent', 'children'] },
       `Category ${id}`,
     );
-    return category;
   }
 
-  async update(
-    id: string,
-    updateCategoryDto: CategoryUpdateDto,
-  ): Promise<CategoryResponseWithParentDto> {
-    await this.categoryGetEntityOrNotFound(id);
+  async update(id: string, dto: CategoryUpdateDto): Promise<CategoryResponseWithParentDto> {
+    await this.categoryGetEntityOrFail(id);
     await this.categoryRepository.update(id, {
-      ...updateCategoryDto,
-      ...(updateCategoryDto.parentId
-        ? {
-            parent: { id: updateCategoryDto.parentId },
-          }
-        : {
-            parent: null,
-          }),
+      ...dto,
+      ...(dto.parentId ? { parent: { id: dto.parentId } } : { parent: null }),
     });
     const category = await this.findOne(id);
     const { parentId, ...rest } = category;
     return rest;
   }
 
-  async remove(
-    id: string,
-    delChild?: boolean,
-  ): Promise<CategoryResponseWithChildrenDto> {
+  async remove(id: string, delChild = false): Promise<CategoryResponseWithChildrenDto> {
     const category = await this.categoryRepository.findOne({
       where: { id },
       relations: ['children'],
     });
 
-    if (!category) {
-      throw new NotFoundException(`Category ${id} not found`);
-    }
+    if (!category) throw notFound(`Category ${id} not found`);
 
-    if (category.children && category.children.length > 0) {
-      if (delChild === true) {
-        for (const child of category.children) {
-          await this.remove(child.id, true); // ลบลูกทั้งหมดแบบ recursive
-        }
-      } else {
-        throw new BadRequestException(
-          `Cannot delete category ${id} because it has ${category.children.length} child(ren). Set delChild=true to force delete.`,
+    if (category.children?.length > 0) {
+      if (!delChild) {
+        throw badRequest(
+          `Category ${id} has ${category.children.length} child(ren). Pass deleteChild=true to force delete.`,
         );
+      }
+      for (const child of category.children) {
+        await this.remove(child.id, true);
       }
     }
 
     await this.categoryRepository.delete(id);
-
     const { parent, children, ...rest } = category;
-
-    return {
-      ...rest,
-      children: [],
-    };
+    return { ...rest, children: [] };
   }
 }

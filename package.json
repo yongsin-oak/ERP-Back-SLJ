@@ -22,8 +22,9 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "seed": "ts-node -r tsconfig-paths/register src/auth/seed/seed-user.ts",
-    "seed:prod": "node dist/src/auth/seed/seed-user"
+    "seed": "ts-node -r tsconfig-paths/register src/seed/seed.ts",
+    "seed:users": "ts-node -r tsconfig-paths/register src/auth/seed/seed-user.ts",
+    "seed:prod": "node dist/src/seed/seed"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.3",
@@ -55,8 +56,10 @@
     "@nestjs/schematics": "^11.0.5",
     "@nestjs/testing": "^11.1.3",
     "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.3",
     "@types/jest": "^30.0.0",
+    "@types/luxon": "^3.7.1",
     "@types/ms": "^2.1.0",
     "@types/node": "^25.2.3",
     "@types/passport": "^1.0.17",

@@ -16,17 +16,13 @@ export class AuthPayloadDto {
 }
 
 export class UpdatePasswordDto {
-  @ApiProperty({ example: 'admin', description: 'Username for authentication' })
-  @IsNotEmpty({ message: 'Username is required' })
-  username: string;
-
-  @ApiProperty({ example: 'oldpassword', description: 'Current password' })
+  @ApiProperty({ example: 'oldpassword' })
   @IsNotEmpty({ message: 'Current password is required' })
-  currentPass: string;
+  currentPassword: string;
 
-  @ApiProperty({ example: 'newpassword', description: 'New password' })
+  @ApiProperty({ example: 'newpassword' })
   @IsNotEmpty({ message: 'New password is required' })
-  newPass: string;
+  newPassword: string;
 }
 
 export class AuthResponseDto {

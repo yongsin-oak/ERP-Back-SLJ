@@ -5,14 +5,14 @@
     "removeComments": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
+    "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "target": "ES2021",
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": "./",
     "paths": {
-      "@app/*": ["src/*"],
-      "@db/*": ["db/*"],
+      "@app/*": ["./src/*"],
+      "@db/*": ["./db/*"]
     },
     "incremental": true,
     "skipLibCheck": true,

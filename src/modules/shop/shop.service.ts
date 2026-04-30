@@ -6,16 +6,10 @@ import { ShopResponseDto } from './dto/response.dto';
 import { ShopUpdateDto } from './dto/update-product.dto';
 import { Platform } from './entities/platform.enum';
 import { Shop } from './entities/shop.entity';
-import {
-  getEntityOrNotFound,
-  throwIfEntityExists,
-} from '@app/common/helpers/entity.helper';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from '@app/common/dto/paginated.dto';
+import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
+import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { ShopGetDto } from './dto/get-shop.dto';
-import { formattedResponsePaginated } from '@app/common/helpers/response';
+import { paginatedResponse } from '@app/common/helpers/response';
 
 @Injectable()
 export class ShopService {
@@ -24,69 +18,51 @@ export class ShopService {
     private readonly shopRepo: Repository<Shop>,
   ) {}
 
-  async shopThrowExists({
-    data,
-  }: {
-    data: { name: string; platform: Platform };
-  }): Promise<void> {
-    await throwIfEntityExists(
-      this.shopRepo,
-      { where: { name: data.name, platform: data.platform } },
-      `Shop with name "${data.name}" and platform "${data.platform}" already exists`,
-    );
+  private async shopGetEntityOrFail(id: string): Promise<Shop> {
+    return getEntityOrNotFound(this.shopRepo, { where: { id } }, `Shop ${id}`);
   }
 
-  async shopGetEntityOrNotFound(id: string): Promise<Shop> {
-    return await getEntityOrNotFound(
+  private async shopThrowIfExists(name: string, platform: Platform): Promise<void> {
+    await throwIfEntityExists(
       this.shopRepo,
-      { where: { id } },
-      `Shop ${id}`,
+      { where: { name, platform } },
+      `Shop "${name}" on ${platform}`,
     );
   }
 
   async findAll(query: ShopGetDto): Promise<PaginatedResponseDto<Shop>> {
     const { page, limit, platform } = query;
-    const skip = (page - 1) * limit;
-    const take = limit;
     const [shops, total] = await this.shopRepo.findAndCount({
-      skip,
-      take,
-      where: {
-        ...(platform && { platform }),
-      },
+      skip: (page - 1) * limit,
+      take: limit,
+      where: { ...(platform && { platform }) },
     });
-    return formattedResponsePaginated(shops, page, limit, total);
+    return paginatedResponse(shops, page, limit, total);
   }
 
   async findOne(id: string): Promise<Shop> {
-    return this.shopGetEntityOrNotFound(id);
+    return this.shopGetEntityOrFail(id);
   }
 
   async create(data: ShopCreateDto): Promise<ShopResponseDto> {
-    await this.shopThrowExists({
-      data: { name: data.name, platform: data.platform },
-    });
+    await this.shopThrowIfExists(data.name, data.platform);
     const shop = this.shopRepo.create(data);
     return this.shopRepo.save(shop);
   }
 
-  async update(
-    id: string,
-    data: Partial<ShopUpdateDto>,
-  ): Promise<ShopResponseDto> {
-    await this.shopGetEntityOrNotFound(id);
-    await this.shopThrowExists({
-      data: { name: data.name, platform: data.platform },
-    });
+  async update(id: string, data: Partial<ShopUpdateDto>): Promise<ShopResponseDto> {
+    const existing = await this.shopGetEntityOrFail(id);
+    const newName = data.name ?? existing.name;
+    const newPlatform = data.platform ?? existing.platform;
+    if (newName !== existing.name || newPlatform !== existing.platform) {
+      await this.shopThrowIfExists(newName, newPlatform);
+    }
     await this.shopRepo.update(id, data);
     return this.findOne(id);
   }
 
   async remove(id: string): Promise<ShopResponseDto> {
-    if (!id) {
-    }
-    await this.shopGetEntityOrNotFound(id);
-    const shop = await this.shopGetEntityOrNotFound(id);
+    const shop = await this.shopGetEntityOrFail(id);
     await this.shopRepo.delete(id);
     return shop;
   }

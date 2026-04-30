@@ -4,15 +4,15 @@ import { Roles } from '@app/auth/role/roles.decorator';
 import { RolesGuard } from '@app/auth/role/roles.guard';
 import { NoCache } from '@app/common/decorator/cache-control.decorator';
 import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from '@app/common/dto/paginated.dto';
+import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { ok } from '@app/common/helpers/response';
 import {
   Body,
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -21,12 +21,12 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { EmployeeCreateDto } from './dto/create-employee.dto';
+import { EmployeeGetDto } from './dto/get-employee.dto';
 import { EmployeeResponseDto } from './dto/response-employee.dto';
 import { EmployeeUpdateDto } from './dto/update-emplote.dto';
 import { EmployeeService } from './employee.service';
-import { Employee } from './entities/employee.entity';
 
-@Controller('employee')
+@Controller({ path: 'employee', version: '1' })
 @ApiBearerAuth()
 @NoCache()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -35,58 +35,37 @@ export class EmployeeController {
 
   @Roles(Role.SuperAdmin)
   @Post()
-  @NoCache() // ไม่ cache การสร้าง employee
-  @ApiOkResponse({
-    type: EmployeeResponseDto,
-    description: 'Create a new employee',
-  })
-  async createEmployee(
-    @Body() body: EmployeeCreateDto,
-  ): Promise<EmployeeResponseDto> {
-    return this.employerService.create(body);
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOkResponse({ type: EmployeeResponseDto, description: 'Create a new employee' })
+  async createEmployee(@Body() body: EmployeeCreateDto) {
+    return ok(await this.employerService.create(body));
   }
 
   @Roles('*')
   @Get()
-  @ApiOkResponsePaginated(Employee)
-  async getAllEmployees(
-    @Query() query: PaginatedGetAllDto,
-  ): Promise<PaginatedResponseDto<EmployeeResponseDto>> {
-    return this.employerService.findAll(query);
+  @ApiOkResponsePaginated(EmployeeResponseDto)
+  async getAllEmployees(@Query() query: EmployeeGetDto): Promise<PaginatedResponseDto<EmployeeResponseDto>> {
+    return ok(await this.employerService.findAll(query));
   }
 
   @Roles('*')
   @Get(':id')
-  @ApiOkResponse({
-    type: EmployeeResponseDto,
-    description: 'Get employee by ID',
-  })
-  async getEmployeeById(@Param('id') id: string): Promise<EmployeeResponseDto> {
-    return this.employerService.findOne(id);
+  @ApiOkResponse({ type: EmployeeResponseDto, description: 'Get employee by ID' })
+  async getEmployeeById(@Param('id') id: string) {
+    return ok(await this.employerService.findOne(id));
   }
 
   @Roles(Role.SuperAdmin)
   @Patch(':id')
-  @NoCache() // ไม่ cache การอัปเดต employee
-  @ApiOkResponse({
-    type: EmployeeResponseDto,
-    description: 'Update employee by ID',
-  })
-  async updateEmployee(
-    @Param('id') id: string,
-    @Body() body: EmployeeUpdateDto,
-  ): Promise<EmployeeResponseDto> {
-    return this.employerService.update(id, body);
+  @ApiOkResponse({ type: EmployeeResponseDto, description: 'Update employee by ID' })
+  async updateEmployee(@Param('id') id: string, @Body() body: EmployeeUpdateDto) {
+    return ok(await this.employerService.update(id, body));
   }
 
   @Roles(Role.SuperAdmin)
   @Delete(':id')
-  @NoCache() // ไม่ cache การลบ employee
-  @ApiOkResponse({
-    type: EmployeeResponseDto,
-    description: 'Delete employee by ID',
-  })
-  async deleteEmployee(@Param('id') id: string): Promise<EmployeeResponseDto> {
-    return this.employerService.remove(id);
+  @ApiOkResponse({ type: EmployeeResponseDto, description: 'Delete employee by ID' })
+  async deleteEmployee(@Param('id') id: string) {
+    return ok(await this.employerService.remove(id));
   }
 }

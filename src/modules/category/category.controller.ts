@@ -1,8 +1,18 @@
+import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
+import { Role } from '@app/auth/role/role.enum';
+import { Roles } from '@app/auth/role/roles.decorator';
+import { RolesGuard } from '@app/auth/role/roles.guard';
+import { NoCache } from '@app/common/decorator/cache-control.decorator';
+import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { ok } from '@app/common/helpers/response';
 import {
   Body,
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -18,20 +28,8 @@ import {
   CategoryResponseWithChildrenDto,
   CategoryResponseWithParentDto,
 } from './dto/response-category.dto';
-import { Category } from './entities/category.entity';
-import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
-import { RolesGuard } from '@app/auth/role/roles.guard';
-import { Roles } from '@app/auth/role/roles.decorator';
-import { Role } from '@app/auth/role/role.enum';
-import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
-import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
-import {
-  CacheForMinutes,
-  CacheForHours,
-  NoCache,
-} from '@app/common/decorator/cache-control.decorator';
 
-@Controller('category')
+@Controller({ path: 'category', version: '1' })
 @ApiBearerAuth()
 @NoCache()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -40,79 +38,45 @@ export class CategoryController {
 
   @Post()
   @Roles(Role.SuperAdmin)
-  @NoCache() // ไม่ cache การสร้าง category
-  @ApiOkResponse({
-    description: 'Create a new category',
-    type: Category,
-  })
-  async createCategory(@Body() body: CategoryCreateDto): Promise<Category> {
-    return this.categoryservice.create(body);
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOkResponse({ description: 'Create a new category', type: CategoryResponseDto })
+  async createCategory(@Body() body: CategoryCreateDto) {
+    return ok(await this.categoryservice.create(body));
   }
 
   @Get()
   @Roles('*')
   @ApiOkResponsePaginated(CategoryResponseDto)
-  async getAllCategories(
-    @Query() query: CategoryGetDto,
-  ): Promise<PaginatedResponseDto<CategoryResponseDto>> {
-    return this.categoryservice.findAll(query);
+  async getAllCategories(@Query() query: CategoryGetDto): Promise<PaginatedResponseDto<CategoryResponseDto>> {
+    return ok(await this.categoryservice.findAll(query));
   }
 
   @Get('tree')
   @Roles('*')
-  @ApiOkResponse({
-    description: 'Get all categories as a tree structure',
-    type: CategoryResponseWithChildrenDto,
-    isArray: true,
-  })
-  async getAllCategoriesTree(): Promise<CategoryResponseWithChildrenDto[]> {
-    return this.categoryservice.findAllTree();
+  @ApiOkResponse({ description: 'Get all categories as a tree structure', type: CategoryResponseWithChildrenDto, isArray: true })
+  async getAllCategoriesTree() {
+    return ok(await this.categoryservice.findAllTree());
   }
 
   @Get(':id')
   @Roles('*')
-  @ApiOkResponse({
-    description: 'Get category by ID',
-    type: CategoryResponseWithChildrenDto,
-  })
-  async getCategoryById(
-    @Param('id') id: string,
-  ): Promise<CategoryResponseWithChildrenDto> {
-    return this.categoryservice.findOne(id);
+  @ApiOkResponse({ description: 'Get category by ID', type: CategoryResponseWithChildrenDto })
+  async getCategoryById(@Param('id') id: string) {
+    return ok(await this.categoryservice.findOne(id));
   }
 
   @Patch(':id')
   @Roles(Role.SuperAdmin)
-  @NoCache() // ไม่ cache การอัปเดต category
-  @ApiOkResponse({
-    description: 'Update category by ID',
-    type: CategoryResponseWithParentDto,
-  })
-  async updateCategory(
-    @Param('id') id: string,
-    @Body() body: CategoryCreateDto,
-  ): Promise<CategoryResponseWithParentDto> {
-    return this.categoryservice.update(id, body);
+  @ApiOkResponse({ description: 'Update category by ID', type: CategoryResponseWithParentDto })
+  async updateCategory(@Param('id') id: string, @Body() body: CategoryCreateDto) {
+    return ok(await this.categoryservice.update(id, body));
   }
 
   @Delete(':id')
   @Roles(Role.SuperAdmin)
-  @NoCache() // ไม่ cache การลบ category
-  @ApiOkResponse({
-    description: 'Delete category by ID',
-    type: CategoryResponseWithChildrenDto,
-  })
-  @ApiQuery({
-    name: 'deleteChild',
-    required: false,
-    type: Boolean,
-    description: 'Delete all child categories as well',
-  })
-  async deleteCategory(
-    @Param('id') id: string,
-    @Query('deleteChild') deleteChild?: string,
-  ): Promise<CategoryResponseWithChildrenDto> {
-    const deleteChildBool = deleteChild === 'true' || deleteChild === '1';
-    return this.categoryservice.remove(id, deleteChildBool);
+  @ApiQuery({ name: 'deleteChild', required: false, type: Boolean, description: 'Delete all child categories as well' })
+  @ApiOkResponse({ description: 'Delete category by ID', type: CategoryResponseWithChildrenDto })
+  async deleteCategory(@Param('id') id: string, @Query('deleteChild') deleteChild?: string) {
+    return ok(await this.categoryservice.remove(id, deleteChild === 'true' || deleteChild === '1'));
   }
 }

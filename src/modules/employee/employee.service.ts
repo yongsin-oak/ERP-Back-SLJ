@@ -5,15 +5,10 @@ import { EmployeeCreateDto } from './dto/create-employee.dto';
 import { EmployeeResponseDto } from './dto/response-employee.dto';
 import { EmployeeUpdateDto } from './dto/update-emplote.dto';
 import { Employee } from './entities/employee.entity';
-import {
-  getEntityOrNotFound,
-  throwIfEntityExists,
-} from '@app/common/helpers/entity.helper';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from '@app/common/dto/paginated.dto';
-import { formattedResponsePaginated } from '@app/common/helpers/response';
+import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
+import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { EmployeeGetDto } from './dto/get-employee.dto';
+import { paginatedResponse } from '@app/common/helpers/response';
 
 @Injectable()
 export class EmployeeService {
@@ -22,66 +17,54 @@ export class EmployeeService {
     private readonly employeeRepo: Repository<Employee>,
   ) {}
 
-  async employeeThrowExists(id: string): Promise<void> {
-    await throwIfEntityExists(
-      this.employeeRepo,
-      {
-        where: { id },
-      },
-      `Employee ${id}`,
-    );
+  private async employeeGetEntityOrFail(id: string): Promise<Employee> {
+    return getEntityOrNotFound(this.employeeRepo, { where: { id } }, `Employee ${id}`);
   }
 
-  async employeeGetEntityOrNotFound(id: string): Promise<EmployeeResponseDto> {
-    return await getEntityOrNotFound(
-      this.employeeRepo,
-      { where: { id } },
-      `Employee ${id}`,
-    );
-  }
+  async findAll(query: EmployeeGetDto): Promise<PaginatedResponseDto<EmployeeResponseDto>> {
+    const { page, limit, search, department } = query;
+    const qb = this.employeeRepo.createQueryBuilder('e');
 
-  async findAll(
-    query: PaginatedGetAllDto,
-  ): Promise<PaginatedResponseDto<EmployeeResponseDto>> {
-    const { page, limit } = query;
-    const skip = (page - 1) * limit;
-    const take = limit;
-    const [employee, total] = await this.employeeRepo.findAndCount({
-      skip,
-      take,
-    });
-    return formattedResponsePaginated(employee, page, limit, total);
+    if (search) {
+      qb.andWhere(
+        '(e.firstName ILIKE :q OR e.lastName ILIKE :q OR e.nickname ILIKE :q)',
+        { q: `%${search}%` },
+      );
+    }
+    if (department) {
+      qb.andWhere('e.department = :department', { department });
+    }
+
+    const [employees, total] = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return paginatedResponse(employees, page, limit, total);
   }
 
   async findOne(id: string): Promise<EmployeeResponseDto> {
-    return this.employeeGetEntityOrNotFound(id);
+    return this.employeeGetEntityOrFail(id);
   }
 
   async create(data: EmployeeCreateDto): Promise<EmployeeResponseDto> {
     await throwIfEntityExists(
       this.employeeRepo,
-      {
-        where: [{ firstName: data.firstName, lastName: data.lastName }],
-      },
-      `Employee with name ${data.firstName} ${data.lastName}`,
+      { where: [{ firstName: data.firstName, lastName: data.lastName }] },
+      `Employee "${data.firstName} ${data.lastName}"`,
     );
-    const newEmployee = this.employeeRepo.create({
-      ...data,
-    });
+    const newEmployee = this.employeeRepo.create(data);
     return this.employeeRepo.save(newEmployee);
   }
 
-  async update(
-    id: string,
-    data: Partial<EmployeeUpdateDto>,
-  ): Promise<EmployeeResponseDto> {
-    await this.employeeGetEntityOrNotFound(id);
+  async update(id: string, data: Partial<EmployeeUpdateDto>): Promise<EmployeeResponseDto> {
+    await this.employeeGetEntityOrFail(id);
     await this.employeeRepo.update(id, data);
     return this.findOne(id);
   }
 
   async remove(id: string): Promise<EmployeeResponseDto> {
-    const employee = await this.employeeGetEntityOrNotFound(id);
+    const employee = await this.employeeGetEntityOrFail(id);
     await this.employeeRepo.delete(id);
     return employee;
   }

@@ -1,6 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { isNotEmpty } from 'class-validator';
 import { Repository } from 'typeorm';
 import { Employee } from '../employee/entities/employee.entity';
 import { OrderDetail } from '../order-detail/entities/orderDetail.entity';
@@ -10,15 +9,10 @@ import { OrderCreateDto } from './dto/create-order.dto';
 import { OrderResponseDto } from './dto/response-order.dto';
 import { OrderUpdateDto } from './dto/update-order.dto';
 import { Order } from './entities/order.entity';
-import {
-  getEntityOrNotFound,
-  throwIfEntityExists,
-} from '@app/common/helpers/entity.helper';
-import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from '@app/common/dto/paginated.dto';
-import { formattedResponsePaginated } from '@app/common/helpers/response';
+import { getEntityOrNotFound } from '@app/common/helpers/entity.helper';
+import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { badRequest, paginatedResponse } from '@app/common/helpers/response';
+import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix.helper';
 
 @Injectable()
 export class OrderService {
@@ -36,199 +30,103 @@ export class OrderService {
     private readonly employeeRepo: Repository<Employee>,
   ) {}
 
-  async orderThrowExists(id: string): Promise<void> {
-    await throwIfEntityExists(
-      this.orderRepo,
-      {
-        where: { id },
-      },
-      `Order ${id}`,
-    );
-  }
+  private readonly orderRelations = {
+    relations: ['employee', 'shop', 'orderDetails', 'orderDetails.product'],
+    select: {
+      employee: { id: true, firstName: true, lastName: true, nickname: true },
+      shop: { id: true, name: true, platform: true },
+    },
+  };
 
-  async orderGetEntityOrNotFound(id: string): Promise<Order> {
-    return await getEntityOrNotFound(
-      this.orderRepo,
-      { where: { id } },
-      `Order ${id}`,
-    );
-  }
-
-  async findAll(
-    query: PaginatedGetAllDto,
-  ): Promise<PaginatedResponseDto<OrderResponseDto>> {
+  async findAll(query: PaginatedGetAllDto): Promise<PaginatedResponseDto<OrderResponseDto>> {
     const { page, limit } = query;
-    const skip = (page - 1) * limit;
-    const take = limit;
-    const [order, total] = await this.orderRepo.findAndCount({
-      skip,
-      take,
-      relations: ['employee', 'shop', 'orderDetails'],
-      select: {
-        employee: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          nickname: true,
-        },
-        shop: {
-          id: true,
-          name: true,
-          platform: true,
-        },
-      },
+    const [orders, total] = await this.orderRepo.findAndCount({
+      skip: (page - 1) * limit,
+      take: limit,
+      ...this.orderRelations,
     });
-
-    return formattedResponsePaginated(order, page, limit, total);
+    return paginatedResponse(orders, page, limit, total);
   }
 
   async findOne(id: string): Promise<OrderResponseDto> {
-    const order = await getEntityOrNotFound(
+    return getEntityOrNotFound(
       this.orderRepo,
-      {
-        where: { id },
-        relations: ['orderDetails', 'employee', 'shop'],
-        select: {
-          employee: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            nickname: true,
-          },
-          shop: {
-            id: true,
-            name: true,
-            platform: true,
-          },
-        },
-      },
+      { where: { id }, ...this.orderRelations },
       `Order ${id}`,
     );
-    return order;
   }
 
-  async create(orderData: OrderCreateDto): Promise<OrderResponseDto> {
-    if (!orderData.id) {
-      throw new BadRequestException(
-        'Order ID is required. Please provide a unique order ID.',
-      );
-    }
-    const orderId = orderData.id;
+  async create(dto: OrderCreateDto): Promise<OrderResponseDto> {
+    const shop = await getEntityOrNotFound(this.shopRepo, { where: { id: dto.shopId } }, `Shop ${dto.shopId}`);
+    const employee = await getEntityOrNotFound(this.employeeRepo, { where: { id: dto.createdBy } }, `Employee ${dto.createdBy}`);
 
-    const shop = await getEntityOrNotFound(
-      this.shopRepo,
-      { where: { id: orderData.shopId } },
-      `Shop ${orderData.shopId}`,
-    );
-
-    const employee = await getEntityOrNotFound(
-      this.employeeRepo,
-      { where: { id: orderData.employeeId } },
-      `Employee ${orderData.employeeId}`,
-    );
-
-    const products = await Promise.all(
-      orderData.orderDetails.map((detail) =>
-        this.productRepo.findOne({
-          where: { barcode: detail.productBarcode },
-        }),
-      ),
-    );
-
-    // สร้าง order entity
     const order = this.orderRepo.create({
-      id: orderId,
+      id: generateIdWithPrefix({ prefix: 'ORD', withDateTime: true }),
       shop,
       employee,
     });
 
-    // สร้าง orderDetails พร้อมตั้งค่าความสัมพันธ์ order แบบชัดเจน
-    order.orderDetails = orderData.orderDetails.map((detail) => {
-      const product = products.find(
-        (p) => p?.barcode === detail.productBarcode,
+    if (dto.details?.length) {
+      order.orderDetails = await Promise.all(
+        dto.details.map(async (d) => {
+          if (!d.quantityPack && !d.quantityCarton) {
+            throw badRequest(`Detail for ${d.productBarcode}: quantityPack or quantityCarton is required`);
+          }
+          const product = await getEntityOrNotFound(
+            this.productRepo,
+            { where: { barcode: d.productBarcode } },
+            `Product ${d.productBarcode}`,
+          );
+          const detail = new OrderDetail();
+          detail.product = product;
+          detail.quantityPack = d.quantityPack ?? 0;
+          detail.quantityCarton = d.quantityCarton ?? 0;
+          return detail;
+        }),
       );
-      if (!product) {
-        throw new Error(
-          `Product with barcode ${detail.productBarcode} not found`,
-        );
-      }
+    }
 
-      const orderDetail = new OrderDetail();
-      orderDetail.quantityPack = detail.quantity;
-      orderDetail.product = product;
-      // ไม่ต้องตั้ง orderDetail.orderId ด้วยตัวเอง เพราะ TypeORM จะจัดการให้
-      return orderDetail;
-    });
-
-    // บันทึก order พร้อม cascade orderDetails
-    const savedOrder = await this.orderRepo.save(order);
-
-    const completeOrder = await this.orderRepo.findOne({
-      where: { id: savedOrder.id },
-      relations: ['orderDetails'],
-      loadEagerRelations: true,
-    });
-    return completeOrder;
+    const saved = await this.orderRepo.save(order);
+    return this.findOne(saved.id);
   }
 
-  async update(
-    id: string,
-    orderData: OrderUpdateDto,
-  ): Promise<OrderResponseDto> {
-    const order = await this.orderGetEntityOrNotFound(id);
+  async update(id: string, dto: OrderUpdateDto): Promise<OrderResponseDto> {
+    const order = await getEntityOrNotFound(this.orderRepo, { where: { id } }, `Order ${id}`);
 
-    if (orderData.shopId) {
-      const shop = await getEntityOrNotFound(
-        this.shopRepo,
-        { where: { id: orderData.shopId } },
-        `Shop ${orderData.shopId}`,
-      );
-      order.shop = shop;
+    if (dto.shopId) {
+      order.shop = await getEntityOrNotFound(this.shopRepo, { where: { id: dto.shopId } }, `Shop ${dto.shopId}`);
     }
-
-    if (orderData.employeeId) {
-      const employee = await getEntityOrNotFound(
-        this.employeeRepo,
-        { where: { id: orderData.employeeId } },
-        `Employee ${orderData.employeeId}`,
-      );
-      order.employee = employee;
+    if (dto.createdBy) {
+      order.employee = await getEntityOrNotFound(this.employeeRepo, { where: { id: dto.createdBy } }, `Employee ${dto.createdBy}`);
     }
-
-    if (isNotEmpty(orderData.orderDetails)) {
-      const products = await Promise.all(
-        orderData?.orderDetails.map((detail) =>
-          this.productRepo.findOne({
-            where: { barcode: detail.productBarcode },
-          }),
-        ),
-      );
-      // อัปเดต orderDetails
-      order.orderDetails = orderData?.orderDetails.map((detail) => {
-        const product = products.find(
-          (p) => p?.barcode === detail.productBarcode,
-        );
-        if (!product) {
-          throw new Error(
-            `Product with barcode ${detail.productBarcode} not found`,
+    if (dto.details?.length) {
+      order.orderDetails = await Promise.all(
+        dto.details.map(async (d) => {
+          const product = await getEntityOrNotFound(
+            this.productRepo,
+            { where: { barcode: d.productBarcode } },
+            `Product ${d.productBarcode}`,
           );
-        }
-
-        const orderDetail = new OrderDetail();
-        orderDetail.quantityPack = detail.quantity;
-        orderDetail.product = product;
-        // ไม่ต้องตั้ง orderDetail.orderId ด้วยตัวเอง เพราะ TypeORM จะจัดการให้
-        return orderDetail;
-      });
+          const detail = new OrderDetail();
+          detail.product = product;
+          detail.quantityPack = d.quantityPack ?? 0;
+          detail.quantityCarton = d.quantityCarton ?? 0;
+          return detail;
+        }),
+      );
     }
-    // บันทึกการอัปเดต
-    const updatedOrder = await this.orderRepo.save(order);
 
-    const completeOrder = await this.orderRepo.findOne({
-      where: { id: updatedOrder.id },
-      relations: ['orderDetails'],
-      loadEagerRelations: true,
-    });
-    return completeOrder;
+    const saved = await this.orderRepo.save(order);
+    return this.findOne(saved.id);
+  }
+
+  async remove(id: string): Promise<OrderResponseDto> {
+    const order = await getEntityOrNotFound(
+      this.orderRepo,
+      { where: { id }, ...this.orderRelations },
+      `Order ${id}`,
+    );
+    await this.orderRepo.remove(order);
+    return { ...order, id };
   }
 }

@@ -3,15 +3,15 @@ import { Roles } from '@app/auth/role/roles.decorator';
 import { RolesGuard } from '@app/auth/role/roles.guard';
 import { NoCache } from '@app/common/decorator/cache-control.decorator';
 import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { ok } from '@app/common/helpers/response';
 import {
-  PaginatedGetAllDto,
-  PaginatedResponseDto,
-} from '@app/common/dto/paginated.dto';
-import {
-  BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -20,14 +20,11 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { OrderCreateDto } from './dto/create-order.dto';
-import {
-  OrderIsExistsResponseDto,
-  OrderResponseDto,
-} from './dto/response-order.dto';
+import { OrderResponseDto } from './dto/response-order.dto';
 import { OrderUpdateDto } from './dto/update-order.dto';
 import { OrderService } from './order.service';
 
-@Controller('order')
+@Controller({ path: 'order', version: '1' })
 @ApiBearerAuth()
 @NoCache()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -36,50 +33,37 @@ export class OrderController {
 
   @Roles('*')
   @Post()
-  @NoCache() // ไม่ cache การสร้าง order
+  @HttpCode(HttpStatus.CREATED)
   @ApiOkResponse({ type: OrderResponseDto })
-  async createOrder(@Body() body: OrderCreateDto): Promise<OrderResponseDto> {
-    return this.orderService.create(body);
+  async createOrder(@Body() body: OrderCreateDto) {
+    return ok(await this.orderService.create(body));
   }
 
   @Roles('*')
-  @ApiOkResponsePaginated(OrderResponseDto)
   @Get()
-  async getAllOrders(
-    @Query() query: PaginatedGetAllDto,
-  ): Promise<PaginatedResponseDto<OrderResponseDto>> {
-    return this.orderService.findAll(query);
+  @ApiOkResponsePaginated(OrderResponseDto)
+  async getAllOrders(@Query() query: PaginatedGetAllDto): Promise<PaginatedResponseDto<OrderResponseDto>> {
+    return ok(await this.orderService.findAll(query));
   }
 
   @Roles('*')
-  @ApiOkResponse({ type: OrderResponseDto })
   @Get(':id')
-  async getOrderById(@Query('id') id: string): Promise<OrderResponseDto> {
-    return this.orderService.findOne(id);
+  @ApiOkResponse({ type: OrderResponseDto })
+  async getOrderById(@Param('id') id: string) {
+    return ok(await this.orderService.findOne(id));
   }
 
   @Roles('*')
   @Patch(':id')
-  @NoCache() // ไม่ cache การอัปเดต order
   @ApiOkResponse({ type: OrderResponseDto })
-  async updateOrder(
-    @Query('id') id: string,
-    @Body() body: OrderUpdateDto,
-  ): Promise<OrderResponseDto> {
-    return this.orderService.update(id, body);
+  async updateOrder(@Param('id') id: string, @Body() body: OrderUpdateDto) {
+    return ok(await this.orderService.update(id, body));
   }
 
   @Roles('*')
-  @Get('check-exists/:id')
-  @ApiOkResponse({ type: OrderIsExistsResponseDto })
-  async checkOrderExists(@Param('id') id: string): Promise<OrderIsExistsResponseDto> {
-    try {
-      await this.orderService.orderThrowExists(id.toUpperCase());
-      return {
-        exists: false,
-      };
-    } catch {
-       throw new BadRequestException(`Order already exists`);
-    }
+  @Delete(':id')
+  @ApiOkResponse({ type: OrderResponseDto })
+  async deleteOrder(@Param('id') id: string) {
+    return ok(await this.orderService.remove(id));
   }
 }

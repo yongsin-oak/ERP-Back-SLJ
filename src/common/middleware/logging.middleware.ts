@@ -25,9 +25,9 @@ export class LoggingMiddleware implements NestMiddleware {
     if (req.body && Object.keys(req.body).length > 0) {
       const filteredBody = { ...req.body };
       // Hide sensitive fields
-      if (filteredBody.password) filteredBody.password = '***HIDDEN***';
-      if (filteredBody.currentPass) filteredBody.currentPass = '***HIDDEN***';
-      if (filteredBody.newPass) filteredBody.newPass = '***HIDDEN***';
+      ['password', 'currentPassword', 'newPassword', 'currentPass', 'newPass'].forEach(
+        (f) => { if (filteredBody[f]) filteredBody[f] = '***'; },
+      );
       this.logger.debug(
         `📦 [${requestId}] Body: ${JSON.stringify(filteredBody, null, 2)}`,
       );

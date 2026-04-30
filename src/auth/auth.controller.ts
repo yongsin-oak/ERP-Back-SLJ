@@ -1,8 +1,8 @@
-// auth.controller.ts
 import {
   Body,
   Controller,
   Get,
+  Patch,
   Post,
   Req,
   Res,
@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
-import { CookieOptions, Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import {
   AuthPayloadDto,
@@ -18,61 +18,37 @@ import {
   GetMeDto,
   UpdatePasswordDto,
 } from './dto/auth.dto';
+import { getCookieOptions } from './helpers/cookie-options.helper';
 import { JwtAuthGuard } from './jwt/jwt-auth.guard';
-import { Role } from './role/role.enum';
-import { RolesGuard } from './role/roles.guard';
 import { Roles } from './role/roles.decorator';
+import { RolesGuard } from './role/roles.guard';
 import { NoCache } from '@app/common/decorator/cache-control.decorator';
 
-@Controller()
+const TOKEN_MAX_AGE = 1000 * 60 * 60 * 10;
+const REFRESH_TOKEN_MAX_AGE = 1000 * 60 * 60 * 24 * 7;
+
+@Controller({ path: 'auth', version: '1' })
 @ApiBearerAuth()
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  @ApiOkResponse({
-    description: 'Login successful',
-    type: AuthResponseDto,
-  })
+  @ApiOkResponse({ description: 'Login successful', type: AuthResponseDto })
   async login(@Body() body: AuthPayloadDto, @Res() res: Response) {
     const { username, password } = body;
     const cleanedUsername = username.trim().toLocaleLowerCase();
-    const user: { id: string; username: string; role: Role } =
-      await this.authService.validateUser({
-        username: cleanedUsername,
-        password,
-      });
+    const user = await this.authService.validateUser({ username: cleanedUsername, password });
     if (!user) throw new UnauthorizedException('Invalid credentials');
+
     const authUser = await this.authService.login(user);
-    const cookieOptions: CookieOptions =
-      process.env.NODE_ENV === 'production'
-        ? {
-            httpOnly: true,
-            secure: true, // true ใน production + HTTPS เท่านั้น
-            sameSite: 'none', // บน production ควรใช้ 'strict' หรือ 'none' ขึ้นอยู่กับการใช้งาน
-            domain: '.sljsupply-center.com',
-            path: '/',
-          }
-        : {
-            httpOnly: true,
-            secure: false, // ใน development สามารถใช้ false ได้
-            sameSite: 'lax', // ใน development สามารถใช้ lax ได้
-          };
-    res.cookie('token', authUser.token, {
-      ...cookieOptions,
-      maxAge: 1000 * 60 * 60 * 10, // 10 ชั่วโมง
-    });
-    res.cookie('refreshToken', authUser.refreshToken, {
-      ...cookieOptions,
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 วัน
-    });
+    const cookieOptions = getCookieOptions();
+
+    res.cookie('token', authUser.token, { ...cookieOptions, maxAge: TOKEN_MAX_AGE });
+    res.cookie('refreshToken', authUser.refreshToken, { ...cookieOptions, maxAge: REFRESH_TOKEN_MAX_AGE });
 
     return res.send({
       message: 'Login successful',
-      user: {
-        username: user.username,
-        role: user.role,
-      },
+      user: { username: user.username, role: user.role },
     });
   }
 
@@ -81,57 +57,32 @@ export class AuthController {
   @ApiOkResponse({ description: 'Refresh successful' })
   async refresh(@Req() req: Request, @Res() res: Response) {
     const refreshToken =
-      (req.cookies && (req.cookies as any).refreshToken) ||
-      req.body?.refreshToken;
+      (req.cookies && (req.cookies as any).refreshToken) || req.body?.refreshToken;
     if (!refreshToken) throw new UnauthorizedException('Unauthorized');
 
-    const { token, refreshToken: newRefreshToken } =
-      await this.authService.refresh(refreshToken);
+    const { token, refreshToken: newRefreshToken } = await this.authService.refresh(refreshToken);
+    const cookieOptions = getCookieOptions();
 
-    const cookieOptions: CookieOptions =
-      process.env.NODE_ENV === 'production'
-        ? {
-            httpOnly: true,
-            secure: true,
-            sameSite: 'none',
-            domain: '.sljsupply-center.com',
-            path: '/',
-          }
-        : {
-            httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
-          };
-
-    res.cookie('token', token, {
-      ...cookieOptions,
-      maxAge: 1000 * 60 * 60 * 10,
-    });
-    res.cookie('refreshToken', newRefreshToken, {
-      ...cookieOptions,
-      maxAge: 1000 * 60 * 60 * 24 * 7,
-    });
+    res.cookie('token', token, { ...cookieOptions, maxAge: TOKEN_MAX_AGE });
+    res.cookie('refreshToken', newRefreshToken, { ...cookieOptions, maxAge: REFRESH_TOKEN_MAX_AGE });
 
     return res.send({ message: 'Refresh successful' });
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Post('update-password')
-  @NoCache() // ไม่ cache การเปลี่ยนรหัสผ่าน
+  @Patch('update-password')
+  @NoCache()
   @Roles('*')
-  async updatePassword(@Body() body: UpdatePasswordDto) {
-    const { username, currentPass, newPass } = body;
-    return this.authService.updatePassword(username, currentPass, newPass);
+  async updatePassword(@Req() req: Request, @Body() body: UpdatePasswordDto) {
+    const username = (req.user as any).username;
+    return this.authService.updatePassword(username, body.currentPassword, body.newPassword);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('*')
   @Get('me')
-  @NoCache() // ไม่ cache ข้อมูลผู้ใช้
-  @ApiOkResponse({
-    description: 'User information',
-    type: GetMeDto,
-  })
+  @NoCache()
+  @ApiOkResponse({ description: 'User information', type: GetMeDto })
   getme(@Req() req: Request) {
     return req.user;
   }
@@ -139,30 +90,12 @@ export class AuthController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('*')
   @Post('logout')
-  @NoCache() // ไม่ cache การ logout
+  @NoCache()
   @ApiOkResponse({ description: 'Logout successful' })
   logout(@Res({ passthrough: true }) res: Response) {
-    // ล้าง cookie ชื่อ 'token'
-    const cookieOptions: CookieOptions =
-      process.env.NODE_ENV === 'production'
-        ? {
-            httpOnly: true,
-            secure: true, // true ใน production + HTTPS เท่านั้น
-            sameSite: 'none', // บน production ควรใช้ 'strict' หรือ 'none' ขึ้นอยู่กับการใช้งาน
-            domain: '.sljsupply-center.com',
-            path: '/',
-          }
-        : {
-            httpOnly: true,
-            secure: false, // ใน development สามารถใช้ false ได้
-            sameSite: 'lax', // ใน development สามารถใช้ lax ได้
-          };
-    res.clearCookie('token', {
-      ...cookieOptions,
-    });
-    res.clearCookie('refreshToken', {
-      ...cookieOptions,
-    });
+    const cookieOptions = getCookieOptions();
+    res.clearCookie('token', cookieOptions);
+    res.clearCookie('refreshToken', cookieOptions);
     return { message: 'Logout successful' };
   }
 }

@@ -1,36 +1,21 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsEnum,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 
 export class OrderDetailCreateDto {
-  @ApiProperty({
-    description: 'product barcode',
-  })
-  @IsNotEmpty({
-    message: 'Product barcode is required',
-  })
-  @IsString({
-    message: 'Product barcode must be a string',
-  })
+  @ApiProperty({ description: 'product barcode' })
+  @IsNotEmpty()
+  @IsString()
   productBarcode: string;
 
-  @ApiProperty({
-    description: 'quantity of product',
-    type: Number,
-  })
-  @IsNotEmpty({
-    message: 'Quantity is required',
-  })
-  @IsNumber(
-    {},
-    {
-      message: 'Quantity must be a number',
-    },
-  )
-  quantity: number;
+  @ApiProperty({ required: false, type: Number })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  quantityPack?: number;
+
+  @ApiProperty({ required: false, type: Number })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  quantityCarton?: number;
 }
