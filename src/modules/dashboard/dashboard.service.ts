@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { DateTime } from 'luxon';
 import { Order } from '../order/entities/order.entity';
 import { OrderDetail } from '../order-detail/entities/orderDetail.entity';
@@ -56,7 +56,7 @@ export class DashboardService {
     const { revenue: totalRevenue, cost: totalCost } = this.calcRevenue(allDetails);
 
     const todayOrders = await this.orderRepo.count({
-      where: { createdAt: { $gte: todayStart, $lte: todayEnd } as any },
+      where: { createdAt: Between(todayStart, todayEnd) },
     });
 
     const todayDetails = await this.detailRepo

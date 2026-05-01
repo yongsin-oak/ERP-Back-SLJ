@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Employee } from '../employee/entities/employee.entity';
 import { OrderDetail } from '../order-detail/entities/orderDetail.entity';
 import { Product } from '../product/entities/product.entity';
 import { Shop } from '../shop/entities/shop.entity';
+import { BulkDeleteOrderDto } from './dto/bulk-delete-order.dto';
+import { CheckExistOrderDto } from './dto/check-exist-order.dto';
 import { OrderCreateDto } from './dto/create-order.dto';
 import { OrderResponseDto } from './dto/response-order.dto';
 import { OrderUpdateDto } from './dto/update-order.dto';
@@ -128,5 +130,46 @@ export class OrderService {
     );
     await this.orderRepo.remove(order);
     return { ...order, id };
+  }
+
+  async checkExist(dto: CheckExistOrderDto): Promise<{ existing: string[]; missing: string[] }> {
+    if (!dto.ids.length) return { existing: [], missing: [] };
+
+    const found = await this.orderRepo.find({ where: { id: In(dto.ids) }, select: { id: true } });
+    const existing = found.map((o) => o.id);
+    const existingSet = new Set(existing);
+    const missing = dto.ids.filter((id) => !existingSet.has(id));
+
+    return { existing, missing };
+  }
+
+  async bulkDelete(dto: BulkDeleteOrderDto): Promise<{ deleted: OrderResponseDto[]; errors: string[] }> {
+    const ordersToDelete: Order[] = [];
+    const errors: string[] = [];
+
+    for (const id of dto.ids) {
+      try {
+        ordersToDelete.push(
+          await getEntityOrNotFound(this.orderRepo, { where: { id }, ...this.orderRelations }, `Order ${id}`),
+        );
+      } catch {
+        errors.push(`Order ${id} not found`);
+      }
+    }
+
+    if (errors.length) return { deleted: [], errors };
+
+    const deleted: OrderResponseDto[] = [];
+    for (const order of ordersToDelete) {
+      try {
+        const id = order.id;
+        await this.orderRepo.remove(order);
+        deleted.push({ ...order, id });
+      } catch (error) {
+        errors.push(`Failed to delete ${order.id}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    return { deleted, errors };
   }
 }

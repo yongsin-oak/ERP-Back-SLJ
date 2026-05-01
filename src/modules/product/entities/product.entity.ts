@@ -67,7 +67,7 @@ export class Product {
   remaining: number;
 
   @ApiProperty()
-  @Column('int', { nullable: true })
+  @Column('int', { nullable: true, default: 5 })
   @IsInt()
   @Min(0)
   minStock?: number;

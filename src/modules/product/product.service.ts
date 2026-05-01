@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import { CheckExistProductDto } from './dto/check-exist-product.dto';
 import { ProductCreateDto } from './dto/create-product.dto';
+import { ProductDropdownItemDto, ProductDropdownSearchDto } from './dto/dropdown-search-product.dto';
 import { ProductResponseDto } from './dto/response.dto';
 import { Product } from './entities/product.entity';
 import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
@@ -138,6 +140,31 @@ export class ProductService {
     }
 
     return updatedProducts;
+  }
+
+  async dropdownSearch(dto: ProductDropdownSearchDto): Promise<ProductDropdownItemDto[]> {
+    const qb = this.productRepo
+      .createQueryBuilder('p')
+      .select(['p.barcode', 'p.name', 'p.remaining', 'p.sellPrice'])
+      .orderBy('p.name', 'ASC')
+      .limit(50);
+
+    if (dto.search) {
+      qb.where('(p.name ILIKE :q OR p.barcode ILIKE :q)', { q: `%${dto.search}%` });
+    }
+
+    return qb.getMany() as unknown as ProductDropdownItemDto[];
+  }
+
+  async checkExist(dto: CheckExistProductDto): Promise<{ existing: string[]; missing: string[] }> {
+    if (!dto.barcodes.length) return { existing: [], missing: [] };
+
+    const found = await this.productRepo.find({ where: { barcode: In(dto.barcodes) }, select: { barcode: true } });
+    const existing = found.map((p) => p.barcode);
+    const existingSet = new Set(existing);
+    const missing = dto.barcodes.filter((b) => !existingSet.has(b));
+
+    return { existing, missing };
   }
 
   async bulkDelete(bulkDeleteDto: BulkDeleteProductDto): Promise<{ deleted: Product[]; errors: string[] }> {

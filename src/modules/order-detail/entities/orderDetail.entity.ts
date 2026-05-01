@@ -42,6 +42,7 @@ export class OrderDetail {
   @ApiProperty({ type: () => Order })
   @ManyToOne(() => Order, (order) => order.orderDetails, {
     nullable: false,
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'orderId' })
   order: Promise<Order> | Order;

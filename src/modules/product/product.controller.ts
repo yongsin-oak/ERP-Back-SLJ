@@ -22,7 +22,9 @@ import {
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { BulkDeleteProductDto } from './dto/bulk-delete-product.dto';
 import { BulkUpdateProductDto } from './dto/bulk-update-product.dto';
+import { CheckExistProductDto } from './dto/check-exist-product.dto';
 import { ProductCreateDto } from './dto/create-product.dto';
+import { ProductDropdownItemDto, ProductDropdownSearchDto } from './dto/dropdown-search-product.dto';
 import { ProductGetDto } from './dto/get-product.dto';
 import { ProductResponseDto } from './dto/response.dto';
 import { ProductUpdateDto } from './dto/update-product.dto';
@@ -62,24 +64,28 @@ export class ProductController {
   }
 
   @Roles('*')
-  @Get(':barcode')
-  @ApiOkResponse({ description: 'Get product by barcode', type: Product })
-  async findOne(@Param('barcode') barcode: string) {
-    return ok(await this.productService.findOne(barcode));
+  @Get('dropdown-search')
+  @ApiOkResponse({ description: 'Dropdown search products by keyword', type: ProductDropdownItemDto, isArray: true })
+  async dropdownSearch(@Query() query: ProductDropdownSearchDto) {
+    return ok(await this.productService.dropdownSearch(query));
   }
 
-  @Roles(Role.SuperAdmin)
-  @Patch(':barcode')
-  @ApiOkResponse({ description: 'Update product by barcode', type: Product })
-  async update(@Param('barcode') barcode: string, @Body() dto: ProductUpdateDto) {
-    return ok(await this.productService.update(barcode, dto));
-  }
-
-  @Roles(Role.SuperAdmin)
-  @Delete(':barcode')
-  @ApiOkResponse({ description: 'Delete product by barcode', type: Product })
-  async remove(@Param('barcode') barcode: string) {
-    return ok(await this.productService.remove(barcode));
+  @Roles('*')
+  @Post('check-exist')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    description: 'Check which product barcodes exist',
+    schema: {
+      type: 'object',
+      properties: {
+        existing: { type: 'array', items: { type: 'string' } },
+        missing: { type: 'array', items: { type: 'string' } },
+      },
+    },
+  })
+  @ApiBody({ type: CheckExistProductDto })
+  async checkExistProducts(@Body() dto: CheckExistProductDto) {
+    return ok(await this.productService.checkExist(dto));
   }
 
   @Roles(Role.SuperAdmin)
@@ -105,5 +111,26 @@ export class ProductController {
   @ApiBody({ type: BulkDeleteProductDto })
   async removeMany(@Body() dto: BulkDeleteProductDto) {
     return ok(await this.productService.bulkDelete(dto));
+  }
+
+  @Roles('*')
+  @Get(':barcode')
+  @ApiOkResponse({ description: 'Get product by barcode', type: Product })
+  async findOne(@Param('barcode') barcode: string) {
+    return ok(await this.productService.findOne(barcode));
+  }
+
+  @Roles(Role.SuperAdmin)
+  @Patch(':barcode')
+  @ApiOkResponse({ description: 'Update product by barcode', type: Product })
+  async update(@Param('barcode') barcode: string, @Body() dto: ProductUpdateDto) {
+    return ok(await this.productService.update(barcode, dto));
+  }
+
+  @Roles(Role.SuperAdmin)
+  @Delete(':barcode')
+  @ApiOkResponse({ description: 'Delete product by barcode', type: Product })
+  async remove(@Param('barcode') barcode: string) {
+    return ok(await this.productService.remove(barcode));
   }
 }

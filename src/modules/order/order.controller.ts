@@ -18,7 +18,9 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOkResponse } from '@nestjs/swagger';
+import { BulkDeleteOrderDto } from './dto/bulk-delete-order.dto';
+import { CheckExistOrderDto } from './dto/check-exist-order.dto';
 import { OrderCreateDto } from './dto/create-order.dto';
 import { OrderResponseDto } from './dto/response-order.dto';
 import { OrderUpdateDto } from './dto/update-order.dto';
@@ -44,6 +46,41 @@ export class OrderController {
   @ApiOkResponsePaginated(OrderResponseDto)
   async getAllOrders(@Query() query: PaginatedGetAllDto): Promise<PaginatedResponseDto<OrderResponseDto>> {
     return ok(await this.orderService.findAll(query));
+  }
+
+  @Roles('*')
+  @Post('check-exist')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({
+    description: 'Check which order IDs exist',
+    schema: {
+      type: 'object',
+      properties: {
+        existing: { type: 'array', items: { type: 'string' } },
+        missing: { type: 'array', items: { type: 'string' } },
+      },
+    },
+  })
+  @ApiBody({ type: CheckExistOrderDto })
+  async checkExistOrders(@Body() body: CheckExistOrderDto) {
+    return ok(await this.orderService.checkExist(body));
+  }
+
+  @Roles('*')
+  @Delete('bulk')
+  @ApiOkResponse({
+    description: 'Delete multiple orders',
+    schema: {
+      type: 'object',
+      properties: {
+        deleted: { type: 'array', items: { $ref: '#/components/schemas/OrderResponseDto' } },
+        errors: { type: 'array', items: { type: 'string' } },
+      },
+    },
+  })
+  @ApiBody({ type: BulkDeleteOrderDto })
+  async deleteManyOrders(@Body() body: BulkDeleteOrderDto) {
+    return ok(await this.orderService.bulkDelete(body));
   }
 
   @Roles('*')

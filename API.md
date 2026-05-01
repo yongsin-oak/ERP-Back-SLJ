@@ -255,6 +255,89 @@ StockEntryType = 'in' | 'adjust' | 'return'
 
 ---
 
+## User Management  `/api/v1/user`
+
+ทุก endpoint ต้อง auth — **SuperAdmin เท่านั้น**
+
+### GET `/api/v1/user/roles`
+ดึง enum Role ทั้งหมดที่มีในระบบ
+
+**Response 200**
+```json
+{
+  "success": true, "statusCode": 200, "message": "OK",
+  "data": ["Operator", "SuperAdmin", "Admin", "Accountant", "Warehouse", "Sales", "Marketing", "HR"]
+}
+```
+
+---
+
+### GET `/api/v1/user`
+ดึง user ทั้งหมด
+
+**Response 200**
+```json
+{
+  "success": true, "statusCode": 200, "message": "OK",
+  "data": [
+    { "id": "abc123", "username": "superadmin", "role": "SuperAdmin" }
+  ]
+}
+```
+
+---
+
+### GET `/api/v1/user/:id`
+ดึง user รายคน
+
+**Response 200**
+```json
+{ "success": true, "statusCode": 200, "message": "OK", "data": { "id": "abc123", "username": "superadmin", "role": "SuperAdmin" } }
+```
+
+---
+
+### POST `/api/v1/user`
+สร้าง user ใหม่
+
+**Body**
+```json
+{ "username": "john_doe", "password": "password1234", "role": "Operator" }
+```
+
+**Response 201**
+```json
+{ "success": true, "statusCode": 201, "message": "Created", "data": { "id": "abc123", "username": "john_doe", "role": "Operator" } }
+```
+> username ซ้ำ → 409 Conflict
+
+---
+
+### PATCH `/api/v1/user/:id/role`
+เปลี่ยน role ของ user
+
+**Body**
+```json
+{ "role": "Admin" }
+```
+
+**Response 200**
+```json
+{ "success": true, "statusCode": 200, "message": "Updated", "data": { "id": "abc123", "username": "john_doe", "role": "Admin" } }
+```
+
+---
+
+### DELETE `/api/v1/user/:id`
+ลบ user
+
+**Response 200**
+```json
+{ "success": true, "statusCode": 200, "message": "Deleted", "data": { "id": "abc123", "username": "john_doe", "role": "Operator" } }
+```
+
+---
+
 ## Employee  `/api/v1/employee`
 
 ### GET `/api/v1/employee`
@@ -639,6 +722,31 @@ categoryId  string?  filter — "CAT-xxxx"
 
 ---
 
+### GET `/api/v1/product/dropdown-search`
+ต้อง auth (all roles) — ค้นหาสินค้าสำหรับ dropdown สูงสุด 50 รายการ
+
+**Query**
+```
+search  string?  ค้นหาจาก name หรือ barcode (ILIKE)
+```
+
+**Response 200**
+```json
+{
+  "success": true, "statusCode": 200, "message": "OK",
+  "data": [
+    {
+      "barcode": "8850999123456",
+      "name": "Coca-Cola Can 325ml",
+      "remaining": 500,
+      "sellPrice": { "pack": 145, "carton": 1600 }
+    }
+  ]
+}
+```
+
+---
+
 ### GET `/api/v1/product/:barcode`
 ต้อง auth (all roles)
 
@@ -751,6 +859,27 @@ categoryId  string?  filter — "CAT-xxxx"
 
 ---
 
+### POST `/api/v1/product/check-exist`
+ต้อง auth (all roles) — ตรวจสอบว่า barcode ใดมีอยู่ในระบบบ้าง
+
+**Body**
+```json
+{ "barcodes": ["8850999123456", "8850999654321"] }
+```
+
+**Response 200**
+```json
+{
+  "success": true, "statusCode": 200, "message": "OK",
+  "data": {
+    "existing": ["8850999123456"],
+    "missing": ["8850999654321"]
+  }
+}
+```
+
+---
+
 ## Order  `/api/v1/order`
 
 ### GET `/api/v1/order`
@@ -845,6 +974,49 @@ limit  number   required
 **Response 200**
 ```json
 { "success": true, "statusCode": 200, "message": "OK", "data": { "id": "ORD-20260430-xxxx", "..." } }
+```
+
+---
+
+### DELETE `/api/v1/order/bulk`
+ต้อง auth (all roles)
+
+**Body**
+```json
+{ "ids": ["ORD-20260430-xxxx", "ORD-20260430-yyyy"] }
+```
+
+**Response 200**
+```json
+{
+  "success": true, "statusCode": 200, "message": "OK",
+  "data": {
+    "deleted": [{ "id": "ORD-20260430-xxxx", "..." }],
+    "errors": []
+  }
+}
+```
+> หาก order id ใดไม่พบ → return `{ deleted: [], errors: [...] }` ไม่ลบทั้ง batch
+
+---
+
+### POST `/api/v1/order/check-exist`
+ต้อง auth (all roles) — ตรวจสอบว่า order id ใดมีอยู่ในระบบบ้าง
+
+**Body**
+```json
+{ "ids": ["ORD-20260430-xxxx", "ORD-20260430-yyyy"] }
+```
+
+**Response 200**
+```json
+{
+  "success": true, "statusCode": 200, "message": "OK",
+  "data": {
+    "existing": ["ORD-20260430-xxxx"],
+    "missing": ["ORD-20260430-yyyy"]
+  }
+}
 ```
 
 ---
