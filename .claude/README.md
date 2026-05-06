@@ -137,18 +137,20 @@ src/
 ├── auth/
 │   ├── helpers/cookie-options.helper.ts   # getCookieOptions()
 │   ├── jwt/
+│   │   ├── actor.guard.ts                 # ActorGuard — validates X-Actor-Token header (no DI)
 │   │   ├── jwt-auth.guard.ts              # dev bypass อยู่ที่นี่
-│   │   └── jwt.strategy.ts
+│   │   └── jwt.strategy.ts               # JWT payload → req.user (รวม type: 'user'|'terminal')
 │   ├── role/
 │   │   ├── role.enum.ts
 │   │   ├── roles.decorator.ts             # @Roles(...)
 │   │   └── roles.guard.ts
 │   ├── user/user.entity.ts
-│   └── dto/auth.dto.ts
+│   └── dto/auth.dto.ts                    # LoginDto, PinVerifyDto, PinVerifyResponseDto, GetMeDto
 ├── common/
 │   ├── decorator/
 │   │   ├── cache-control.decorator.ts     # @NoCache(), @CacheForMinutes(n), @CacheForHours(n)
-│   │   └── paginated.decorator.ts         # @ApiOkResponsePaginated(type)
+│   │   ├── paginated.decorator.ts         # @ApiOkResponsePaginated(type)
+│   │   └── response-message.decorator.ts  # @ResponseMessage('custom text')
 │   ├── dto/
 │   │   ├── api-response.dto.ts            # ApiResponseDto, ApiPaginatedResponseDto, ApiErrorResponseDto
 │   │   └── paginated.dto.ts               # PaginationDto, PaginatedResponseDto, PaginatedGetAllDto
@@ -156,19 +158,20 @@ src/
 │   ├── helpers/
 │   │   ├── entity.helper.ts               # getEntityOrNotFound, throwIfEntityExists
 │   │   ├── generateIdWithPrefix.helper.ts
-│   │   └── response.ts                    # paginatedResponse (alias: formattedResponsePaginated)
+│   │   └── response.ts                    # ok(), paginatedResponse(), error helpers
 │   ├── interceptors/transform-response.interceptor.ts
 │   └── middleware/logging.middleware.ts
 └── modules/
     ├── brand/
     ├── category/
     ├── dashboard/
-    ├── employee/
+    ├── employee/                          # employee.entity มี pinHash (select:false)
     ├── order/
     ├── order-detail/
     ├── product/
     ├── shop/
-    └── stock-entry/
+    ├── stock-entry/
+    └── terminal/                          # Terminal CRUD (SuperAdmin only)
 ```
 
 ---
@@ -180,7 +183,8 @@ src/
 | `user` | ผู้เข้าใช้งานเว็บ | login ได้, มี role, แยกจาก employee |
 | `brand` | ยี่ห้อสินค้า | ผูกกับ product |
 | `category` | หมวดหมู่สินค้า | tree structure มี parent/child ได้ |
-| `employee` | พนักงานบริษัท | ใช้เป็น "ผู้บันทึก" ใน order — ไม่ใช่ user ที่ login |
+| `terminal` | เครื่อง POS/kiosk | login ได้ด้วย terminalCode+password, มี role, ไม่มี refresh token |
+| `employee` | พนักงานบริษัท | ใช้เป็น "ผู้บันทึก" ใน order — ไม่ใช่ user ที่ login; มี PIN สำหรับ actor flow |
 | `shop` | ร้านค้า/ช่องทางขาย | Shopee/Lazada/TikTok |
 | `product` | สินค้าคงคลัง | PK คือ barcode, มีราคา pack/carton แยกกัน |
 | `order` | คำสั่งซื้อ | employee ผู้บันทึก + shop + details |
@@ -211,6 +215,7 @@ src/
 | Table | Format |
 |---|---|
 | user | nanoid(12) |
+| terminal | `TERM-{random}` |
 | brand | `BRD-{random}` |
 | category | `CAT-{random}` |
 | employee | `EMP-{random}` |
@@ -257,11 +262,14 @@ SuperAdmin — full access
 ## Route Summary
 
 ```
-POST   /api/v1/auth/login             (no auth — raw response)
-POST   /api/v1/auth/refresh-token     (no auth — raw response)
+POST   /api/v1/auth/login             (no auth — raw response; accepts username OR terminalCode)
+POST   /api/v1/auth/refresh-token     (no auth — raw response; user sessions only)
+POST   /api/v1/auth/pin/verify        (terminal JWT required — returns actor_token)
 GET    /api/v1/auth/me                (all roles)
-PATCH  /api/v1/auth/update-password   (all roles)
+PATCH  /api/v1/auth/update-password   (user sessions only)
 POST   /api/v1/auth/logout            (all roles)
+
+GET/POST/PATCH/DELETE /api/v1/terminal/:id?   (SuperAdmin only)
 
 GET/POST/PATCH/DELETE /api/v1/employee/:id?     (GET=all, write=SuperAdmin)
 GET/POST/PATCH/DELETE /api/v1/brand/:id?        (GET=all, write=SuperAdmin)

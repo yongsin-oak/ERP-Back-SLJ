@@ -24,6 +24,7 @@ import { EmployeeCreateDto } from './dto/create-employee.dto';
 import { EmployeeGetDto } from './dto/get-employee.dto';
 import { EmployeeResponseDto } from './dto/response-employee.dto';
 import { EmployeeUpdateDto } from './dto/update-emplote.dto';
+import { SetPinDto } from './dto/set-pin.dto';
 import { EmployeeService } from './employee.service';
 
 @Controller({ path: 'employee', version: '1' })
@@ -60,6 +61,14 @@ export class EmployeeController {
   @ApiOkResponse({ type: EmployeeResponseDto, description: 'Update employee by ID' })
   async updateEmployee(@Param('id') id: string, @Body() body: EmployeeUpdateDto) {
     return ok(await this.employerService.update(id, body));
+  }
+
+  @Roles(Role.SuperAdmin)
+  @Patch(':id/pin')
+  @ApiOkResponse({ description: 'Set employee PIN' })
+  async setPin(@Param('id') id: string, @Body() body: SetPinDto) {
+    await this.employerService.setPin(id, body.pin);
+    return ok(null);
   }
 
   @Roles(Role.SuperAdmin)

@@ -11,53 +11,40 @@ import {
 } from 'typeorm';
 
 @Entity()
-export class Employee {
+export class Terminal {
   @ApiProperty()
   @PrimaryColumn()
   id: string;
 
   @BeforeInsert()
   generateId() {
-    this.id = generateIdWithPrefix({
-      prefix: 'EMP',
-      withDateTime: false,
-    });
+    this.id = generateIdWithPrefix({ prefix: 'TERM', withDateTime: false });
   }
 
-  @ApiProperty()
+  @ApiProperty({ example: 'POS-01' })
+  @Column({ unique: true })
+  terminalCode: string;
+
+  @ApiProperty({ example: 'POS หน้าร้าน 1' })
   @Column()
-  firstName: string;
+  name: string;
 
-  @ApiProperty()
+  @ApiProperty({ enum: Role })
+  @Column({ type: 'enum', enum: Role })
+  role: Role;
+
   @Column()
-  lastName: string;
+  passwordHash: string;
 
   @ApiProperty()
-  @Column()
-  nickname: string;
-
-  @ApiProperty()
-  @Column({ nullable: true })
-  phoneNumber?: string;
-
-  @ApiProperty()
-  @Column({ nullable: true })
-  startDate?: Date;
-
-  @ApiProperty()
-  @Column()
-  department: Role;
-
-  @Column({ nullable: true, select: false })
-  pinHash?: string;
+  @Column({ default: true })
+  isActive: boolean;
 
   @ApiProperty()
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
   @ApiProperty()
-  @UpdateDateColumn({
-    type: 'timestamp',
-  })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 }

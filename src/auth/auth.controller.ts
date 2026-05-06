@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -13,9 +14,11 @@ import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import {
-  AuthPayloadDto,
   AuthResponseDto,
   GetMeDto,
+  LoginDto,
+  PinVerifyDto,
+  PinVerifyResponseDto,
   UpdatePasswordDto,
 } from './dto/auth.dto';
 import { getCookieOptions } from './helpers/cookie-options.helper';
@@ -34,18 +37,31 @@ export class AuthController {
 
   @Post('login')
   @ApiOkResponse({ description: 'Login successful', type: AuthResponseDto })
-  async login(@Body() body: AuthPayloadDto, @Res() res: Response) {
-    const { username, password } = body;
-    const cleanedUsername = username.trim().toLocaleLowerCase();
-    const user = await this.authService.validateUser({ username: cleanedUsername, password });
-    if (!user) throw new UnauthorizedException('Invalid credentials');
-
-    const authUser = await this.authService.login(user);
+  async login(@Body() body: LoginDto, @Res() res: Response) {
     const cookieOptions = getCookieOptions();
 
-    res.cookie('token', authUser.token, { ...cookieOptions, maxAge: TOKEN_MAX_AGE });
-    res.cookie('refreshToken', authUser.refreshToken, { ...cookieOptions, maxAge: REFRESH_TOKEN_MAX_AGE });
+    if (body.terminalCode) {
+      const terminal = await this.authService.validateTerminal(
+        body.terminalCode.trim(),
+        body.password,
+      );
+      const result = await this.authService.loginAsTerminal(terminal);
+      res.cookie('token', result.token, { ...cookieOptions, maxAge: TOKEN_MAX_AGE });
+      return res.send({
+        message: 'Login successful',
+        terminal: { terminalCode: terminal.terminalCode, name: terminal.name, role: terminal.role },
+      });
+    }
 
+    if (!body.username) throw new BadRequestException('username or terminalCode is required');
+    const username = body.username.trim().toLocaleLowerCase();
+    const user = await this.authService.validateUser(username, body.password);
+    const authUser = await this.authService.login(user);
+    res.cookie('token', authUser.token, { ...cookieOptions, maxAge: TOKEN_MAX_AGE });
+    res.cookie('refreshToken', authUser.refreshToken, {
+      ...cookieOptions,
+      maxAge: REFRESH_TOKEN_MAX_AGE,
+    });
     return res.send({
       message: 'Login successful',
       user: { username: user.username, role: user.role },
@@ -59,14 +75,29 @@ export class AuthController {
     const refreshToken =
       (req.cookies && (req.cookies as any).refreshToken) || req.body?.refreshToken;
     if (!refreshToken) throw new UnauthorizedException('Unauthorized');
-
     const { token, refreshToken: newRefreshToken } = await this.authService.refresh(refreshToken);
     const cookieOptions = getCookieOptions();
-
     res.cookie('token', token, { ...cookieOptions, maxAge: TOKEN_MAX_AGE });
-    res.cookie('refreshToken', newRefreshToken, { ...cookieOptions, maxAge: REFRESH_TOKEN_MAX_AGE });
-
+    res.cookie('refreshToken', newRefreshToken, {
+      ...cookieOptions,
+      maxAge: REFRESH_TOKEN_MAX_AGE,
+    });
     return res.send({ message: 'Refresh successful' });
+  }
+
+  @Post('pin/verify')
+  @NoCache()
+  @UseGuards(JwtAuthGuard)
+  @ApiOkResponse({ description: 'PIN verified — actor token issued', type: PinVerifyResponseDto })
+  async verifyPin(@Req() req: Request, @Body() body: PinVerifyDto) {
+    const user = req.user as any;
+    const isBypass =
+      process.env.NODE_ENV === 'development' && process.env.BYPASS_AUTH === 'true';
+    if (!isBypass && user.type !== 'terminal') {
+      throw new UnauthorizedException('Terminal authentication required for PIN verification');
+    }
+    const terminalId = isBypass ? 'dev-terminal' : user.sub;
+    return this.authService.verifyPin(terminalId, body.pin, body.employeeId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -75,6 +106,7 @@ export class AuthController {
   @Roles('*')
   async updatePassword(@Req() req: Request, @Body() body: UpdatePasswordDto) {
     const username = (req.user as any).username;
+    if (!username) throw new UnauthorizedException('Only user accounts can update password');
     return this.authService.updatePassword(username, body.currentPassword, body.newPassword);
   }
 
@@ -82,8 +114,8 @@ export class AuthController {
   @Roles('*')
   @Get('me')
   @NoCache()
-  @ApiOkResponse({ description: 'User information', type: GetMeDto })
-  getme(@Req() req: Request) {
+  @ApiOkResponse({ description: 'Current session info', type: GetMeDto })
+  getMe(@Req() req: Request) {
     return req.user;
   }
 

@@ -1,4 +1,3 @@
-// jwt.strategy.ts
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
@@ -23,7 +22,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       sub: payload.sub,
       username: payload.username,
+      terminalCode: payload.terminalCode,
+      name: payload.name,
       role: payload.role,
+      type: payload.type ?? 'user',
     };
   }
 }

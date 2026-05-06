@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 import { EmployeeCreateDto } from './dto/create-employee.dto';
 import { EmployeeResponseDto } from './dto/response-employee.dto';
 import { EmployeeUpdateDto } from './dto/update-emplote.dto';
@@ -8,7 +9,7 @@ import { Employee } from './entities/employee.entity';
 import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { EmployeeGetDto } from './dto/get-employee.dto';
-import { paginatedResponse } from '@app/common/helpers/response';
+import { paginatedResponse, notFound } from '@app/common/helpers/response';
 
 @Injectable()
 export class EmployeeService {
@@ -67,5 +68,12 @@ export class EmployeeService {
     const employee = await this.employeeGetEntityOrFail(id);
     await this.employeeRepo.delete(id);
     return employee;
+  }
+
+  async setPin(id: string, pin: string): Promise<void> {
+    const employee = await this.employeeRepo.findOneBy({ id });
+    if (!employee) throw notFound(`Employee ${id} not found`);
+    employee.pinHash = await bcrypt.hash(pin, 10);
+    await this.employeeRepo.save(employee);
   }
 }
