@@ -7,14 +7,17 @@ import { nanoid } from 'nanoid';
 import { DateTime } from 'luxon';
 
 import { User } from '@app/auth/user/user.entity';
+import { Terminal } from '@app/modules/terminal/terminal.entity';
 import { Brand } from '@app/modules/brand/entities/brand.entity';
 import { Category } from '@app/modules/category/entities/category.entity';
 import { Employee } from '@app/modules/employee/entities/employee.entity';
 import { Shop } from '@app/modules/shop/entities/shop.entity';
 import { Product } from '@app/modules/product/entities/product.entity';
-import { Order } from '@app/modules/order/entities/order.entity';
+import { Order, OrderStatus } from '@app/modules/order/entities/order.entity';
 import { OrderDetail } from '@app/modules/order-detail/entities/orderDetail.entity';
 import { StockEntry, StockEntryType } from '@app/modules/stock-entry/entities/stock-entry.entity';
+import { AuditLog } from '@app/modules/audit-log/entities/audit-log.entity';
+import { Supplier } from '@app/modules/supplier/entities/supplier.entity';
 import { Role } from '@app/auth/role/role.enum';
 import { Platform } from '@app/modules/shop/entities/platform.enum';
 
@@ -33,7 +36,7 @@ const AppDataSource = new DataSource({
   database: process.env.POSTGRES_DB,
   synchronize: true,
   logging: false,
-  entities: [User, Brand, Category, Employee, Shop, Product, Order, OrderDetail, StockEntry],
+  entities: [User, Terminal, Brand, Category, Employee, Shop, Product, Order, OrderDetail, StockEntry, AuditLog, Supplier],
 });
 
 async function seed() {
@@ -41,6 +44,7 @@ async function seed() {
   await AppDataSource.initialize();
 
   const userRepo     = AppDataSource.getRepository(User);
+  const terminalRepo = AppDataSource.getRepository(Terminal);
   const brandRepo    = AppDataSource.getRepository(Brand);
   const catRepo      = AppDataSource.getRepository(Category);
   const empRepo      = AppDataSource.getRepository(Employee);
@@ -49,6 +53,7 @@ async function seed() {
   const orderRepo    = AppDataSource.getRepository(Order);
   const detailRepo   = AppDataSource.getRepository(OrderDetail);
   const stkRepo      = AppDataSource.getRepository(StockEntry);
+  const supplierRepo = AppDataSource.getRepository(Supplier);
 
   // ─── Users ────────────────────────────────────────────────────────────────
   console.log('👤 Seeding users...');
@@ -61,6 +66,33 @@ async function seed() {
     if (!(await userRepo.findOneBy({ username: u.username }))) {
       await userRepo.save({ ...u, password: await bcrypt.hash(u.password, 10) });
     }
+  }
+
+  // ─── Terminals ────────────────────────────────────────────────────────────
+  console.log('🖥️  Seeding terminals...');
+  const terminalData = [
+    { terminalCode: 'POS-01', name: 'POS หน้าร้าน 1',  role: Role.Operator,  password: 'terminal1234',  location: 'ห้องแพ็คของ 1' },
+    { terminalCode: 'POS-02', name: 'POS หน้าร้าน 2',  role: Role.Operator,  password: 'terminal1234',  location: 'ห้องแพ็คของ 2' },
+    { terminalCode: 'WH-01',  name: 'คลังสินค้าหลัก',  role: Role.Warehouse, password: 'warehouse1234', location: 'โกดัง A' },
+  ];
+  const terminals: Terminal[] = [];
+  for (const t of terminalData) {
+    let terminal = await terminalRepo.findOneBy({ terminalCode: t.terminalCode });
+    if (!terminal) {
+      terminal = await terminalRepo.save(terminalRepo.create({
+        id: id('TERM'),
+        terminalCode: t.terminalCode,
+        name: t.name,
+        role: t.role,
+        passwordHash: await bcrypt.hash(t.password, 10),
+        isActive: true,
+        location: t.location,
+      }));
+    } else if (!terminal.location) {
+      await terminalRepo.update(terminal.id, { location: t.location });
+      terminal.location = t.location;
+    }
+    terminals.push(terminal);
   }
 
   // ─── Brands ───────────────────────────────────────────────────────────────
@@ -132,14 +164,24 @@ async function seed() {
   // ─── Employees ────────────────────────────────────────────────────────────
   console.log('👷 Seeding employees...');
   const empData = [
-    { id: id('EMP'), firstName: 'สมชาย',  lastName: 'ใจดี',     nickname: 'ชาย',   department: Role.Warehouse, phoneNumber: '081-111-1111', startDate: new Date('2022-01-10') },
-    { id: id('EMP'), firstName: 'สมหญิง', lastName: 'รักสงบ',   nickname: 'หญิง',  department: Role.Sales,     phoneNumber: '082-222-2222', startDate: new Date('2023-03-15') },
-    { id: id('EMP'), firstName: 'วิชัย',  lastName: 'มั่นใจ',   nickname: 'ชัย',   department: Role.Operator,  phoneNumber: '083-333-3333', startDate: new Date('2021-06-01') },
+    { id: id('EMP'), firstName: 'สมชาย',  lastName: 'ใจดี',    nickname: 'ชาย',  department: Role.Warehouse, phoneNumber: '081-111-1111', startDate: new Date('2022-01-10'), isActive: true, pin: '1111' },
+    { id: id('EMP'), firstName: 'สมหญิง', lastName: 'รักสงบ',  nickname: 'หญิง', department: Role.Sales,     phoneNumber: '082-222-2222', startDate: new Date('2023-03-15'), isActive: true, pin: '2222' },
+    { id: id('EMP'), firstName: 'วิชัย',  lastName: 'มั่นใจ',  nickname: 'ชัย',  department: Role.Operator,  phoneNumber: '083-333-3333', startDate: new Date('2021-06-01'), isActive: true, pin: '3333' },
+    { id: id('EMP'), firstName: 'นภา',    lastName: 'สุขใจ',   nickname: 'นภา',  department: Role.Admin,     phoneNumber: '084-444-4444', startDate: new Date('2023-07-01'), isActive: true, pin: '4444' },
+    { id: id('EMP'), firstName: 'ธนกร',   lastName: 'พลังดี',  nickname: 'กร',   department: Role.Warehouse, phoneNumber: '085-555-5555', startDate: new Date('2024-01-15'), isActive: true, pin: '5555' },
   ];
   const employees: Employee[] = [];
-  for (const e of empData) {
+  for (const { pin, ...e } of empData) {
     let emp = await empRepo.findOneBy({ firstName: e.firstName, lastName: e.lastName });
-    if (!emp) emp = await empRepo.save(empRepo.create(e));
+    if (!emp) {
+      emp = await empRepo.save(empRepo.create({ ...e, pinHash: await bcrypt.hash(pin, 10) }));
+    } else if (!emp.pinHash) {
+      await empRepo.createQueryBuilder()
+        .update(Employee)
+        .set({ pinHash: await bcrypt.hash(pin, 10) })
+        .where('id = :id', { id: emp.id })
+        .execute();
+    }
     employees.push(emp);
   }
 
@@ -157,6 +199,21 @@ async function seed() {
     shops.push(shop);
   }
 
+  // ─── Suppliers ────────────────────────────────────────────────────────────
+  console.log('🏭 Seeding suppliers...');
+  const supplierData = [
+    { name: 'บริษัท โค้ก-เป๊ปซี่ ดิสทริบิวเตอร์ จำกัด', contactName: 'คุณสมศักดิ์ วงศ์ดี', phone: '02-111-1111', email: 'order@coke-pepsi-dist.co.th', taxId: '0105537000001', isActive: true },
+    { name: 'เอเยนต์ เนสท์เล่ ภาคกลาง', contactName: 'คุณวันชัย ศรีสุข', phone: '02-222-2222', email: 'nestle-central@dist.co.th', isActive: true },
+    { name: 'บริษัท สแน็คส์ ซัพพลาย จำกัด', contactName: 'คุณนภา รุ่งเรือง', phone: '081-333-3333', taxId: '0105538000002', isActive: true },
+    { name: 'ห้างหุ้นส่วน นมและเครื่องดื่ม ภาคกลาง', contactName: 'คุณกำพล ใจดี', phone: '082-444-4444', email: 'dairy-central@gmail.com', isActive: true },
+    { name: 'บริษัท มาม่า ดิสทริบิวชั่น จำกัด', contactName: 'คุณธนกร พลัง', phone: '02-555-5555', email: 'mama-dist@co.th', taxId: '0105539000003', isActive: true },
+  ];
+  for (const s of supplierData) {
+    if (!(await supplierRepo.findOneBy({ name: s.name }))) {
+      await supplierRepo.save(supplierRepo.create(s));
+    }
+  }
+
   // ─── Products ─────────────────────────────────────────────────────────────
   console.log('📦 Seeding products...');
   const productData = [
@@ -167,10 +224,11 @@ async function seed() {
       category: catSoda, categoryId: catSoda.id,
       costPrice: { pack: 120, carton: 1320 },
       sellPrice: { pack: 145, carton: 1600 },
-      remaining: 500, minStock: 50,
+      remaining: 500, minStock: 50, maxStock: 2000,
       piecesPerPack: 6, packPerCarton: 4,
       productDimensions: { length: 6.5, width: 6.5, height: 12, weight: 0.35 },
       cartonDimensions: { length: 40, width: 27, height: 25, weight: 9 },
+      isActive: true,
     },
     {
       barcode: '8850999000002',
@@ -179,10 +237,11 @@ async function seed() {
       category: catSoda, categoryId: catSoda.id,
       costPrice: { pack: 115, carton: 1260 },
       sellPrice: { pack: 140, carton: 1550 },
-      remaining: 300, minStock: 40,
+      remaining: 300, minStock: 40, maxStock: 1500,
       piecesPerPack: 6, packPerCarton: 4,
       productDimensions: { length: 6.5, width: 6.5, height: 12, weight: 0.35 },
       cartonDimensions: { length: 40, width: 27, height: 25, weight: 9 },
+      isActive: true,
     },
     {
       barcode: '8850999000003',
@@ -191,10 +250,11 @@ async function seed() {
       category: catDrink, categoryId: catDrink.id,
       costPrice: { pack: 60, carton: 700 },
       sellPrice: { pack: 80, carton: 900 },
-      remaining: 1200, minStock: 100,
+      remaining: 1200, minStock: 100, maxStock: 5000,
       piecesPerPack: 12, packPerCarton: 4,
       productDimensions: { length: 6, width: 6, height: 20, weight: 0.62 },
       cartonDimensions: { length: 50, width: 25, height: 42, weight: 8 },
+      isActive: true,
     },
     {
       barcode: '8850999000004',
@@ -203,8 +263,9 @@ async function seed() {
       category: catSnack, categoryId: catSnack.id,
       costPrice: { pack: 200, carton: 2200 },
       sellPrice: { pack: 240, carton: 2600 },
-      remaining: 4, minStock: 30,
+      remaining: 4, minStock: 30, maxStock: 500,
       piecesPerPack: 10, packPerCarton: 3,
+      isActive: true,
     },
     {
       barcode: '8850999000005',
@@ -213,9 +274,10 @@ async function seed() {
       category: catSoda, categoryId: catSoda.id,
       costPrice: { pack: 80, carton: 880 },
       sellPrice: { pack: 100, carton: 1080 },
-      remaining: 2, minStock: 20,
+      remaining: 2, minStock: 20, maxStock: 600,
       piecesPerPack: 6, packPerCarton: 2,
       productDimensions: { length: 10, width: 10, height: 33, weight: 1.35 },
+      isActive: true,
     },
     {
       barcode: '8850999000006',
@@ -224,10 +286,11 @@ async function seed() {
       category: catSoda, categoryId: catSoda.id,
       costPrice: { pack: 118, carton: 1300 },
       sellPrice: { pack: 142, carton: 1580 },
-      remaining: 420, minStock: 50,
+      remaining: 420, minStock: 50, maxStock: 1500,
       piecesPerPack: 6, packPerCarton: 4,
       productDimensions: { length: 6.5, width: 6.5, height: 12, weight: 0.35 },
       cartonDimensions: { length: 40, width: 27, height: 25, weight: 9 },
+      isActive: true,
     },
     {
       barcode: '8850999000007',
@@ -236,8 +299,9 @@ async function seed() {
       category: catSoda, categoryId: catSoda.id,
       costPrice: { pack: 118, carton: 1300 },
       sellPrice: { pack: 142, carton: 1580 },
-      remaining: 380, minStock: 50,
+      remaining: 380, minStock: 50, maxStock: 1500,
       piecesPerPack: 6, packPerCarton: 4,
+      isActive: true,
     },
     {
       barcode: '8850999000008',
@@ -246,8 +310,9 @@ async function seed() {
       category: catSoda, categoryId: catSoda.id,
       costPrice: { pack: 90, carton: 990 },
       sellPrice: { pack: 115, carton: 1280 },
-      remaining: 250, minStock: 40,
+      remaining: 250, minStock: 40, maxStock: 1000,
       piecesPerPack: 6, packPerCarton: 4,
+      isActive: true,
     },
     {
       barcode: '8850999000009',
@@ -256,8 +321,9 @@ async function seed() {
       category: catWater, categoryId: catWater.id,
       costPrice: { pack: 50, carton: 580 },
       sellPrice: { pack: 70, carton: 800 },
-      remaining: 1500, minStock: 200,
+      remaining: 1500, minStock: 200, maxStock: 6000,
       piecesPerPack: 12, packPerCarton: 4,
+      isActive: true,
     },
     {
       barcode: '8850999000010',
@@ -266,9 +332,10 @@ async function seed() {
       category: catWater, categoryId: catWater.id,
       costPrice: { pack: 70, carton: 780 },
       sellPrice: { pack: 95, carton: 1080 },
-      remaining: 800, minStock: 100,
+      remaining: 800, minStock: 100, maxStock: 3000,
       piecesPerPack: 6, packPerCarton: 2,
       productDimensions: { length: 9, width: 9, height: 32, weight: 1.55 },
+      isActive: true,
     },
     {
       barcode: '8850999000011',
@@ -277,8 +344,9 @@ async function seed() {
       category: catTea, categoryId: catTea.id,
       costPrice: { pack: 130, carton: 1450 },
       sellPrice: { pack: 160, carton: 1800 },
-      remaining: 600, minStock: 60,
+      remaining: 600, minStock: 60, maxStock: 2000,
       piecesPerPack: 12, packPerCarton: 2,
+      isActive: true,
     },
     {
       barcode: '8850999000012',
@@ -287,8 +355,9 @@ async function seed() {
       category: catTea, categoryId: catTea.id,
       costPrice: { pack: 140, carton: 1560 },
       sellPrice: { pack: 175, carton: 1950 },
-      remaining: 540, minStock: 60,
+      remaining: 540, minStock: 60, maxStock: 2000,
       piecesPerPack: 12, packPerCarton: 2,
+      isActive: true,
     },
     {
       barcode: '8850999000013',
@@ -297,8 +366,9 @@ async function seed() {
       category: catTea, categoryId: catTea.id,
       costPrice: { pack: 95, carton: 1050 },
       sellPrice: { pack: 120, carton: 1320 },
-      remaining: 700, minStock: 70,
+      remaining: 700, minStock: 70, maxStock: 2500,
       piecesPerPack: 12, packPerCarton: 4,
+      isActive: true,
     },
     {
       barcode: '8850999000014',
@@ -307,8 +377,9 @@ async function seed() {
       category: catJuice, categoryId: catJuice.id,
       costPrice: { pack: 280, carton: 3100 },
       sellPrice: { pack: 340, carton: 3800 },
-      remaining: 180, minStock: 30,
+      remaining: 180, minStock: 30, maxStock: 600,
       piecesPerPack: 6, packPerCarton: 2,
+      isActive: true,
     },
     {
       barcode: '8850999000015',
@@ -317,8 +388,9 @@ async function seed() {
       category: catJuice, categoryId: catJuice.id,
       costPrice: { pack: 280, carton: 3100 },
       sellPrice: { pack: 340, carton: 3800 },
-      remaining: 160, minStock: 30,
+      remaining: 160, minStock: 30, maxStock: 600,
       piecesPerPack: 6, packPerCarton: 2,
+      isActive: true,
     },
     {
       barcode: '8850999000016',
@@ -327,8 +399,9 @@ async function seed() {
       category: catJuice, categoryId: catJuice.id,
       costPrice: { pack: 110, carton: 1200 },
       sellPrice: { pack: 140, carton: 1560 },
-      remaining: 320, minStock: 50,
+      remaining: 320, minStock: 50, maxStock: 1000,
       piecesPerPack: 12, packPerCarton: 2,
+      isActive: true,
     },
     {
       barcode: '8850999000017',
@@ -337,8 +410,9 @@ async function seed() {
       category: catNoodle, categoryId: catNoodle.id,
       costPrice: { pack: 60, carton: 660 },
       sellPrice: { pack: 80, carton: 880 },
-      remaining: 2400, minStock: 300,
+      remaining: 2400, minStock: 300, maxStock: 10000,
       piecesPerPack: 10, packPerCarton: 6,
+      isActive: true,
     },
     {
       barcode: '8850999000018',
@@ -347,8 +421,9 @@ async function seed() {
       category: catNoodle, categoryId: catNoodle.id,
       costPrice: { pack: 60, carton: 660 },
       sellPrice: { pack: 80, carton: 880 },
-      remaining: 1800, minStock: 250,
+      remaining: 1800, minStock: 250, maxStock: 8000,
       piecesPerPack: 10, packPerCarton: 6,
+      isActive: true,
     },
     {
       barcode: '8850999000019',
@@ -357,8 +432,9 @@ async function seed() {
       category: catNoodle, categoryId: catNoodle.id,
       costPrice: { pack: 55, carton: 600 },
       sellPrice: { pack: 75, carton: 820 },
-      remaining: 1500, minStock: 200,
+      remaining: 1500, minStock: 200, maxStock: 6000,
       piecesPerPack: 10, packPerCarton: 6,
+      isActive: true,
     },
     {
       barcode: '8850999000020',
@@ -367,8 +443,9 @@ async function seed() {
       category: catNoodle, categoryId: catNoodle.id,
       costPrice: { pack: 96, carton: 1080 },
       sellPrice: { pack: 130, carton: 1450 },
-      remaining: 480, minStock: 60,
+      remaining: 480, minStock: 60, maxStock: 2000,
       piecesPerPack: 6, packPerCarton: 4,
+      isActive: true,
     },
     {
       barcode: '8850999000021',
@@ -377,8 +454,9 @@ async function seed() {
       category: catSeasoning, categoryId: catSeasoning.id,
       costPrice: { pack: 145, carton: 1620 },
       sellPrice: { pack: 180, carton: 2000 },
-      remaining: 360, minStock: 50,
+      remaining: 360, minStock: 50, maxStock: 1500,
       piecesPerPack: 12, packPerCarton: 4,
+      isActive: true,
     },
     {
       barcode: '8850999000022',
@@ -387,8 +465,9 @@ async function seed() {
       category: catSeasoning, categoryId: catSeasoning.id,
       costPrice: { pack: 165, carton: 1850 },
       sellPrice: { pack: 200, carton: 2250 },
-      remaining: 240, minStock: 40,
+      remaining: 240, minStock: 40, maxStock: 1000,
       piecesPerPack: 12, packPerCarton: 4,
+      isActive: true,
     },
     {
       barcode: '8850999000023',
@@ -397,8 +476,9 @@ async function seed() {
       category: catSnack, categoryId: catSnack.id,
       costPrice: { pack: 200, carton: 2200 },
       sellPrice: { pack: 240, carton: 2600 },
-      remaining: 280, minStock: 50,
+      remaining: 280, minStock: 50, maxStock: 1000,
       piecesPerPack: 10, packPerCarton: 3,
+      isActive: true,
     },
     {
       barcode: '8850999000024',
@@ -407,8 +487,9 @@ async function seed() {
       category: catSnack, categoryId: catSnack.id,
       costPrice: { pack: 200, carton: 2200 },
       sellPrice: { pack: 240, carton: 2600 },
-      remaining: 220, minStock: 50,
+      remaining: 220, minStock: 50, maxStock: 1000,
       piecesPerPack: 10, packPerCarton: 3,
+      isActive: true,
     },
     {
       barcode: '8850999000025',
@@ -417,9 +498,10 @@ async function seed() {
       category: catSnack, categoryId: catSnack.id,
       costPrice: { pack: 380, carton: 4200 },
       sellPrice: { pack: 460, carton: 5100 },
-      remaining: 144, minStock: 24,
+      remaining: 144, minStock: 24, maxStock: 500,
       piecesPerPack: 12, packPerCarton: 2,
       productDimensions: { length: 7, width: 7, height: 23, weight: 0.13 },
+      isActive: true,
     },
     {
       barcode: '8850999000026',
@@ -428,8 +510,9 @@ async function seed() {
       category: catSnack, categoryId: catSnack.id,
       costPrice: { pack: 380, carton: 4200 },
       sellPrice: { pack: 460, carton: 5100 },
-      remaining: 96, minStock: 24,
+      remaining: 96, minStock: 24, maxStock: 500,
       piecesPerPack: 12, packPerCarton: 2,
+      isActive: true,
     },
     {
       barcode: '8850999000027',
@@ -438,8 +521,9 @@ async function seed() {
       category: catCookie, categoryId: catCookie.id,
       costPrice: { pack: 220, carton: 2400 },
       sellPrice: { pack: 280, carton: 3100 },
-      remaining: 360, minStock: 50,
+      remaining: 360, minStock: 50, maxStock: 1500,
       piecesPerPack: 12, packPerCarton: 6,
+      isActive: true,
     },
     {
       barcode: '8850999000028',
@@ -448,8 +532,9 @@ async function seed() {
       category: catCookie, categoryId: catCookie.id,
       costPrice: { pack: 220, carton: 2400 },
       sellPrice: { pack: 280, carton: 3100 },
-      remaining: 300, minStock: 50,
+      remaining: 300, minStock: 50, maxStock: 1500,
       piecesPerPack: 12, packPerCarton: 6,
+      isActive: true,
     },
     {
       barcode: '8850999000029',
@@ -458,8 +543,9 @@ async function seed() {
       category: catSnack, categoryId: catSnack.id,
       costPrice: { pack: 145, carton: 1620 },
       sellPrice: { pack: 180, carton: 2000 },
-      remaining: 600, minStock: 100,
+      remaining: 600, minStock: 100, maxStock: 2500,
       piecesPerPack: 12, packPerCarton: 6,
+      isActive: true,
     },
     {
       barcode: '8850999000030',
@@ -468,8 +554,9 @@ async function seed() {
       category: catDairy, categoryId: catDairy.id,
       costPrice: { pack: 130, carton: 1450 },
       sellPrice: { pack: 165, carton: 1850 },
-      remaining: 720, minStock: 100,
+      remaining: 720, minStock: 100, maxStock: 3000,
       piecesPerPack: 12, packPerCarton: 4,
+      isActive: true,
     },
     {
       barcode: '8850999000031',
@@ -478,8 +565,9 @@ async function seed() {
       category: catDairy, categoryId: catDairy.id,
       costPrice: { pack: 150, carton: 1680 },
       sellPrice: { pack: 190, carton: 2120 },
-      remaining: 480, minStock: 80,
+      remaining: 480, minStock: 80, maxStock: 2000,
       piecesPerPack: 12, packPerCarton: 4,
+      isActive: true,
     },
     {
       barcode: '8850999000032',
@@ -488,8 +576,9 @@ async function seed() {
       category: catDairy, categoryId: catDairy.id,
       costPrice: { pack: 140, carton: 1560 },
       sellPrice: { pack: 175, carton: 1950 },
-      remaining: 540, minStock: 80,
+      remaining: 540, minStock: 80, maxStock: 2000,
       piecesPerPack: 12, packPerCarton: 4,
+      isActive: true,
     },
     {
       barcode: '8850999000033',
@@ -498,8 +587,9 @@ async function seed() {
       category: catDairy, categoryId: catDairy.id,
       costPrice: { pack: 140, carton: 1560 },
       sellPrice: { pack: 175, carton: 1950 },
-      remaining: 3, minStock: 80,
+      remaining: 3, minStock: 80, maxStock: 2000,
       piecesPerPack: 12, packPerCarton: 4,
+      isActive: true,
     },
     {
       barcode: '8850999000034',
@@ -508,8 +598,9 @@ async function seed() {
       category: catDairy, categoryId: catDairy.id,
       costPrice: { pack: 175, carton: 1950 },
       sellPrice: { pack: 220, carton: 2450 },
-      remaining: 360, minStock: 60,
+      remaining: 360, minStock: 60, maxStock: 1500,
       piecesPerPack: 12, packPerCarton: 4,
+      isActive: true,
     },
     {
       barcode: '8850999000035',
@@ -518,8 +609,9 @@ async function seed() {
       category: catTea, categoryId: catTea.id,
       costPrice: { pack: 380, carton: 4200 },
       sellPrice: { pack: 460, carton: 5100 },
-      remaining: 60, minStock: 20,
+      remaining: 60, minStock: 20, maxStock: 300,
       piecesPerPack: 6, packPerCarton: 4,
+      isActive: true,
     },
   ];
   const products: Record<string, Product> = {};
@@ -533,33 +625,47 @@ async function seed() {
   console.log('🛒 Seeding orders...');
   const existingOrders = await orderRepo.count();
   if (existingOrders === 0) {
-    // Order 1 — Shopee
+    // Order 1 — Shopee (completed)
     const order1 = await orderRepo.save(orderRepo.create({
       id: orderId(),
       shop: shops[0],
-      employee: employees[0],
+      recordBy: employees[0],
+      terminal: terminals[0],
+      terminalId: terminals[0].id,
+      status: OrderStatus.Completed,
+      startRecordAt: new Date('2026-05-01T09:00:00'),
+      completedRecordAt: new Date('2026-05-01T09:15:00'),
     }));
     await detailRepo.save([
       detailRepo.create({ id: detailId(), order: order1, orderId: order1.id, product: products['8850999000001'], quantityPack: 5, quantityCarton: 2 }),
       detailRepo.create({ id: detailId(), order: order1, orderId: order1.id, product: products['8850999000003'], quantityPack: 3, quantityCarton: 1 }),
     ]);
 
-    // Order 2 — Lazada
+    // Order 2 — Lazada (completed)
     const order2 = await orderRepo.save(orderRepo.create({
       id: orderId(),
       shop: shops[1],
-      employee: employees[1],
+      recordBy: employees[1],
+      terminal: terminals[1],
+      terminalId: terminals[1].id,
+      status: OrderStatus.Completed,
+      startRecordAt: new Date('2026-05-02T10:00:00'),
+      completedRecordAt: new Date('2026-05-02T10:22:00'),
+      note: 'แพ็คพิเศษ ใส่กล่องกันกระแทก',
     }));
     await detailRepo.save([
       detailRepo.create({ id: detailId(), order: order2, orderId: order2.id, product: products['8850999000002'], quantityPack: 10, quantityCarton: 0 }),
       detailRepo.create({ id: detailId(), order: order2, orderId: order2.id, product: products['8850999000004'], quantityPack: 2, quantityCarton: 1 }),
     ]);
 
-    // Order 3 — TikTok
+    // Order 3 — TikTok (pending)
     const order3 = await orderRepo.save(orderRepo.create({
       id: orderId(),
       shop: shops[2],
-      employee: employees[2],
+      recordBy: employees[2],
+      terminal: terminals[0],
+      terminalId: terminals[0].id,
+      status: OrderStatus.Pending,
     }));
     await detailRepo.save([
       detailRepo.create({ id: detailId(), order: order3, orderId: order3.id, product: products['8850999000005'], quantityPack: 4, quantityCarton: 2 }),
@@ -601,18 +707,32 @@ async function seed() {
   }
 
   console.log('\n✅ Seed complete!\n');
-  console.log('─────────────────────────────────────');
-  console.log('🔑 Login credentials:');
+  console.log('─────────────────────────────────────────────');
+  console.log('🔑 User credentials:');
   console.log('   superadmin / superadmin1234  (SuperAdmin)');
   console.log('   operator   / operator1234    (Operator)');
   console.log('   warehouse  / warehouse1234   (Warehouse)');
-  console.log('─────────────────────────────────────');
+  console.log('');
+  console.log('🖥️  Terminal credentials:');
+  console.log('   POS-01 / terminal1234  (Operator)   — ห้องแพ็คของ 1');
+  console.log('   POS-02 / terminal1234  (Operator)   — ห้องแพ็คของ 2');
+  console.log('   WH-01  / warehouse1234 (Warehouse)  — โกดัง A');
+  console.log('');
+  console.log('🔢 Employee PINs:');
+  console.log('   สมชาย  ใจดี    → 1111');
+  console.log('   สมหญิง รักสงบ  → 2222');
+  console.log('   วิชัย  มั่นใจ  → 3333');
+  console.log('   นภา    สุขใจ   → 4444');
+  console.log('   ธนกร   พลังดี  → 5555');
+  console.log('─────────────────────────────────────────────');
   console.log(`📦 Products seeded: ${productData.length} items`);
   console.log('   ⚠️  Low-stock items:');
-  console.log('   8850999000004  Lay\'s Classic 75g           remaining: 4');
+  console.log("   8850999000004  Lay's Classic 75g           remaining: 4");
   console.log('   8850999000005  Coca-Cola Bottle 1.25L      remaining: 2');
   console.log('   8850999000033  Foremost Strawberry Milk    remaining: 3');
-  console.log('─────────────────────────────────────');
+  console.log('─────────────────────────────────────────────');
+  console.log('🏭 Suppliers seeded: 5 items');
+  console.log('─────────────────────────────────────────────');
 
   await AppDataSource.destroy();
   process.exit(0);

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Employee } from '../employee/entities/employee.entity';
+import { Terminal } from '../terminal/terminal.entity';
 import { OrderDetail } from '../order-detail/entities/orderDetail.entity';
 import { Product } from '../product/entities/product.entity';
 import { Shop } from '../shop/entities/shop.entity';
@@ -30,12 +31,16 @@ export class OrderService {
 
     @InjectRepository(Employee)
     private readonly employeeRepo: Repository<Employee>,
+
+    @InjectRepository(Terminal)
+    private readonly terminalRepo: Repository<Terminal>,
   ) {}
 
   private readonly orderRelations = {
-    relations: ['employee', 'shop', 'orderDetails', 'orderDetails.product'],
+    relations: ['recordBy', 'terminal', 'shop', 'orderDetails', 'orderDetails.product'],
     select: {
-      employee: { id: true, firstName: true, lastName: true, nickname: true },
+      recordBy: { id: true, firstName: true, lastName: true, nickname: true },
+      terminal: { id: true, terminalCode: true, name: true, role: true, location: true, isActive: true },
       shop: { id: true, name: true, platform: true },
     },
   };
@@ -60,13 +65,22 @@ export class OrderService {
 
   async create(dto: OrderCreateDto): Promise<OrderResponseDto> {
     const shop = await getEntityOrNotFound(this.shopRepo, { where: { id: dto.shopId } }, `Shop ${dto.shopId}`);
-    const employee = await getEntityOrNotFound(this.employeeRepo, { where: { id: dto.createdBy } }, `Employee ${dto.createdBy}`);
+    const recordBy = await getEntityOrNotFound(this.employeeRepo, { where: { id: dto.recordBy } }, `Employee ${dto.recordBy}`);
 
     const order = this.orderRepo.create({
       id: generateIdWithPrefix({ prefix: 'ORD', withDateTime: true }),
       shop,
-      employee,
+      recordBy,
+      status: dto.status,
+      startRecordAt: dto.startRecordAt ? new Date(dto.startRecordAt) : undefined,
+      completedRecordAt: dto.completedRecordAt ? new Date(dto.completedRecordAt) : undefined,
+      note: dto.note,
     });
+
+    if (dto.terminalId) {
+      order.terminal = await getEntityOrNotFound(this.terminalRepo, { where: { id: dto.terminalId } }, `Terminal ${dto.terminalId}`);
+      order.terminalId = dto.terminalId;
+    }
 
     if (dto.details?.length) {
       order.orderDetails = await Promise.all(
@@ -98,9 +112,20 @@ export class OrderService {
     if (dto.shopId) {
       order.shop = await getEntityOrNotFound(this.shopRepo, { where: { id: dto.shopId } }, `Shop ${dto.shopId}`);
     }
-    if (dto.createdBy) {
-      order.employee = await getEntityOrNotFound(this.employeeRepo, { where: { id: dto.createdBy } }, `Employee ${dto.createdBy}`);
+    if (dto.recordBy) {
+      order.recordBy = await getEntityOrNotFound(this.employeeRepo, { where: { id: dto.recordBy } }, `Employee ${dto.recordBy}`);
     }
+    if (dto.terminalId !== undefined) {
+      if (dto.terminalId) {
+        order.terminal = await getEntityOrNotFound(this.terminalRepo, { where: { id: dto.terminalId } }, `Terminal ${dto.terminalId}`);
+      }
+      order.terminalId = dto.terminalId ?? null;
+    }
+    if (dto.status !== undefined) order.status = dto.status;
+    if (dto.startRecordAt !== undefined) order.startRecordAt = dto.startRecordAt ? new Date(dto.startRecordAt) : null;
+    if (dto.completedRecordAt !== undefined) order.completedRecordAt = dto.completedRecordAt ? new Date(dto.completedRecordAt) : null;
+    if (dto.note !== undefined) order.note = dto.note;
+
     if (dto.details?.length) {
       order.orderDetails = await Promise.all(
         dto.details.map(async (d) => {

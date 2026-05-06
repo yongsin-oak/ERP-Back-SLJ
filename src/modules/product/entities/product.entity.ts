@@ -111,6 +111,24 @@ export class Product {
   packPerCarton: number;
 
   @ApiProperty()
+  @Column({ default: true })
+  isActive: boolean;
+
+  @ApiProperty()
+  @Column({ nullable: true })
+  imageUrl: string;
+
+  @ApiProperty()
+  @Column({ nullable: true, unique: true })
+  sku: string;
+
+  @ApiProperty()
+  @Column('int', { nullable: true })
+  @IsInt()
+  @Min(0)
+  maxStock: number;
+
+  @ApiProperty()
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 

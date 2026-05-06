@@ -144,6 +144,11 @@ throw internalError();                         // default: 'Internal server erro
 Role           = 'Operator' | 'SuperAdmin' | 'Admin' | 'Accountant' | 'Warehouse' | 'Sales' | 'Marketing' | 'HR'
 Platform       = 'Shopee' | 'Lazada' | 'TikTok'
 StockEntryType = 'in' | 'adjust' | 'return'
+OrderStatus    = 'pending' | 'completed' | 'cancelled'
+AuditActorType = 'user' | 'terminal' | 'employee' | 'system'
+AuditAction    = 'login' | 'logout' | 'create' | 'update' | 'delete'
+               | 'stock_in' | 'stock_adjust' | 'stock_return'
+               | 'order_complete' | 'order_cancel' | 'pin_verify'
 ```
 
 ---
@@ -162,3 +167,5 @@ StockEntryType = 'in' | 'adjust' | 'return'
 | order | `ORD-{YYYYMMDD}-{random}` | `ORD-20260506-AB12CD34EF` |
 | order_detail | `ORDDETAIL-{YYYYMMDD}-{random}` | `ORDDETAIL-20260506-XY98ZW76` |
 | stock_entry | `STK-{YYYYMMDD}-{random}` | `STK-20260506-QR45ST67UV` |
+| audit_log | `AUDIT-{YYYYMMDD}-{random}` | `AUDIT-20260506-MN23OP45QR` |
+| supplier | `SUP-{random}` | `SUP-AB12CD34EF` |

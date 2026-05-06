@@ -1,67 +1,55 @@
-import { Role } from '@app/auth/role/role.enum';
 import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix.helper';
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  BeforeInsert,
-  Column,
-  CreateDateColumn,
-  Entity,
-  PrimaryColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { BeforeInsert, Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity()
-export class Employee {
+export class Supplier {
   @ApiProperty()
   @PrimaryColumn()
   id: string;
 
   @BeforeInsert()
   generateId() {
-    this.id = generateIdWithPrefix({
-      prefix: 'EMP',
-      withDateTime: false,
-    });
+    this.id = generateIdWithPrefix({ prefix: 'SUP', withDateTime: false });
   }
 
   @ApiProperty()
-  @Column()
-  firstName: string;
-
-  @ApiProperty()
-  @Column()
-  lastName: string;
-
-  @ApiProperty()
-  @Column()
-  nickname: string;
+  @Column({ unique: true })
+  name: string;
 
   @ApiProperty()
   @Column({ nullable: true })
-  phoneNumber?: string;
+  contactName: string;
 
   @ApiProperty()
   @Column({ nullable: true })
-  startDate?: Date;
+  phone: string;
 
   @ApiProperty()
-  @Column()
-  department: Role;
+  @Column({ nullable: true })
+  email: string;
 
-  @Column({ nullable: true, select: false })
-  pinHash?: string;
+  @ApiProperty()
+  @Column({ nullable: true })
+  address: string;
+
+  @ApiProperty()
+  @Column({ nullable: true })
+  taxId: string;
 
   @ApiProperty()
   @Column({ default: true })
   isActive: boolean;
 
   @ApiProperty()
+  @Column({ nullable: true })
+  note: string;
+
+  @ApiProperty()
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
   @ApiProperty()
-  @UpdateDateColumn({
-    type: 'timestamp',
-  })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 }

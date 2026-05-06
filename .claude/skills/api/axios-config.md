@@ -6,7 +6,8 @@
 brand.id          → product.brandId
 category.id       → product.categoryId
 category.id       → category.parentId        (self-ref)
-employee.id       → order.createdBy
+employee.id       → order.recordByEmployeeId
+terminal.id       → order.terminalId
 shop.id           → order.shopId
 order.id          → order_detail.orderId
 product.barcode   → order_detail.productBarcode

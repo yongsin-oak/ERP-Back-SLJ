@@ -33,12 +33,20 @@ export class Terminal {
   @Column({ type: 'enum', enum: Role })
   role: Role;
 
-  @Column()
+  @Column({ select: false })
   passwordHash: string;
 
   @ApiProperty()
   @Column({ default: true })
   isActive: boolean;
+
+  @ApiProperty()
+  @Column({ nullable: true })
+  location: string;
+
+  @ApiProperty()
+  @Column({ type: 'timestamp', nullable: true })
+  lastSeenAt: Date;
 
   @ApiProperty()
   @CreateDateColumn({ type: 'timestamp' })

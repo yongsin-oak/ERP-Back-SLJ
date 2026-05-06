@@ -22,6 +22,8 @@ import { StockEntryModule } from './modules/stock-entry/stock-entry.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { UserModule } from './modules/user/user.module';
 import { TerminalModule } from './modules/terminal/terminal.module';
+import { AuditLogModule } from './modules/audit-log/audit-log.module';
+import { SupplierModule } from './modules/supplier/supplier.module';
 
 @Module({
   imports: [
@@ -39,6 +41,8 @@ import { TerminalModule } from './modules/terminal/terminal.module';
     DashboardModule,
     UserModule,
     TerminalModule,
+    AuditLogModule,
+    SupplierModule,
   ],
   controllers: [AppController],
   providers: [

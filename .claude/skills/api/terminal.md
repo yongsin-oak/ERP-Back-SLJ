@@ -20,13 +20,15 @@ Terminal คือเครื่องที่ login ด้วย `terminalCod
       "name": "POS หน้าร้าน 1",
       "role": "Operator",
       "isActive": true,
+      "location": "ห้องแพ็คของ 1",
+      "lastSeenAt": "2026-05-06T09:00:00.000Z",
       "createdAt": "2026-05-06T00:00:00.000Z",
       "updatedAt": "2026-05-06T00:00:00.000Z"
     }
   ]
 }
 ```
-> `passwordHash` ไม่ถูกส่งกลับในทุก endpoint
+> `passwordHash` ไม่ถูกส่งกลับในทุก endpoint (select: false)
 
 ---
 
@@ -36,7 +38,7 @@ Terminal คือเครื่องที่ login ด้วย `terminalCod
 ```json
 {
   "success": true, "statusCode": 200, "message": "OK",
-  "data": { "id": "TERM-xxxx", "terminalCode": "POS-01", "name": "POS หน้าร้าน 1", "role": "Operator", "isActive": true, "..." }
+  "data": { "id": "TERM-xxxx", "terminalCode": "POS-01", "name": "POS หน้าร้าน 1", "role": "Operator", "isActive": true, "location": "ห้องแพ็คของ 1", "lastSeenAt": "...", "..." }
 }
 ```
 
@@ -50,14 +52,15 @@ Terminal คือเครื่องที่ login ด้วย `terminalCod
   "terminalCode": "POS-01",
   "name": "POS หน้าร้าน 1",
   "role": "Operator",
-  "password": "terminal1234"
+  "password": "terminal1234",
+  "location": "ห้องแพ็คของ 1 (optional)"
 }
 ```
 > `password` ต้องอย่างน้อย 8 ตัวอักษร — `terminalCode` ต้อง unique
 
 **Response 201**
 ```json
-{ "success": true, "statusCode": 201, "message": "Created", "data": { "id": "TERM-xxxx", "terminalCode": "POS-01", "..." } }
+{ "success": true, "statusCode": 201, "message": "Created", "data": { "id": "TERM-xxxx", "terminalCode": "POS-01", "location": "ห้องแพ็คของ 1", "..." } }
 ```
 
 ---
@@ -71,13 +74,14 @@ Terminal คือเครื่องที่ login ด้วย `terminalCod
   "name": "POS คลังสินค้า",
   "role": "Warehouse",
   "password": "newpassword1234",
-  "isActive": false
+  "isActive": false,
+  "location": "โกดัง B"
 }
 ```
 
 **Response 200**
 ```json
-{ "success": true, "statusCode": 200, "message": "Updated", "data": { "id": "TERM-xxxx", "isActive": false, "..." } }
+{ "success": true, "statusCode": 200, "message": "Updated", "data": { "id": "TERM-xxxx", "isActive": false, "location": "โกดัง B", "..." } }
 ```
 
 ---
@@ -88,3 +92,12 @@ Terminal คือเครื่องที่ login ด้วย `terminalCod
 ```json
 { "success": true, "statusCode": 200, "message": "Deleted", "data": null }
 ```
+
+---
+
+## New Fields
+
+| Field | Type | หมายเหตุ |
+|---|---|---|
+| `location` | string nullable | ตำแหน่งทางกายภาพของเครื่อง |
+| `lastSeenAt` | timestamp nullable | เวลา activity ล่าสุด (อัปเดตทุก request จาก terminal) |

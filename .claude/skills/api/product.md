@@ -21,12 +21,16 @@ categoryId  string?  filter — "CAT-xxxx"
   "data": [{
     "barcode": "8850999123456",
     "name": "string",
+    "sku": "COKE-CAN-325",
     "brand": { "id": "BRD-xxxx", "name": "string" },
     "category": { "id": "CAT-xxxx", "name": "string" },
     "costPrice": { "pack": 100, "carton": 1100 },
     "sellPrice": { "pack": 120, "carton": 1300 },
     "remaining": 500,
     "minStock": 50,
+    "maxStock": 2000,
+    "isActive": true,
+    "imageUrl": null,
     "piecesPerPack": 12,
     "packPerCarton": 10,
     "productDimensions": { "length": 10, "width": 5, "height": 15, "weight": 0.3 },
@@ -64,7 +68,7 @@ search  string?  ค้นหาจาก name หรือ barcode (ILIKE)
 
 **Response 200**
 ```json
-{ "success": true, "statusCode": 200, "message": "OK", "data": { "barcode": "8850999123456", "brand": {...}, "category": {...}, "..." } }
+{ "success": true, "statusCode": 200, "message": "OK", "data": { "barcode": "8850999123456", "brand": {...}, "category": {...}, "isActive": true, "..." } }
 ```
 
 ---
@@ -77,12 +81,16 @@ search  string?  ค้นหาจาก name หรือ barcode (ILIKE)
 {
   "barcode": "8850999123456",
   "name": "string",
+  "sku": "string (optional, unique)",
   "brandId": "BRD-xxxx (optional)",
   "categoryId": "CAT-xxxx (optional)",
   "costPrice": { "pack": 100, "carton": 1100 },
   "sellPrice": { "pack": 120, "carton": 1300 },
   "remaining": 0,
   "minStock": 50,
+  "maxStock": 2000,
+  "isActive": true,
+  "imageUrl": "https://... (optional)",
   "piecesPerPack": 12,
   "packPerCarton": 10,
   "productDimensions": { "length": 10, "width": 5, "height": 15, "weight": 0.3 },
@@ -127,7 +135,7 @@ search  string?  ค้นหาจาก name หรือ barcode (ILIKE)
 
 **Response 200**
 ```json
-{ "success": true, "statusCode": 200, "message": "Updated", "data": { "barcode": "...", "..." } }
+{ "success": true, "statusCode": 200, "message": "Updated", "data": { "barcode": "...", "isActive": false, "..." } }
 ```
 
 ---
@@ -169,3 +177,14 @@ search  string?  ค้นหาจาก name หรือ barcode (ILIKE)
 ```json
 { "success": true, "statusCode": 200, "message": "Deleted", "data": { "deleted": [{"barcode":"..."}], "errors": [] } }
 ```
+
+---
+
+## New Fields
+
+| Field | Type | หมายเหตุ |
+|---|---|---|
+| `isActive` | boolean (default true) | ปิดสินค้าโดยไม่ต้องลบ |
+| `sku` | string nullable unique | รหัสสินค้าภายใน แยกจาก barcode |
+| `imageUrl` | string nullable | URL รูปภาพสินค้า |
+| `maxStock` | int nullable | ขีดบน stock — แจ้งเตือนเมื่อสั่งเกิน |

@@ -24,6 +24,7 @@ department  Role?    filter ตามแผนก
       "phoneNumber": "string | null",
       "startDate": "2024-01-15 | null",
       "department": "Warehouse",
+      "isActive": true,
       "createdAt": "2026-05-06T00:00:00.000Z",
       "updatedAt": "2026-05-06T00:00:00.000Z"
     }
@@ -40,7 +41,7 @@ department  Role?    filter ตามแผนก
 
 **Response 200**
 ```json
-{ "success": true, "statusCode": 200, "message": "OK", "data": { "id": "EMP-xxxx", "..." } }
+{ "success": true, "statusCode": 200, "message": "OK", "data": { "id": "EMP-xxxx", "isActive": true, "..." } }
 ```
 
 ---
@@ -56,13 +57,14 @@ department  Role?    filter ตามแผนก
   "nickname": "string",
   "phoneNumber": "string (optional)",
   "startDate": "2024-01-15 (optional)",
-  "department": "Warehouse"
+  "department": "Warehouse",
+  "isActive": true
 }
 ```
 
 **Response 201**
 ```json
-{ "success": true, "statusCode": 201, "message": "Created", "data": { "id": "EMP-xxxx", "..." } }
+{ "success": true, "statusCode": 201, "message": "Created", "data": { "id": "EMP-xxxx", "isActive": true, "..." } }
 ```
 
 ---
@@ -70,11 +72,11 @@ department  Role?    filter ตามแผนก
 ### PATCH `/api/v1/employee/:id`
 ต้อง auth — **SuperAdmin เท่านั้น**
 
-**Body** — Partial ของ POST body
+**Body** — Partial ของ POST body (รวม `isActive` เพื่อ deactivate พนักงาน)
 
 **Response 200**
 ```json
-{ "success": true, "statusCode": 200, "message": "Updated", "data": { "id": "EMP-xxxx", "..." } }
+{ "success": true, "statusCode": 200, "message": "Updated", "data": { "id": "EMP-xxxx", "isActive": false, "..." } }
 ```
 
 ---

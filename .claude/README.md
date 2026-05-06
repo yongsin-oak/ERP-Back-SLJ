@@ -162,16 +162,19 @@ src/
 │   ├── interceptors/transform-response.interceptor.ts
 │   └── middleware/logging.middleware.ts
 └── modules/
+    ├── audit-log/                         # read-only log viewer (SuperAdmin); exports AuditLogService
     ├── brand/
     ├── category/
     ├── dashboard/
-    ├── employee/                          # employee.entity มี pinHash (select:false)
-    ├── order/
+    ├── employee/                          # isActive field; pinHash (select:false)
+    ├── order/                             # status, startRecordAt, completedRecordAt, recordBy, terminal
     ├── order-detail/
-    ├── product/
+    ├── product/                           # isActive, sku, imageUrl, maxStock
     ├── shop/
     ├── stock-entry/
-    └── terminal/                          # Terminal CRUD (SuperAdmin only)
+    ├── supplier/                          # ข้อมูล supplier/ผู้จัดจำหน่าย
+    ├── terminal/                          # location, lastSeenAt; passwordHash (select:false)
+    └── user/
 ```
 
 ---
@@ -183,13 +186,15 @@ src/
 | `user` | ผู้เข้าใช้งานเว็บ | login ได้, มี role, แยกจาก employee |
 | `brand` | ยี่ห้อสินค้า | ผูกกับ product |
 | `category` | หมวดหมู่สินค้า | tree structure มี parent/child ได้ |
-| `terminal` | เครื่อง POS/kiosk | login ได้ด้วย terminalCode+password, มี role, ไม่มี refresh token |
-| `employee` | พนักงานบริษัท | ใช้เป็น "ผู้บันทึก" ใน order — ไม่ใช่ user ที่ login; มี PIN สำหรับ actor flow |
+| `terminal` | เครื่อง POS/kiosk | login ได้ด้วย terminalCode+password, มี role, location, lastSeenAt |
+| `employee` | พนักงานบริษัท | ใช้เป็น recordBy ใน order; มี PIN สำหรับ actor flow; isActive |
 | `shop` | ร้านค้า/ช่องทางขาย | Shopee/Lazada/TikTok |
-| `product` | สินค้าคงคลัง | PK คือ barcode, มีราคา pack/carton แยกกัน |
-| `order` | คำสั่งซื้อ | employee ผู้บันทึก + shop + details |
+| `product` | สินค้าคงคลัง | PK คือ barcode; isActive, sku, imageUrl, maxStock |
+| `order` | คำสั่งซื้อ | recordBy (employee) + terminal + shop + status + man-hour timestamps |
 | `order_detail` | รายการสินค้าในออเดอร์ | แต่ละ order มีหลาย order_detail |
 | `stock_entry` | บันทึกการเปลี่ยนแปลง stock | audit trail — `in`/`return` → +=, `adjust` → = |
+| `supplier` | ผู้จัดจำหน่าย | ข้อมูลติดต่อ, taxId, isActive |
+| `audit_log` | บันทึก activity ระบบ | SuperAdmin read-only; inject AuditLogService เพื่อ log event |
 | `dashboard` | สถิติรวม | stats, daily revenue, recent orders, low stock |
 
 ---
@@ -201,7 +206,8 @@ src/
 | `product.brandId` | `brand.id` |
 | `product.categoryId` | `category.id` |
 | `category.parentId` | `category.id` (self) |
-| `order.createdBy` | `employee.id` |
+| `order.recordByEmployeeId` | `employee.id` |
+| `order.terminalId` | `terminal.id` |
 | `order.shopId` | `shop.id` |
 | `order_detail.orderId` | `order.id` |
 | `order_detail.productBarcode` | `product.barcode` |
@@ -220,10 +226,12 @@ src/
 | category | `CAT-{random}` |
 | employee | `EMP-{random}` |
 | shop | `SHOP-{random}` |
+| supplier | `SUP-{random}` |
 | product | barcode (กำหนดเอง) |
 | order | `ORD-{YYYYMMDD}-{random}` — auto-generated |
 | order_detail | `ORDDETAIL-{YYYYMMDD}-{random}` |
 | stock_entry | `STK-{YYYYMMDD}-{random}` |
+| audit_log | `AUDIT-{YYYYMMDD}-{random}` |
 
 ---
 
@@ -233,6 +241,11 @@ src/
 Role           = 'Operator' | 'SuperAdmin' | 'Admin' | 'Accountant' | 'Warehouse' | 'Sales' | 'Marketing' | 'HR'
 Platform       = 'Shopee' | 'Lazada' | 'TikTok'
 StockEntryType = 'in' | 'adjust' | 'return'
+OrderStatus    = 'pending' | 'completed' | 'cancelled'
+AuditActorType = 'user' | 'terminal' | 'employee' | 'system'
+AuditAction    = 'login' | 'logout' | 'create' | 'update' | 'delete'
+               | 'stock_in' | 'stock_adjust' | 'stock_return'
+               | 'order_complete' | 'order_cancel' | 'pin_verify'
 ```
 
 ---
@@ -272,6 +285,7 @@ POST   /api/v1/auth/logout            (all roles)
 GET/POST/PATCH/DELETE /api/v1/terminal/:id?   (SuperAdmin only)
 
 GET/POST/PATCH/DELETE /api/v1/employee/:id?     (GET=all, write=SuperAdmin)
+PATCH                 /api/v1/employee/:id/pin  (SuperAdmin)
 GET/POST/PATCH/DELETE /api/v1/brand/:id?        (GET=all, write=SuperAdmin)
 POST                  /api/v1/brand/bulk        (SuperAdmin)
 GET/POST/PATCH/DELETE /api/v1/category/:id?     (GET=all, write=SuperAdmin)
@@ -280,9 +294,14 @@ GET/POST/PATCH/DELETE /api/v1/shop/:id?         (GET=all, write=SuperAdmin)
 GET/POST/PATCH/DELETE /api/v1/product/:barcode? (GET=all, write=SuperAdmin)
 POST/PATCH/DELETE     /api/v1/product/bulk      (SuperAdmin)
 GET/POST/PATCH/DELETE /api/v1/order/:id?        (all roles)
+POST                  /api/v1/order/bulk        (all roles — bulk delete)
+POST                  /api/v1/order/check-exist (all roles)
 GET                   /api/v1/order-detail      (all roles)
 GET                   /api/v1/order-detail/:orderId (all roles)
 GET/POST              /api/v1/stock-entry       (all roles)
+GET/POST/PATCH/DELETE /api/v1/supplier/:id?     (GET=all, write=SuperAdmin)
+GET                   /api/v1/audit-log         (SuperAdmin only)
+GET                   /api/v1/audit-log/:id     (SuperAdmin only)
 GET                   /api/v1/dashboard/stats           (all roles)
 GET                   /api/v1/dashboard/daily-revenue   (all roles)
 GET                   /api/v1/dashboard/recent-orders   (all roles)
