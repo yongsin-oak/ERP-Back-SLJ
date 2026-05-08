@@ -3,7 +3,7 @@ import { Roles } from '@app/auth/role/roles.decorator';
 import { RolesGuard } from '@app/auth/role/roles.guard';
 import { NoCache } from '@app/common/decorator/cache-control.decorator';
 import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
-import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { ok } from '@app/common/helpers/response';
 import {
   Body,
@@ -18,10 +18,12 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+
 import { ApiBearerAuth, ApiBody, ApiOkResponse } from '@nestjs/swagger';
 import { BulkDeleteOrderDto } from './dto/bulk-delete-order.dto';
 import { CheckExistOrderDto } from './dto/check-exist-order.dto';
 import { OrderCreateDto } from './dto/create-order.dto';
+import { GetOrderDto } from './dto/get-order.dto';
 import { OrderResponseDto } from './dto/response-order.dto';
 import { OrderUpdateDto } from './dto/update-order.dto';
 import { OrderService } from './order.service';
@@ -44,7 +46,7 @@ export class OrderController {
   @Roles('*')
   @Get()
   @ApiOkResponsePaginated(OrderResponseDto)
-  async getAllOrders(@Query() query: PaginatedGetAllDto): Promise<PaginatedResponseDto<OrderResponseDto>> {
+  async getAllOrders(@Query() query: GetOrderDto): Promise<PaginatedResponseDto<OrderResponseDto>> {
     return ok(await this.orderService.findAll(query));
   }
 

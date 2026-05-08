@@ -142,13 +142,14 @@ throw internalError();                         // default: 'Internal server erro
 
 ```ts
 Role           = 'Operator' | 'SuperAdmin' | 'Admin' | 'Accountant' | 'Warehouse' | 'Sales' | 'Marketing' | 'HR'
-Platform       = 'Shopee' | 'Lazada' | 'TikTok'
+Platform       = 'Shopee' | 'Lazada' | 'TikTok' | 'LineOA' | 'LineMan' | 'Offline'
 StockEntryType = 'in' | 'adjust' | 'return'
-OrderStatus    = 'pending' | 'completed' | 'cancelled'
+OrderStatus    = 'completed' | 'cancelled'   // ไม่มี pending — default = completed
 AuditActorType = 'user' | 'terminal' | 'employee' | 'system'
 AuditAction    = 'login' | 'logout' | 'create' | 'update' | 'delete'
                | 'stock_in' | 'stock_adjust' | 'stock_return'
                | 'order_complete' | 'order_cancel' | 'pin_verify'
+ReportGroupBy  = 'day' | 'week' | 'month'
 ```
 
 ---

@@ -24,6 +24,7 @@ import { UserModule } from './modules/user/user.module';
 import { TerminalModule } from './modules/terminal/terminal.module';
 import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { SupplierModule } from './modules/supplier/supplier.module';
+import { ReportModule } from './modules/report/report.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { SupplierModule } from './modules/supplier/supplier.module';
     TerminalModule,
     AuditLogModule,
     SupplierModule,
+    ReportModule,
   ],
   controllers: [AppController],
   providers: [

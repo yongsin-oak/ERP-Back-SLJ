@@ -11,9 +11,10 @@ import { CheckExistOrderDto } from './dto/check-exist-order.dto';
 import { OrderCreateDto } from './dto/create-order.dto';
 import { OrderResponseDto } from './dto/response-order.dto';
 import { OrderUpdateDto } from './dto/update-order.dto';
+import { GetOrderDto } from './dto/get-order.dto';
 import { Order } from './entities/order.entity';
 import { getEntityOrNotFound } from '@app/common/helpers/entity.helper';
-import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { badRequest, paginatedResponse } from '@app/common/helpers/response';
 import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix.helper';
 
@@ -45,13 +46,53 @@ export class OrderService {
     },
   };
 
-  async findAll(query: PaginatedGetAllDto): Promise<PaginatedResponseDto<OrderResponseDto>> {
-    const { page, limit } = query;
-    const [orders, total] = await this.orderRepo.findAndCount({
-      skip: (page - 1) * limit,
-      take: limit,
-      ...this.orderRelations,
-    });
+  async findAll(query: GetOrderDto): Promise<PaginatedResponseDto<OrderResponseDto>> {
+    const { page, limit, search, status, shopId, employeeId, terminalId, dateFrom, dateTo } = query;
+
+    const qb = this.orderRepo
+      .createQueryBuilder('o')
+      .leftJoinAndSelect('o.recordBy', 'recordBy')
+      .leftJoinAndSelect('o.terminal', 'terminal')
+      .leftJoinAndSelect('o.shop', 'shop')
+      .leftJoinAndSelect('o.orderDetails', 'orderDetails')
+      .leftJoinAndSelect('orderDetails.product', 'product')
+      .select([
+        'o', 'orderDetails',
+        'recordBy.id', 'recordBy.firstName', 'recordBy.lastName', 'recordBy.nickname',
+        'terminal.id', 'terminal.terminalCode', 'terminal.name', 'terminal.role', 'terminal.location', 'terminal.isActive',
+        'shop.id', 'shop.name', 'shop.platform',
+        'product.barcode', 'product.name',
+        'orderDetails.id', 'orderDetails.orderId', 'orderDetails.quantityPack', 'orderDetails.quantityCarton',
+      ])
+      .orderBy('o.createdAt', 'DESC');
+
+    if (search) {
+      qb.andWhere('o.note ILIKE :search', { search: `%${search}%` });
+    }
+    if (status) {
+      qb.andWhere('o.status = :status', { status });
+    }
+    if (shopId) {
+      qb.andWhere('o.shopId = :shopId', { shopId });
+    }
+    if (employeeId) {
+      qb.andWhere('o.recordByEmployeeId = :employeeId', { employeeId });
+    }
+    if (terminalId) {
+      qb.andWhere('o.terminalId = :terminalId', { terminalId });
+    }
+    if (dateFrom) {
+      qb.andWhere('o.startRecordAt >= :dateFrom', { dateFrom: new Date(dateFrom) });
+    }
+    if (dateTo) {
+      qb.andWhere('o.startRecordAt <= :dateTo', { dateTo: new Date(dateTo) });
+    }
+
+    const [orders, total] = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
     return paginatedResponse(orders, page, limit, total);
   }
 

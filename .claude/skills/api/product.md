@@ -7,11 +7,12 @@
 
 **Query**
 ```
-page        number   required
-limit       number   required
-search      string?  ค้นหาจาก name หรือ barcode (ILIKE)
-brandId     string?  filter — "BRD-xxxx"
-categoryId  string?  filter — "CAT-xxxx"
+page        number    required
+limit       number    required
+search      string?   ค้นหาจาก name หรือ barcode (ILIKE)
+brandId     string?   filter — "BRD-xxxx"
+categoryId  string?   filter — "CAT-xxxx"
+isActive    boolean?  true = active only, false = inactive only
 ```
 
 **Response 200**
@@ -180,11 +181,69 @@ search  string?  ค้นหาจาก name หรือ barcode (ILIKE)
 
 ---
 
+---
+
+### GET `/api/v1/product/:barcode/shop-price`
+ต้อง auth (all roles)
+
+**Response 200**
+```json
+{
+  "success": true, "statusCode": 200, "message": "OK",
+  "data": [
+    { "id": "PSP-xxxx", "productBarcode": "8850999123456", "shopId": "SHOP-xxxx", "sellPrice": { "pack": 115, "carton": 1250 }, "effectiveFrom": null, "effectiveTo": null }
+  ]
+}
+```
+
+---
+
+### POST `/api/v1/product/:barcode/shop-price`
+ต้อง auth — **SuperAdmin**
+
+**Body**
+```json
+{
+  "shopId": "SHOP-xxxx",
+  "sellPrice": { "pack": 115, "carton": 1250 },
+  "effectiveFrom": "2026-05-01 (optional)",
+  "effectiveTo": "2026-05-31 (optional)"
+}
+```
+> unique constraint: (productBarcode, shopId) — ถ้ามีแล้วจะ 409
+
+**Response 201**
+```json
+{ "success": true, "statusCode": 201, "message": "Created", "data": { "id": "PSP-xxxx", "..." } }
+```
+
+---
+
+### PATCH `/api/v1/product/:barcode/shop-price/:shopId`
+ต้อง auth — **SuperAdmin** — Body: Partial (sellPrice, effectiveFrom, effectiveTo)
+
+**Response 200**
+```json
+{ "success": true, "statusCode": 200, "message": "Updated", "data": { "id": "PSP-xxxx", "..." } }
+```
+
+---
+
+### DELETE `/api/v1/product/:barcode/shop-price/:shopId`
+ต้อง auth — **SuperAdmin**
+
+**Response 200**
+```json
+{ "success": true, "statusCode": 200, "message": "Deleted", "data": { "id": "PSP-xxxx", "..." } }
+```
+
+---
+
 ## New Fields
 
 | Field | Type | หมายเหตุ |
 |---|---|---|
-| `isActive` | boolean (default true) | ปิดสินค้าโดยไม่ต้องลบ |
+| `isActive` | boolean (default true) | ปิดสินค้าโดยไม่ต้องลบ; filter ด้วย `isActive` query param |
 | `sku` | string nullable unique | รหัสสินค้าภายใน แยกจาก barcode |
 | `imageUrl` | string nullable | URL รูปภาพสินค้า |
 | `maxStock` | int nullable | ขีดบน stock — แจ้งเตือนเมื่อสั่งเกิน |

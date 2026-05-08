@@ -9,6 +9,7 @@ import { Employee } from './entities/employee.entity';
 import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { EmployeeGetDto } from './dto/get-employee.dto';
+import { BulkDeleteEmployeeDto } from './dto/bulk-delete-employee.dto';
 import { paginatedResponse, notFound } from '@app/common/helpers/response';
 
 @Injectable()
@@ -23,7 +24,7 @@ export class EmployeeService {
   }
 
   async findAll(query: EmployeeGetDto): Promise<PaginatedResponseDto<EmployeeResponseDto>> {
-    const { page, limit, search, department } = query;
+    const { page, limit, search, department, isActive } = query;
     const qb = this.employeeRepo.createQueryBuilder('e');
 
     if (search) {
@@ -34,6 +35,9 @@ export class EmployeeService {
     }
     if (department) {
       qb.andWhere('e.department = :department', { department });
+    }
+    if (isActive !== undefined) {
+      qb.andWhere('e.isActive = :isActive', { isActive });
     }
 
     const [employees, total] = await qb
@@ -68,6 +72,23 @@ export class EmployeeService {
     const employee = await this.employeeGetEntityOrFail(id);
     await this.employeeRepo.delete(id);
     return employee;
+  }
+
+  async bulkDelete(dto: BulkDeleteEmployeeDto): Promise<{ deleted: string[]; errors: string[] }> {
+    const deleted: string[] = [];
+    const errors: string[] = [];
+
+    for (const id of dto.ids) {
+      try {
+        await this.employeeGetEntityOrFail(id);
+        await this.employeeRepo.delete(id);
+        deleted.push(id);
+      } catch {
+        errors.push(`Employee ${id} not found`);
+      }
+    }
+
+    return { deleted, errors };
   }
 
   async setPin(id: string, pin: string): Promise<void> {

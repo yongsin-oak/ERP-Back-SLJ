@@ -7,8 +7,15 @@
 
 **Query**
 ```
-page   number   required
-limit  number   required
+page          number    required
+limit         number    required
+search        string?   ค้นหาจาก note
+status        string?   'completed' | 'cancelled'
+shopId        string?   filter ตาม shop
+employeeId    string?   filter ตาม recordBy employee
+terminalId    string?   filter ตาม terminal
+dateFrom      string?   ISO8601 — startRecordAt >= dateFrom
+dateTo        string?   ISO8601 — startRecordAt <= dateTo
 ```
 
 **Response 200**
@@ -20,9 +27,9 @@ limit  number   required
     "recordBy": { "id": "EMP-xxxx", "firstName": "string", "lastName": "string", "nickname": "string" },
     "terminal": { "id": "TERM-xxxx", "terminalCode": "POS-01", "name": "POS หน้าร้าน 1", "role": "Operator", "location": "ห้องแพ็คของ 1", "isActive": true },
     "shop": { "id": "SHOP-xxxx", "name": "string", "platform": "Shopee" },
-    "status": "pending",
+    "status": "completed",
     "startRecordAt": "2026-05-06T09:00:00.000Z",
-    "completedRecordAt": null,
+    "completedRecordAt": "2026-05-06T09:15:00.000Z",
     "note": null,
     "orderDetails": [],
     "createdAt": "...", "updatedAt": "..."
@@ -53,7 +60,7 @@ limit  number   required
     "orderDetails": [{
       "id": "ORDDETAIL-20260506-xxxx",
       "orderId": "ORD-20260506-xxxx",
-      "product": { "barcode": "...", "name": "...", "..." },
+      "product": { "barcode": "...", "name": "..." },
       "quantityPack": 5,
       "quantityCarton": 2,
       "createdAt": "...", "updatedAt": "..."
@@ -74,7 +81,7 @@ limit  number   required
   "recordBy": "EMP-xxxx",
   "shopId": "SHOP-xxxx",
   "terminalId": "TERM-xxxx (optional)",
-  "status": "pending (optional, default: pending)",
+  "status": "completed (optional, default: completed)",
   "startRecordAt": "2026-05-06T09:00:00.000Z (optional)",
   "completedRecordAt": "2026-05-06T09:15:00.000Z (optional)",
   "note": "string (optional)",
@@ -142,18 +149,14 @@ limit  number   required
 
 ---
 
-## Order Status Flow
-
-```
-pending  →  completed   (ยิงสินค้าครบ แพ็คเสร็จ)
-pending  →  cancelled   (ยกเลิก order)
-```
+## Order Status
 
 | status | ความหมาย |
 |---|---|
-| `pending` | order ถูกสร้างแล้ว รอดำเนินการ (default) |
-| `completed` | ยิงและแพ็คสินค้าเสร็จสิ้น |
+| `completed` | บันทึกเสร็จ — default เมื่อ create |
 | `cancelled` | ยกเลิก order |
+
+> ไม่มี `pending` อีกต่อไป — flow จริงคือพนักงานสแกนครบแล้วกด Save ครั้งเดียว
 
 **Man-hour คำนวณจาก:**
 ```

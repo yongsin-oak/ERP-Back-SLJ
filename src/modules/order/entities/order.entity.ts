@@ -14,7 +14,6 @@ import {
 } from 'typeorm';
 
 export enum OrderStatus {
-  Pending = 'pending',
   Completed = 'completed',
   Cancelled = 'cancelled',
 }
@@ -46,7 +45,7 @@ export class Order {
   @JoinColumn()
   orderDetails: OrderDetail[];
 
-  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.Pending })
+  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.Completed })
   status: OrderStatus;
 
   @Column({ type: 'timestamp', nullable: true })

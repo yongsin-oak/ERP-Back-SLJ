@@ -7,10 +7,11 @@
 
 **Query**
 ```
-page        number   required, min 1
-limit       number   required, min 1
-search      string?  ค้นหาจาก firstName, lastName, nickname (ILIKE)
-department  Role?    filter ตามแผนก
+page        number    required, min 1
+limit       number    required, min 1
+search      string?   ค้นหาจาก firstName, lastName, nickname (ILIKE)
+department  Role?     filter ตามแผนก
+isActive    boolean?  true = active only, false = inactive only
 ```
 
 **Response 200**
@@ -95,6 +96,21 @@ department  Role?    filter ตามแผนก
 **Response 200**
 ```json
 { "success": true, "statusCode": 200, "message": "Updated", "data": null }
+```
+
+---
+
+### DELETE `/api/v1/employee/bulk`
+ต้อง auth — **SuperAdmin เท่านั้น**
+
+**Body**
+```json
+{ "ids": ["EMP-xxxx", "EMP-yyyy"] }
+```
+
+**Response 200**
+```json
+{ "success": true, "statusCode": 200, "message": "Deleted", "data": { "deleted": ["EMP-xxxx", "EMP-yyyy"], "errors": [] } }
 ```
 
 ---

@@ -239,13 +239,14 @@ src/
 
 ```ts
 Role           = 'Operator' | 'SuperAdmin' | 'Admin' | 'Accountant' | 'Warehouse' | 'Sales' | 'Marketing' | 'HR'
-Platform       = 'Shopee' | 'Lazada' | 'TikTok'
+Platform       = 'Shopee' | 'Lazada' | 'TikTok' | 'LineOA' | 'LineMan' | 'Offline'
 StockEntryType = 'in' | 'adjust' | 'return'
-OrderStatus    = 'pending' | 'completed' | 'cancelled'
+OrderStatus    = 'completed' | 'cancelled'   // ไม่มี pending — default = completed
 AuditActorType = 'user' | 'terminal' | 'employee' | 'system'
 AuditAction    = 'login' | 'logout' | 'create' | 'update' | 'delete'
                | 'stock_in' | 'stock_adjust' | 'stock_return'
                | 'order_complete' | 'order_cancel' | 'pin_verify'
+ReportGroupBy  = 'day' | 'week' | 'month'
 ```
 
 ---
@@ -294,11 +295,13 @@ GET/POST/PATCH/DELETE /api/v1/shop/:id?         (GET=all, write=SuperAdmin)
 GET/POST/PATCH/DELETE /api/v1/product/:barcode? (GET=all, write=SuperAdmin)
 POST/PATCH/DELETE     /api/v1/product/bulk      (SuperAdmin)
 GET/POST/PATCH/DELETE /api/v1/order/:id?        (all roles)
-POST                  /api/v1/order/bulk        (all roles — bulk delete)
+DELETE                /api/v1/order/bulk        (all roles — bulk delete)
 POST                  /api/v1/order/check-exist (all roles)
-GET                   /api/v1/order-detail      (all roles)
+GET                   /api/v1/order-detail      (all roles — filter: orderId, productBarcode, dateFrom, dateTo)
 GET                   /api/v1/order-detail/:orderId (all roles)
 GET/POST              /api/v1/stock-entry       (all roles)
+POST                  /api/v1/stock-entry/bulk        (all roles — bulk create)
+POST                  /api/v1/stock-entry/bulk-adjust (all roles — bulk stock count)
 GET/POST/PATCH/DELETE /api/v1/supplier/:id?     (GET=all, write=SuperAdmin)
 GET                   /api/v1/audit-log         (SuperAdmin only)
 GET                   /api/v1/audit-log/:id     (SuperAdmin only)
@@ -306,4 +309,9 @@ GET                   /api/v1/dashboard/stats           (all roles)
 GET                   /api/v1/dashboard/daily-revenue   (all roles)
 GET                   /api/v1/dashboard/recent-orders   (all roles)
 GET                   /api/v1/dashboard/low-stock       (all roles)
+GET/POST/PATCH/DELETE /api/v1/product/:barcode/shop-price/:shopId? (shop-specific pricing)
+GET                   /api/v1/report/sales-summary   (all roles)
+GET                   /api/v1/report/sales-by-shop   (all roles)
+GET                   /api/v1/report/sales-by-product (all roles)
+GET                   /api/v1/report/man-hour         (all roles)
 ```

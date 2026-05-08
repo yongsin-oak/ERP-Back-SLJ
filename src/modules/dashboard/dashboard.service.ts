@@ -66,9 +66,14 @@ export class DashboardService {
       .where('o.createdAt BETWEEN :start AND :end', { start: todayStart, end: todayEnd })
       .getMany();
 
-    const { revenue: todayRevenue } = this.calcRevenue(todayDetails);
+    const { revenue: todayRevenue, cost: todayCost } = this.calcRevenue(todayDetails);
 
-    return { totalOrders, totalRevenue, totalCost, totalProducts, totalEmployees, todayOrders, todayRevenue };
+    const lowStockCount = await this.productRepo
+      .createQueryBuilder('p')
+      .where('p.remaining <= COALESCE(p.minStock, 5)')
+      .getCount();
+
+    return { totalOrders, totalRevenue, totalCost, totalProducts, totalEmployees, todayOrders, todayRevenue, todayCost, lowStockCount };
   }
 
   async getDailyRevenue(days = 7): Promise<DailyRevenueDto[]> {

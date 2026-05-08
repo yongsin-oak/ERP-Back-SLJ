@@ -20,6 +20,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
+import { BulkDeleteEmployeeDto } from './dto/bulk-delete-employee.dto';
 import { EmployeeCreateDto } from './dto/create-employee.dto';
 import { EmployeeGetDto } from './dto/get-employee.dto';
 import { EmployeeResponseDto } from './dto/response-employee.dto';
@@ -69,6 +70,22 @@ export class EmployeeController {
   async setPin(@Param('id') id: string, @Body() body: SetPinDto) {
     await this.employerService.setPin(id, body.pin);
     return ok(null);
+  }
+
+  @Roles(Role.SuperAdmin)
+  @Delete('bulk')
+  @ApiOkResponse({
+    description: 'Delete multiple employees',
+    schema: {
+      type: 'object',
+      properties: {
+        deleted: { type: 'array', items: { type: 'string' } },
+        errors: { type: 'array', items: { type: 'string' } },
+      },
+    },
+  })
+  async deleteManyEmployees(@Body() body: BulkDeleteEmployeeDto) {
+    return ok(await this.employerService.bulkDelete(body));
   }
 
   @Roles(Role.SuperAdmin)

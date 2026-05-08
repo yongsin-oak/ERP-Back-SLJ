@@ -36,7 +36,7 @@ export class StockEntry {
   productBarcode: string;
 
   @Column({ type: 'enum', enum: StockEntryType })
-  type: StockEntryType;
+  type: StockEntryType; 
 
   @Column('int')
   quantity: number;

@@ -27,7 +27,9 @@ import { ProductCreateDto } from './dto/create-product.dto';
 import { ProductDropdownItemDto, ProductDropdownSearchDto } from './dto/dropdown-search-product.dto';
 import { ProductGetDto } from './dto/get-product.dto';
 import { ProductResponseDto } from './dto/response.dto';
+import { CreateShopPriceDto, UpdateShopPriceDto } from './dto/shop-price.dto';
 import { ProductUpdateDto } from './dto/update-product.dto';
+import { ProductShopPrice } from './entities/product-shop-price.entity';
 import { Product } from './entities/product.entity';
 import { ProductService } from './product.service';
 
@@ -60,7 +62,7 @@ export class ProductController {
   @Get()
   @ApiOkResponsePaginated(ProductResponseDto)
   async findAll(@Query() query: ProductGetDto): Promise<PaginatedResponseDto<ProductResponseDto>> {
-    return ok(await this.productService.findAll(query.page, query.limit, query.search, query.brandId, query.categoryId));
+    return ok(await this.productService.findAll(query.page, query.limit, query.search, query.brandId, query.categoryId, query.isActive));
   }
 
   @Roles('*')
@@ -132,5 +134,38 @@ export class ProductController {
   @ApiOkResponse({ description: 'Delete product by barcode', type: Product })
   async remove(@Param('barcode') barcode: string) {
     return ok(await this.productService.remove(barcode));
+  }
+
+  @Roles('*')
+  @Get(':barcode/shop-price')
+  @ApiOkResponse({ description: 'Get all shop prices for a product', type: ProductShopPrice, isArray: true })
+  async getShopPrices(@Param('barcode') barcode: string) {
+    return ok(await this.productService.getShopPrices(barcode));
+  }
+
+  @Roles(Role.SuperAdmin)
+  @Post(':barcode/shop-price')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOkResponse({ description: 'Set shop-specific price', type: ProductShopPrice })
+  async createShopPrice(@Param('barcode') barcode: string, @Body() dto: CreateShopPriceDto) {
+    return ok(await this.productService.createShopPrice(barcode, dto));
+  }
+
+  @Roles(Role.SuperAdmin)
+  @Patch(':barcode/shop-price/:shopId')
+  @ApiOkResponse({ description: 'Update shop-specific price', type: ProductShopPrice })
+  async updateShopPrice(
+    @Param('barcode') barcode: string,
+    @Param('shopId') shopId: string,
+    @Body() dto: UpdateShopPriceDto,
+  ) {
+    return ok(await this.productService.updateShopPrice(barcode, shopId, dto));
+  }
+
+  @Roles(Role.SuperAdmin)
+  @Delete(':barcode/shop-price/:shopId')
+  @ApiOkResponse({ description: 'Delete shop-specific price', type: ProductShopPrice })
+  async deleteShopPrice(@Param('barcode') barcode: string, @Param('shopId') shopId: string) {
+    return ok(await this.productService.deleteShopPrice(barcode, shopId));
   }
 }

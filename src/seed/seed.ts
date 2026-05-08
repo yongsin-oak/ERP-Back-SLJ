@@ -665,7 +665,7 @@ async function seed() {
       recordBy: employees[2],
       terminal: terminals[0],
       terminalId: terminals[0].id,
-      status: OrderStatus.Pending,
+      status: OrderStatus.Completed,
     }));
     await detailRepo.save([
       detailRepo.create({ id: detailId(), order: order3, orderId: order3.id, product: products['8850999000005'], quantityPack: 4, quantityCarton: 2 }),

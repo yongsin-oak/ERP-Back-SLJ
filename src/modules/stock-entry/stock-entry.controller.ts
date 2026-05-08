@@ -7,7 +7,12 @@ import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { ok } from '@app/common/helpers/response';
 import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
-import { CreateStockEntryDto, StockEntryGetDto } from './dto/stock-entry.dto';
+import {
+  BulkAdjustStockEntryDto,
+  BulkCreateStockEntryDto,
+  CreateStockEntryDto,
+  StockEntryGetDto,
+} from './dto/stock-entry.dto';
 import { StockEntry } from './entities/stock-entry.entity';
 import { StockEntryService } from './stock-entry.service';
 
@@ -31,5 +36,39 @@ export class StockEntryController {
   @ApiOkResponse({ type: StockEntry })
   async create(@Body() body: CreateStockEntryDto) {
     return ok(await this.stockEntryService.create(body));
+  }
+
+  @Roles('*')
+  @Post('bulk')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOkResponse({
+    description: 'Bulk create stock entries',
+    schema: {
+      type: 'object',
+      properties: {
+        created: { type: 'array', items: { $ref: '#/components/schemas/StockEntry' } },
+        errors: { type: 'array', items: { type: 'string' } },
+      },
+    },
+  })
+  async createBulk(@Body() body: BulkCreateStockEntryDto) {
+    return ok(await this.stockEntryService.createBulk(body));
+  }
+
+  @Roles('*')
+  @Post('bulk-adjust')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOkResponse({
+    description: 'Bulk adjust stock (set actual quantity)',
+    schema: {
+      type: 'object',
+      properties: {
+        created: { type: 'array', items: { $ref: '#/components/schemas/StockEntry' } },
+        errors: { type: 'array', items: { type: 'string' } },
+      },
+    },
+  })
+  async createBulkAdjust(@Body() body: BulkAdjustStockEntryDto) {
+    return ok(await this.stockEntryService.createBulkAdjust(body));
   }
 }

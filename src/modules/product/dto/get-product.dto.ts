@@ -1,6 +1,7 @@
 import { PaginatedGetAllDto } from '@app/common/dto/paginated.dto';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { IsBoolean, IsOptional, IsString } from 'class-validator';
 
 export class ProductGetDto extends PaginatedGetAllDto {
   @ApiProperty({ required: false, description: 'Search by name or barcode' })
@@ -17,4 +18,10 @@ export class ProductGetDto extends PaginatedGetAllDto {
   @IsOptional()
   @IsString()
   categoryId?: string;
+
+  @ApiProperty({ required: false, description: 'true = active only, false = inactive only' })
+  @Transform(({ value }) => (value === 'true' ? true : value === 'false' ? false : value))
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

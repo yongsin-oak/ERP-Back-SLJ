@@ -8,6 +8,8 @@ export class DashboardStatsDto {
   @ApiProperty() totalEmployees: number;
   @ApiProperty() todayOrders: number;
   @ApiProperty() todayRevenue: number;
+  @ApiProperty() todayCost: number;
+  @ApiProperty() lowStockCount: number;
 }
 
 export class DailyRevenueDto {
