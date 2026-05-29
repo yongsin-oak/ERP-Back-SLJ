@@ -1,5 +1,5 @@
 # 1. ใช้ Bun เป็น base image (มี Node + Bun ติดมาแล้ว)
-FROM oven/bun:1.2.14 AS builder
+FROM oven/bun:latest AS builder
 
 # 2. ตั้ง working directory
 WORKDIR /app
@@ -14,7 +14,7 @@ RUN bun install
 RUN bun run build
 
 # ===== Image สำหรับ production =====
-FROM oven/bun:1.2.14
+FROM oven/bun:latest
 
 WORKDIR /app
 
