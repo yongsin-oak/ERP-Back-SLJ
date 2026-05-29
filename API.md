@@ -124,6 +124,24 @@ the validator unless the endpoint sets defaults). Many lists also accept
 `search` and entity-specific filters — see each route in
 [docs/frontend/routes.md](docs/frontend/routes.md).
 
+## Dropdown / infinite-scroll pattern
+
+Two kinds of dropdown endpoints exist:
+
+| Kind | Example | page/limit | Notes |
+|---|---|---|---|
+| **Dedicated lite endpoint** | `GET /product/dropdown-search` | optional (default 1/20, max limit 50) | Returns a subset of fields only; use for large catalogues |
+| **Regular paginated list** | `GET /employee`, `GET /shop`, etc. | required (no default) | Returns full entity; use when full fields are needed in the picker |
+
+For both kinds the response is the standard **paginated envelope** (`data[]` + `pagination` + `meta`).
+Use `pagination.hasNextPage` to decide whether to fetch the next page on scroll-bottom.
+
+Current dedicated dropdown endpoints:
+
+| Endpoint | Lite fields returned |
+|---|---|
+| `GET /product/dropdown-search` | `barcode`, `name`, `remaining`, `sellPrice` |
+
 ---
 
 ## Caching

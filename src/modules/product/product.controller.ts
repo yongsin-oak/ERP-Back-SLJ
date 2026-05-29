@@ -67,7 +67,7 @@ export class ProductController {
 
   @Roles('*')
   @Get('dropdown-search')
-  @ApiOkResponse({ description: 'Dropdown search products by keyword', type: ProductDropdownItemDto, isArray: true })
+  @ApiOkResponsePaginated(ProductDropdownItemDto)
   async dropdownSearch(@Query() query: ProductDropdownSearchDto) {
     return ok(await this.productService.dropdownSearch(query));
   }

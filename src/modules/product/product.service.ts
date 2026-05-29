@@ -151,18 +151,23 @@ export class ProductService {
     return updatedProducts;
   }
 
-  async dropdownSearch(dto: ProductDropdownSearchDto): Promise<ProductDropdownItemDto[]> {
+  async dropdownSearch(dto: ProductDropdownSearchDto): Promise<PaginatedResponseDto<ProductDropdownItemDto>> {
+    const page = dto.page ?? 1;
+    const limit = dto.limit ?? 20;
+
     const qb = this.productRepo
       .createQueryBuilder('p')
       .select(['p.barcode', 'p.name', 'p.remaining', 'p.sellPrice'])
       .orderBy('p.name', 'ASC')
-      .limit(50);
+      .skip((page - 1) * limit)
+      .take(limit);
 
     if (dto.search) {
       qb.where('(p.name ILIKE :q OR p.barcode ILIKE :q)', { q: `%${dto.search}%` });
     }
 
-    return qb.getMany() as unknown as ProductDropdownItemDto[];
+    const [data, total] = await qb.getManyAndCount();
+    return paginatedResponse(data as unknown as ProductDropdownItemDto[], page, limit, total);
   }
 
   async checkExist(dto: CheckExistProductDto): Promise<{ existing: string[]; missing: string[] }> {

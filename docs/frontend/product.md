@@ -1,6 +1,6 @@
 # Product — Request / Response
 
-> Last updated: 2026-05-29
+> Last updated: 2026-05-29. Dropdown updated to paginated: 2026-05-29.
 > See [/API.md](../../API.md) for envelope and auth. All responses are wrapped.
 
 PK = `barcode` (client-defined string). All routes are under `/api/v1/product`.
@@ -48,14 +48,30 @@ PK = `barcode` (client-defined string). All routes are under `/api/v1/product`.
 
 ---
 
-## GET /product/dropdown-search
+## GET /product/dropdown-search — paginated
 
-**Query:** `search` (string, optional) — matches name or barcode, returns up to 50 items.
+> **Breaking change (2026-05-29):** response is now paginated (same envelope as list endpoints).
+> `page` and `limit` are optional — default to 1 / 20. Use `pagination.hasNextPage` to load more.
 
-**Response `data`:** array of lite objects:
+**Query:**
+| Param | Type | Required | Notes |
+|---|---|---|---|
+| `search` | string | no | matches name or barcode (ILIKE) |
+| `page` | int ≥ 1 | no | default `1` |
+| `limit` | int 1–50 | no | default `20`, max `50` |
+
+**Response:** paginated list of lite objects:
 ```jsonc
-{ "barcode": "...", "name": "...", "remaining": 10, "sellPrice": { "pack": 120, "carton": 1200 } }
+{
+  "data": [
+    { "barcode": "8850999123456", "name": "น้ำดื่ม 500ml", "remaining": 10, "sellPrice": { "pack": 120, "carton": 1200 } }
+  ],
+  "pagination": { "page": 1, "limit": 20, "total": 87, "totalPages": 5, "hasNextPage": true, "hasPreviousPage": false },
+  "meta": { "requestId": "uuid", "timestamp": "..." }
+}
 ```
+
+**Infinite-scroll pattern:** start at `page=1`, on scroll-bottom increment page while `pagination.hasNextPage === true`.
 
 ---
 

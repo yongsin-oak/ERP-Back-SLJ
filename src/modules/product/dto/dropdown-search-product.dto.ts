@@ -1,12 +1,7 @@
+import { DropdownQueryDto } from '@app/common/dto/dropdown-query.dto';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
 
-export class ProductDropdownSearchDto {
-  @ApiProperty({ description: 'ค้นหาจาก name หรือ barcode', required: false })
-  @IsOptional()
-  @IsString()
-  search?: string;
-}
+export class ProductDropdownSearchDto extends DropdownQueryDto {}
 
 export class ProductDropdownItemDto {
   @ApiProperty()
