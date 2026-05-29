@@ -1,7 +1,9 @@
 # Errors & Validation — Frontend Handling
 
+> Last updated: 2026-05-29
+
 How the backend reports failures and what the frontend should do.
-See [/API.md](../../API.md) for the success envelope.
+See [/API.md](../../API.md) for the success envelope (including `meta`).
 
 ## Error envelope
 

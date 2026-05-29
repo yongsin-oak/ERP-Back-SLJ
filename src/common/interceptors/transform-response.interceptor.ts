@@ -17,13 +17,22 @@ const METHOD_MESSAGES: Record<string, string> = {
   DELETE: 'Deleted',
 };
 
-function isPaginatedShape(value: unknown): value is { data: unknown[]; pagination: object } {
+function isPaginatedShape(
+  value: unknown,
+): value is { data: unknown[]; pagination: object; summary?: Record<string, unknown> } {
   return (
     value !== null &&
     typeof value === 'object' &&
     Array.isArray((value as any).data) &&
     typeof (value as any).pagination === 'object'
   );
+}
+
+function buildMeta() {
+  return {
+    requestId: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+  };
 }
 
 @Injectable()
@@ -44,12 +53,14 @@ export class TransformResponseInterceptor implements NestInterceptor {
         const statusCode = res.statusCode;
         const customMessage = this.reflector.get<string>(RESPONSE_MESSAGE_KEY, context.getHandler());
         const message = customMessage ?? METHOD_MESSAGES[req.method] ?? 'OK';
+        const meta = buildMeta();
 
         if (isPaginatedShape(value)) {
-          return { success: true, statusCode, message, data: value.data, pagination: value.pagination };
+          const base = { success: true, statusCode, message, data: value.data, pagination: value.pagination, meta };
+          return value.summary !== undefined ? { ...base, summary: value.summary } : base;
         }
 
-        return { success: true, statusCode, message, data: value };
+        return { success: true, statusCode, message, data: value, meta };
       }),
     );
   }

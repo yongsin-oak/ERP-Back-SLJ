@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsArray, IsInt, Min } from 'class-validator';
 
@@ -36,6 +36,15 @@ export class PaginationDto {
   totalPages: number;
 }
 
+/** Infrastructure metadata injected by TransformResponseInterceptor on every success response. */
+export class ResponseMetaDto {
+  @ApiProperty({ description: 'UUID v4 — correlates this response to server logs' })
+  requestId: string;
+
+  @ApiProperty({ description: 'Server time when the response was generated (ISO 8601)' })
+  timestamp: string;
+}
+
 export class PaginatedResponseDto<T> {
   @IsArray()
   @ApiProperty({ isArray: true })
@@ -54,4 +63,11 @@ export class PaginatedResponseDto<T> {
   })
   @Type(() => PaginationDto)
   pagination: PaginationDto;
+
+  /** Endpoint-specific aggregates over the full result set (not just this page). */
+  @ApiPropertyOptional({
+    description: 'Aggregate/summary data for the whole result set. Shape varies per endpoint.',
+    example: { totalRevenue: 150000, totalQuantityIn: 800 },
+  })
+  summary?: Record<string, unknown>;
 }

@@ -26,6 +26,7 @@ export function paginatedResponse<T>(
   page: number,
   limit: number,
   total: number,
+  summary?: Record<string, unknown>,
 ): PaginatedResponseDto<T> {
   const totalPages = Math.ceil(total / limit);
   const pagination: PaginationDto = {
@@ -36,7 +37,7 @@ export function paginatedResponse<T>(
     hasNextPage: page < totalPages,
     hasPreviousPage: page > 1,
   };
-  return { data, pagination };
+  return summary !== undefined ? { data, pagination, summary } : { data, pagination };
 }
 
 /** @deprecated use paginatedResponse */

@@ -4,7 +4,7 @@ All paths are prefixed with `/api/v1`. Auth is via cookie (send
 `credentials: 'include'`). Roles: `*` = any logged-in role; `SuperAdmin` = admin
 only. See [/API.md](../../API.md) for the response envelope and auth flow.
 
-> Verified against controllers on 2026-05-29.
+> Verified against controllers on 2026-05-29. Updated: 2026-05-29.
 
 ## Auth — `/auth`
 
@@ -158,5 +158,15 @@ Report buckets on `Order.startRecordAt`.
 
 ---
 
-Per-resource request/response fields: see
-[.claude/skills/api/](../../.claude/skills/api/).
+## Per-resource request/response field reference
+
+| Module | Detailed doc |
+|---|---|
+| Auth | [docs/frontend/auth.md](auth.md) |
+| Product + shop-price | [docs/frontend/product.md](product.md) |
+| Order + order-detail | [docs/frontend/order.md](order.md) |
+| Stock entry | [docs/frontend/stock-entry.md](stock-entry.md) |
+| Employee + terminal | [docs/frontend/employee.md](employee.md) |
+| Brand, category, shop, supplier | [docs/frontend/catalog.md](catalog.md) |
+| User management | [docs/frontend/user.md](user.md) |
+| Dashboard, report, audit log | [docs/frontend/analytics.md](analytics.md) |

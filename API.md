@@ -7,7 +7,7 @@ Split docs (each ≤400 lines):
 - [docs/frontend/routes.md](docs/frontend/routes.md) — every endpoint.
 - [docs/frontend/errors.md](docs/frontend/errors.md) — error shape, status codes, validation messages.
 
-> Last verified against code: 2026-05-29. Backend: NestJS 11 + TypeORM + PostgreSQL.
+> Last verified against code: 2026-05-29. Updated envelope shapes: 2026-05-29. Backend: NestJS 11 + TypeORM + PostgreSQL.
 
 ---
 
@@ -59,7 +59,11 @@ Every normal response is wrapped by the server.
 
 ### Success — single
 ```jsonc
-{ "success": true, "statusCode": 200, "message": "OK", "data": { /* entity */ } }
+{
+  "success": true, "statusCode": 200, "message": "OK",
+  "data": { /* entity */ },
+  "meta": { "requestId": "uuid-v4", "timestamp": "2026-05-29T10:00:00.000Z" }
+}
 ```
 
 ### Success — paginated (list endpoints)
@@ -70,9 +74,26 @@ Every normal response is wrapped by the server.
   "pagination": {
     "page": 1, "limit": 10, "total": 100, "totalPages": 10,
     "hasNextPage": true, "hasPreviousPage": false
-  }
+  },
+  // summary: present only on endpoints that return aggregates (e.g. totalRevenue).
+  // Shape is endpoint-specific. Absent when the endpoint has no aggregates.
+  "summary": { "totalRevenue": 150000 },
+  "meta": { "requestId": "uuid-v4", "timestamp": "2026-05-29T10:00:00.000Z" }
 }
 ```
+
+### `meta` (always present on success)
+
+| Field | Type | Description |
+|---|---|---|
+| `requestId` | string (UUID v4) | Unique ID for this request — correlate with server logs |
+| `timestamp` | string (ISO 8601) | Server time the response was generated |
+
+### `summary` (paginated only, optional)
+
+Present only when an endpoint returns aggregate data alongside the list.
+Shape is endpoint-specific (documented per-route where applicable).
+Aggregates cover the **full result set** (all matching rows), not just the current page.
 
 ### Default `message` by method
 GET → `OK` · POST → `Created` · PATCH/PUT → `Updated` · DELETE → `Deleted`
@@ -154,8 +175,15 @@ Send enum fields exactly as written (case-sensitive). An invalid value returns a
 
 ## Per-resource field/shape detail
 
-For exact request/response fields per resource, see the per-module contract docs
-in [.claude/skills/api/](.claude/skills/api/) (auth, product, order, stock-entry,
-brand, category, shop, supplier, employee, terminal, user, dashboard, report,
-audit-log, order-detail) and the route list in
-[docs/frontend/routes.md](docs/frontend/routes.md).
+For exact request/response fields per resource:
+
+| Module | Doc |
+|---|---|
+| Auth | [docs/frontend/auth.md](docs/frontend/auth.md) |
+| Product + shop-price | [docs/frontend/product.md](docs/frontend/product.md) |
+| Order + order-detail | [docs/frontend/order.md](docs/frontend/order.md) |
+| Stock entry | [docs/frontend/stock-entry.md](docs/frontend/stock-entry.md) |
+| Employee + terminal | [docs/frontend/employee.md](docs/frontend/employee.md) |
+| Brand / category / shop / supplier | [docs/frontend/catalog.md](docs/frontend/catalog.md) |
+| User management | [docs/frontend/user.md](docs/frontend/user.md) |
+| Dashboard / report / audit log | [docs/frontend/analytics.md](docs/frontend/analytics.md) |
