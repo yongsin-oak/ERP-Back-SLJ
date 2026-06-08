@@ -16,6 +16,7 @@ export enum StockEntryType {
   IN = 'in',
   ADJUST = 'adjust',
   RETURN = 'return',
+  DAMAGE = 'damage',
 }
 
 @Entity()
@@ -53,6 +54,9 @@ export class StockEntry {
 
   @Column({ nullable: true })
   employeeId: string;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  costPricePerUnit: number | null;
 
   @Column({ nullable: true })
   note: string;

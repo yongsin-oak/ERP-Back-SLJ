@@ -86,6 +86,10 @@ export class StockEntryService {
       case StockEntryType.ADJUST:
         newRemaining = dto.quantity;
         break;
+      case StockEntryType.DAMAGE:
+        newRemaining = previousRemaining - dto.quantity;
+        if (newRemaining < 0) throw badRequest(`สต็อกไม่เพียงพอ (มี ${previousRemaining} ชิ้น)`);
+        break;
       default:
         throw badRequest(`Unknown stock entry type: ${dto.type}`);
     }
@@ -99,6 +103,7 @@ export class StockEntryService {
       quantity: dto.quantity,
       previousRemaining,
       newRemaining,
+      costPricePerUnit: dto.costPricePerUnit ?? null,
       employeeId: dto.employeeId,
       employee,
       note: dto.note,
@@ -139,6 +144,10 @@ export class StockEntryService {
           case StockEntryType.ADJUST:
             newRemaining = item.quantity;
             break;
+          case StockEntryType.DAMAGE:
+            newRemaining = previousRemaining - item.quantity;
+            if (newRemaining < 0) throw badRequest(`สต็อกไม่เพียงพอ (มี ${previousRemaining} ชิ้น)`);
+            break;
           default:
             throw badRequest(`Unknown type: ${item.type}`);
         }
@@ -150,6 +159,7 @@ export class StockEntryService {
           quantity: item.quantity,
           previousRemaining,
           newRemaining,
+          costPricePerUnit: item.costPricePerUnit ?? null,
           employeeId: dto.employeeId,
           employee,
           note: dto.note,

@@ -7,7 +7,9 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
   Min,
   ValidateNested,
@@ -38,6 +40,12 @@ export class CreateStockEntryDto {
   @IsOptional()
   @IsString()
   note?: string;
+
+  @ApiProperty({ required: false, description: 'ราคาต้นทุนต่อหน่วย ณ เวลาที่บันทึก' })
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  costPricePerUnit?: number;
 }
 
 export class BulkStockEntryItemDto {
@@ -54,6 +62,12 @@ export class BulkStockEntryItemDto {
   @IsInt()
   @Min(0)
   quantity: number;
+
+  @ApiProperty({ required: false, description: 'ราคาต้นทุนต่อหน่วย ณ เวลาที่บันทึก' })
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  costPricePerUnit?: number;
 }
 
 export class BulkCreateStockEntryDto {
