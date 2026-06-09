@@ -21,6 +21,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { BulkDeleteEmployeeDto } from './dto/bulk-delete-employee.dto';
+import { BulkCreateEmployeeDto } from './dto/bulk-create-employee.dto';
 import { EmployeeCreateDto } from './dto/create-employee.dto';
 import { EmployeeGetDto } from './dto/get-employee.dto';
 import { EmployeeResponseDto } from './dto/response-employee.dto';
@@ -41,6 +42,14 @@ export class EmployeeController {
   @ApiOkResponse({ type: EmployeeResponseDto, description: 'Create a new employee' })
   async createEmployee(@Body() body: EmployeeCreateDto) {
     return ok(await this.employerService.create(body));
+  }
+
+  @Roles(Role.SuperAdmin)
+  @Post('bulk')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOkResponse({ description: 'Create multiple employees' })
+  async createManyEmployees(@Body() body: BulkCreateEmployeeDto) {
+    return ok(await this.employerService.createMultiple(body.employees));
   }
 
   @Roles('*')

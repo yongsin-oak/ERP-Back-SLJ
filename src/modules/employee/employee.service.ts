@@ -62,6 +62,20 @@ export class EmployeeService {
     return this.employeeRepo.save(newEmployee);
   }
 
+  async createMultiple(dtos: EmployeeCreateDto[]): Promise<Employee[]> {
+    if (!dtos.length) return [];
+    const employees: Employee[] = [];
+    for (const dto of dtos) {
+      await throwIfEntityExists(
+        this.employeeRepo,
+        { where: [{ firstName: dto.firstName, lastName: dto.lastName }] },
+        `Employee "${dto.firstName} ${dto.lastName}"`,
+      );
+      employees.push(this.employeeRepo.create(dto));
+    }
+    return this.employeeRepo.save(employees);
+  }
+
   async update(id: string, data: Partial<EmployeeUpdateDto>): Promise<EmployeeResponseDto> {
     await this.employeeGetEntityOrFail(id);
     await this.employeeRepo.update(id, data);
