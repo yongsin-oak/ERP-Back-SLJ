@@ -11,14 +11,17 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
   Patch,
   Post,
   Query,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
+import { toStreamableFile } from '@app/common/helpers/excel.helper';
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { BulkDeleteProductDto } from './dto/bulk-delete-product.dto';
 import { BulkUpdateProductDto } from './dto/bulk-update-product.dto';
@@ -56,6 +59,14 @@ export class ProductController {
   @ApiBody({ type: ProductCreateDto, isArray: true })
   async createMany(@Body() dtos: ProductCreateDto[]) {
     return ok(await this.productService.createMultiple(dtos));
+  }
+
+  @Roles('*')
+  @Get('export')
+  @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  async exportAll(@Query() query: ProductGetDto): Promise<StreamableFile> {
+    const buffer = await this.productService.exportAll(query);
+    return toStreamableFile(buffer, 'สินค้า');
   }
 
   @Roles('*')

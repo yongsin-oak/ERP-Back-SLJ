@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+import { buildExcelBuffer, ExcelColumn } from '@app/common/helpers/excel.helper';
 import { Employee } from '../employee/entities/employee.entity';
 import { Terminal } from '../terminal/terminal.entity';
 import { OrderDetail } from '../order-detail/entities/orderDetail.entity';
@@ -207,6 +208,57 @@ export class OrderService {
     const missing = dto.ids.filter((id) => !existingSet.has(id));
 
     return { existing, missing };
+  }
+
+  async exportAll(query: Omit<GetOrderDto, 'page' | 'limit'>): Promise<Buffer> {
+    const { search, status, shopId, employeeId, terminalId, dateFrom, dateTo } = query;
+
+    const qb = this.orderRepo
+      .createQueryBuilder('o')
+      .leftJoinAndSelect('o.recordBy', 'recordBy')
+      .leftJoinAndSelect('o.shop', 'shop')
+      .leftJoinAndSelect('o.orderDetails', 'orderDetails')
+      .leftJoinAndSelect('orderDetails.product', 'product')
+      .select([
+        'o',
+        'orderDetails',
+        'recordBy.id', 'recordBy.firstName', 'recordBy.lastName', 'recordBy.nickname',
+        'shop.id', 'shop.name', 'shop.platform',
+        'product.barcode', 'product.name', 'product.sellPrice',
+        'orderDetails.id', 'orderDetails.quantityPack', 'orderDetails.quantityCarton',
+      ])
+      .orderBy('o.createdAt', 'DESC');
+
+    if (search) qb.andWhere('o.note ILIKE :search', { search: `%${search}%` });
+    if (status) qb.andWhere('o.status = :status', { status });
+    if (shopId) qb.andWhere('o.shopId = :shopId', { shopId });
+    if (employeeId) qb.andWhere('o.recordByEmployeeId = :employeeId', { employeeId });
+    if (terminalId) qb.andWhere('o.terminalId = :terminalId', { terminalId });
+    if (dateFrom) qb.andWhere('o.startRecordAt >= :dateFrom', { dateFrom: new Date(dateFrom) });
+    if (dateTo) qb.andWhere('o.startRecordAt <= :dateTo', { dateTo: new Date(dateTo) });
+
+    const orders = await qb.getMany();
+
+    const columns: ExcelColumn<Order>[] = [
+      { header: 'เลขออเดอร์', key: 'id', width: 22, getValue: (r) => r.id },
+      { header: 'ร้านค้า', key: 'shop', width: 18, getValue: (r) => r.shop?.name ?? '' },
+      { header: 'แพลตฟอร์ม', key: 'platform', width: 14, getValue: (r) => r.shop?.platform ?? '' },
+      { header: 'พนักงาน', key: 'employee', width: 18, getValue: (r) => r.recordBy ? `${r.recordBy.firstName} ${r.recordBy.lastName}` : '' },
+      { header: 'สถานะ', key: 'status', width: 12, getValue: (r) => r.status },
+      {
+        header: 'ยอดรวม (฿)', key: 'total', width: 14,
+        getValue: (r) => (r.orderDetails ?? []).reduce((sum, d) => {
+          return sum
+            + (d.quantityPack ?? 0) * (d.product?.sellPrice?.pack ?? 0)
+            + (d.quantityCarton ?? 0) * (d.product?.sellPrice?.carton ?? 0);
+        }, 0),
+      },
+      { header: 'จำนวนรายการ', key: 'itemCount', width: 14, getValue: (r) => r.orderDetails?.length ?? 0 },
+      { header: 'หมายเหตุ', key: 'note', width: 24, getValue: (r) => r.note ?? '' },
+      { header: 'วันที่บันทึก', key: 'startRecordAt', width: 20, getValue: (r) => r.startRecordAt ? new Date(r.startRecordAt).toLocaleString('th-TH') : '' },
+    ];
+
+    return buildExcelBuffer('ออเดอร์', columns, orders);
   }
 
   async bulkDelete(dto: BulkDeleteOrderDto): Promise<{ deleted: OrderResponseDto[]; errors: string[] }> {

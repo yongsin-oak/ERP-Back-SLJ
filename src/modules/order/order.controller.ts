@@ -10,15 +10,17 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
   Patch,
   Post,
   Query,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
-
+import { toStreamableFile } from '@app/common/helpers/excel.helper';
 import { ApiBearerAuth, ApiBody, ApiOkResponse } from '@nestjs/swagger';
 import { BulkDeleteOrderDto } from './dto/bulk-delete-order.dto';
 import { CheckExistOrderDto } from './dto/check-exist-order.dto';
@@ -41,6 +43,14 @@ export class OrderController {
   @ApiOkResponse({ type: OrderResponseDto })
   async createOrder(@Body() body: OrderCreateDto) {
     return ok(await this.orderService.create(body));
+  }
+
+  @Roles('*')
+  @Get('export')
+  @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  async exportAll(@Query() query: GetOrderDto): Promise<StreamableFile> {
+    const buffer = await this.orderService.exportAll(query);
+    return toStreamableFile(buffer, 'ออเดอร์');
   }
 
   @Roles('*')

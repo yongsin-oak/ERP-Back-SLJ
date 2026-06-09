@@ -7,9 +7,12 @@ import { ApiBearerAuth, ApiOkResponse, ApiQuery } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import {
   DailyRevenueDto,
+  DailyRevenueQueryDto,
+  DashboardFilterQueryDto,
   DashboardStatsDto,
   LowStockDto,
   RecentOrderDto,
+  RecentOrdersQueryDto,
 } from './dto/dashboard.dto';
 
 @Controller({ path: 'dashboard', version: '1' })
@@ -21,24 +24,22 @@ export class DashboardController {
   @Roles('*')
   @Get('stats')
   @ApiOkResponse({ type: DashboardStatsDto })
-  async getStats() {
-    return ok(await this.dashboardService.getStats());
+  async getStats(@Query() query: DashboardFilterQueryDto) {
+    return ok(await this.dashboardService.getStats(query));
   }
 
   @Roles('*')
   @Get('daily-revenue')
-  @ApiQuery({ name: 'days', required: false, type: Number })
   @ApiOkResponse({ type: DailyRevenueDto, isArray: true })
-  async getDailyRevenue(@Query('days') days?: string) {
-    return ok(await this.dashboardService.getDailyRevenue(days ? parseInt(days) : 7));
+  async getDailyRevenue(@Query() query: DailyRevenueQueryDto) {
+    return ok(await this.dashboardService.getDailyRevenue(query));
   }
 
   @Roles('*')
   @Get('recent-orders')
-  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiOkResponse({ type: RecentOrderDto, isArray: true })
-  async getRecentOrders(@Query('limit') limit?: string) {
-    return ok(await this.dashboardService.getRecentOrders(limit ? parseInt(limit) : 5));
+  async getRecentOrders(@Query() query: RecentOrdersQueryDto) {
+    return ok(await this.dashboardService.getRecentOrders(query));
   }
 
   @Roles('*')

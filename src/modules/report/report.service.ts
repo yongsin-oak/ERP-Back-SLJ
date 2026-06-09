@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DateTime } from 'luxon';
+import { buildExcelBuffer, ExcelColumn } from '@app/common/helpers/excel.helper';
 import { Order } from '../order/entities/order.entity';
 import { OrderDetail } from '../order-detail/entities/orderDetail.entity';
 import {
@@ -252,5 +253,54 @@ export class ReportService {
       totalMinutes: Math.round(totalMinutes),
       avgMinutesPerOrder: orderCount > 0 ? Math.round(totalMinutes / orderCount) : 0,
     }));
+  }
+
+  async exportSalesSummary(query: SalesSummaryQueryDto): Promise<Buffer> {
+    const rows = await this.getSalesSummary(query);
+    const columns: ExcelColumn<(typeof rows)[0]>[] = [
+      { header: 'วันที่', key: 'date', width: 16, getValue: (r) => r.date },
+      { header: 'ยอดขาย (฿)', key: 'revenue', width: 16, getValue: (r) => r.revenue },
+      { header: 'ต้นทุน (฿)', key: 'cost', width: 16, getValue: (r) => r.cost },
+      { header: 'กำไร (฿)', key: 'profit', width: 16, getValue: (r) => r.profit },
+      { header: 'จำนวนออเดอร์', key: 'orderCount', width: 14, getValue: (r) => r.orderCount },
+    ];
+    return buildExcelBuffer('ยอดขายรวม', columns, rows);
+  }
+
+  async exportSalesByShop(query: SalesByShopQueryDto): Promise<Buffer> {
+    const rows = await this.getSalesByShop(query);
+    const columns: ExcelColumn<(typeof rows)[0]>[] = [
+      { header: 'ร้านค้า', key: 'shopName', width: 20, getValue: (r) => r.shopName },
+      { header: 'แพลตฟอร์ม', key: 'platform', width: 14, getValue: (r) => r.platform },
+      { header: 'ยอดขาย (฿)', key: 'revenue', width: 16, getValue: (r) => r.revenue },
+      { header: 'ต้นทุน (฿)', key: 'cost', width: 16, getValue: (r) => r.cost },
+      { header: 'จำนวนออเดอร์', key: 'orderCount', width: 14, getValue: (r) => r.orderCount },
+    ];
+    return buildExcelBuffer('ยอดขายตามร้าน', columns, rows);
+  }
+
+  async exportSalesByProduct(query: SalesByProductQueryDto): Promise<Buffer> {
+    const rows = await this.getSalesByProduct(query);
+    const columns: ExcelColumn<(typeof rows)[0]>[] = [
+      { header: 'Barcode', key: 'barcode', width: 18, getValue: (r) => r.barcode },
+      { header: 'ชื่อสินค้า', key: 'name', width: 28, getValue: (r) => r.name },
+      { header: 'จำนวน (แพ็ค)', key: 'quantityPack', width: 14, getValue: (r) => r.quantityPack },
+      { header: 'จำนวน (ลัง)', key: 'quantityCarton', width: 14, getValue: (r) => r.quantityCarton },
+      { header: 'ยอดขาย (฿)', key: 'revenue', width: 16, getValue: (r) => r.revenue },
+      { header: 'ต้นทุน (฿)', key: 'cost', width: 16, getValue: (r) => r.cost },
+      { header: 'กำไร (฿)', key: 'profit', width: 16, getValue: (r) => r.profit },
+    ];
+    return buildExcelBuffer('ยอดขายตามสินค้า', columns, rows);
+  }
+
+  async exportManHour(query: ManHourQueryDto): Promise<Buffer> {
+    const rows = await this.getManHour(query);
+    const columns: ExcelColumn<(typeof rows)[0]>[] = [
+      { header: 'พนักงาน', key: 'name', width: 22, getValue: (r) => r.name },
+      { header: 'จำนวนออเดอร์', key: 'orderCount', width: 14, getValue: (r) => r.orderCount },
+      { header: 'รวม (นาที)', key: 'totalMinutes', width: 14, getValue: (r) => r.totalMinutes },
+      { header: 'เฉลี่ย (นาที/ออเดอร์)', key: 'avgMinutesPerOrder', width: 20, getValue: (r) => r.avgMinutesPerOrder },
+    ];
+    return buildExcelBuffer('ชั่วโมงทำงาน', columns, rows);
   }
 }

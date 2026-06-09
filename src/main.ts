@@ -2,20 +2,16 @@ import 'module-alias/register';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { ValidationPipe, LogLevel, VersioningType } from '@nestjs/common';
-import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { Logger } from 'nestjs-pino';
 import cookieParser from 'cookie-parser';
 import { DateTime } from 'luxon';
 
 async function bootstrap() {
   DateTime.now().setZone('Asia/Bangkok').toISO();
 
-  const logLevels: LogLevel[] =
-    process.env.NODE_ENV === 'production'
-      ? ['error', 'warn', 'log']
-      : ['error', 'warn', 'log', 'debug', 'verbose'];
-
-  const app = await NestFactory.create(AppModule, { logger: logLevels });
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(Logger));
   const corsOrigin = [process.env.CORS_ORIGIN, 'http://localhost:5173'];
   const port = process.env.PORT || 3000;
 
@@ -29,7 +25,6 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
-  app.useGlobalFilters(new AllExceptionsFilter());
 
   const config = new DocumentBuilder()
     .setTitle('ERP API')

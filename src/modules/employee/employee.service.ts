@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { buildExcelBuffer, ExcelColumn } from '@app/common/helpers/excel.helper';
 import { EmployeeCreateDto } from './dto/create-employee.dto';
 import { EmployeeResponseDto } from './dto/response-employee.dto';
 import { EmployeeUpdateDto } from './dto/update-emplote.dto';
@@ -110,5 +111,29 @@ export class EmployeeService {
     if (!employee) throw notFound(`Employee ${id} not found`);
     employee.pinHash = await bcrypt.hash(pin, 10);
     await this.employeeRepo.save(employee);
+  }
+
+  async exportAll(query: Omit<EmployeeGetDto, 'page' | 'limit'>): Promise<Buffer> {
+    const { search, department, isActive } = query;
+    const qb = this.employeeRepo.createQueryBuilder('e');
+
+    if (search) qb.andWhere('(e.firstName ILIKE :q OR e.lastName ILIKE :q OR e.nickname ILIKE :q)', { q: `%${search}%` });
+    if (department) qb.andWhere('e.department = :department', { department });
+    if (isActive !== undefined) qb.andWhere('e.isActive = :isActive', { isActive });
+
+    const employees = await qb.getMany();
+
+    const columns: ExcelColumn<Employee>[] = [
+      { header: 'รหัสพนักงาน', key: 'id', width: 16, getValue: (r) => r.id },
+      { header: 'ชื่อ', key: 'firstName', width: 16, getValue: (r) => r.firstName },
+      { header: 'นามสกุล', key: 'lastName', width: 16, getValue: (r) => r.lastName },
+      { header: 'ชื่อเล่น', key: 'nickname', width: 12, getValue: (r) => r.nickname },
+      { header: 'แผนก', key: 'department', width: 14, getValue: (r) => r.department },
+      { header: 'เบอร์โทร', key: 'phoneNumber', width: 14, getValue: (r) => r.phoneNumber ?? '' },
+      { header: 'วันที่เริ่มงาน', key: 'startDate', width: 14, getValue: (r) => r.startDate ? new Date(r.startDate).toLocaleDateString('th-TH') : '' },
+      { header: 'สถานะ', key: 'isActive', width: 10, getValue: (r) => (r.isActive ? 'ใช้งาน' : 'ปิดใช้งาน') },
+    ];
+
+    return buildExcelBuffer('พนักงาน', columns, employees);
   }
 }

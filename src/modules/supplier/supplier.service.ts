@@ -7,6 +7,7 @@ import { PartialType } from '@nestjs/swagger';
 import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
 import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { paginatedResponse } from '@app/common/helpers/response';
+import { buildExcelBuffer, ExcelColumn } from '@app/common/helpers/excel.helper';
 
 export class UpdateSupplierDto extends PartialType(CreateSupplierDto) {}
 
@@ -49,5 +50,24 @@ export class SupplierService {
     const supplier = await getEntityOrNotFound(this.supplierRepo, { where: { id } }, `Supplier ${id}`);
     await this.supplierRepo.delete(id);
     return supplier;
+  }
+
+  async exportAll(search?: string): Promise<Buffer> {
+    const qb = this.supplierRepo.createQueryBuilder('s').orderBy('s.name', 'ASC');
+    if (search) qb.andWhere('s.name ILIKE :q OR s.contactName ILIKE :q', { q: `%${search}%` });
+
+    const suppliers = await qb.getMany();
+
+    const columns: ExcelColumn<Supplier>[] = [
+      { header: 'รหัสซัพพลายเออร์', key: 'id', width: 20, getValue: (r) => r.id },
+      { header: 'ชื่อบริษัท', key: 'name', width: 28, getValue: (r) => r.name },
+      { header: 'ผู้ติดต่อ', key: 'contactName', width: 20, getValue: (r) => r.contactName ?? '' },
+      { header: 'เบอร์โทร', key: 'phone', width: 14, getValue: (r) => r.phone ?? '' },
+      { header: 'อีเมล', key: 'email', width: 22, getValue: (r) => r.email ?? '' },
+      { header: 'เลขผู้เสียภาษี', key: 'taxId', width: 16, getValue: (r) => r.taxId ?? '' },
+      { header: 'ที่อยู่', key: 'address', width: 32, getValue: (r) => r.address ?? '' },
+    ];
+
+    return buildExcelBuffer('ซัพพลายเออร์', columns, suppliers);
   }
 }

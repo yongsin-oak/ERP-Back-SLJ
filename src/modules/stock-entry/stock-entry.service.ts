@@ -13,6 +13,7 @@ import {
   CreateStockEntryDto,
   StockEntryGetDto,
 } from './dto/stock-entry.dto';
+import { buildExcelBuffer, ExcelColumn } from '@app/common/helpers/excel.helper';
 
 @Injectable()
 export class StockEntryService {
@@ -216,5 +217,38 @@ export class StockEntryService {
     }
 
     return { created, errors };
+  }
+
+  async exportAll(query: Omit<StockEntryGetDto, 'page' | 'limit'>): Promise<Buffer> {
+    const { productBarcode, type, employeeId, dateFrom, dateTo } = query;
+    const qb = this.stockEntryRepo
+      .createQueryBuilder('se')
+      .leftJoinAndSelect('se.product', 'product')
+      .leftJoinAndSelect('se.employee', 'employee')
+      .orderBy('se.createdAt', 'DESC');
+
+    if (productBarcode) qb.andWhere('se.productBarcode = :productBarcode', { productBarcode });
+    if (type) qb.andWhere('se.type = :type', { type });
+    if (employeeId) qb.andWhere('se.employeeId = :employeeId', { employeeId });
+    if (dateFrom) qb.andWhere('se.createdAt >= :dateFrom', { dateFrom: new Date(dateFrom) });
+    if (dateTo) qb.andWhere('se.createdAt <= :dateTo', { dateTo: new Date(dateTo) });
+
+    const entries = await qb.getMany();
+
+    const columns: ExcelColumn<StockEntry>[] = [
+      { header: 'รหัสรายการ', key: 'id', width: 28, getValue: (r) => r.id },
+      { header: 'Barcode', key: 'barcode', width: 18, getValue: (r) => r.productBarcode },
+      { header: 'ชื่อสินค้า', key: 'productName', width: 28, getValue: (r) => r.product?.name ?? '' },
+      { header: 'ประเภท', key: 'type', width: 12, getValue: (r) => r.type },
+      { header: 'จำนวน', key: 'quantity', width: 10, getValue: (r) => r.quantity },
+      { header: 'สต็อกก่อน', key: 'previousRemaining', width: 12, getValue: (r) => r.previousRemaining },
+      { header: 'สต็อกหลัง', key: 'newRemaining', width: 12, getValue: (r) => r.newRemaining },
+      { header: 'ราคาทุน/หน่วย', key: 'costPricePerUnit', width: 14, getValue: (r) => r.costPricePerUnit ?? '' },
+      { header: 'พนักงาน', key: 'employee', width: 20, getValue: (r) => r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : '' },
+      { header: 'หมายเหตุ', key: 'note', width: 24, getValue: (r) => r.note ?? '' },
+      { header: 'วันที่บันทึก', key: 'createdAt', width: 20, getValue: (r) => new Date(r.createdAt).toLocaleString('th-TH') },
+    ];
+
+    return buildExcelBuffer('รับเข้า/ปรับสต็อก', columns, entries);
   }
 }

@@ -11,14 +11,17 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
   Patch,
   Post,
   Query,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
+import { toStreamableFile } from '@app/common/helpers/excel.helper';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { BulkDeleteEmployeeDto } from './dto/bulk-delete-employee.dto';
 import { BulkCreateEmployeeDto } from './dto/bulk-create-employee.dto';
@@ -50,6 +53,14 @@ export class EmployeeController {
   @ApiOkResponse({ description: 'Create multiple employees' })
   async createManyEmployees(@Body() body: BulkCreateEmployeeDto) {
     return ok(await this.employerService.createMultiple(body.employees));
+  }
+
+  @Roles('*')
+  @Get('export')
+  @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  async exportAll(@Query() query: EmployeeGetDto): Promise<StreamableFile> {
+    const buffer = await this.employerService.exportAll(query);
+    return toStreamableFile(buffer, 'พนักงาน');
   }
 
   @Roles('*')

@@ -4,15 +4,23 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
-  Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { QueryFailedError } from 'typeorm';
 
+const SENSITIVE_FIELDS = ['password', 'currentPassword', 'newPassword', 'currentPass', 'newPass'];
+
+function maskBody(body: Record<string, unknown>): Record<string, unknown> {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
+  const masked = { ...body };
+  for (const field of SENSITIVE_FIELDS) {
+    if (field in masked) masked[field] = '[Redacted]';
+  }
+  return masked;
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
-  private readonly logger = new Logger(AllExceptionsFilter.name);
-
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse<Response>();
@@ -30,7 +38,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     };
 
     if (statusCode >= 500) {
-      this.logger.error(`${req.method} ${req.url}`, exception instanceof Error ? exception.stack : String(exception));
+      (req as any).log?.error({
+        err: exception,
+        reqBody: maskBody(req.body),
+        resBody: body,
+      });
     }
 
     res.status(statusCode).json(body);
@@ -57,7 +69,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (exception instanceof QueryFailedError) {
       const pg = exception as any;
-      // Unique constraint violation
       if (pg.code === '23505') {
         return {
           statusCode: HttpStatus.CONFLICT,
@@ -65,7 +76,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
           error: 'Conflict',
         };
       }
-      // Foreign key violation
       if (pg.code === '23503') {
         return {
           statusCode: HttpStatus.BAD_REQUEST,

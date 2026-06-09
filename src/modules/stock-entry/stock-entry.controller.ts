@@ -5,7 +5,8 @@ import { NoCache } from '@app/common/decorator/cache-control.decorator';
 import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { ok } from '@app/common/helpers/response';
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, HttpCode, HttpStatus, Post, Query, StreamableFile, UseGuards } from '@nestjs/common';
+import { toStreamableFile } from '@app/common/helpers/excel.helper';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import {
   BulkAdjustStockEntryDto,
@@ -22,6 +23,14 @@ import { StockEntryService } from './stock-entry.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class StockEntryController {
   constructor(private readonly stockEntryService: StockEntryService) {}
+
+  @Roles('*')
+  @Get('export')
+  @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  async exportAll(@Query() query: StockEntryGetDto): Promise<StreamableFile> {
+    const buffer = await this.stockEntryService.exportAll(query);
+    return toStreamableFile(buffer, 'ประวัติสต็อก');
+  }
 
   @Roles('*')
   @Get()

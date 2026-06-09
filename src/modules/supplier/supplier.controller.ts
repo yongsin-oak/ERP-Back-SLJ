@@ -6,7 +6,8 @@ import { NoCache } from '@app/common/decorator/cache-control.decorator';
 import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
 import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { ok } from '@app/common/helpers/response';
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, HttpCode, HttpStatus, Param, Patch, Post, Query, StreamableFile, UseGuards } from '@nestjs/common';
+import { toStreamableFile } from '@app/common/helpers/excel.helper';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { Supplier } from './entities/supplier.entity';
@@ -18,6 +19,14 @@ import { SupplierService, UpdateSupplierDto } from './supplier.service';
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SupplierController {
   constructor(private readonly supplierService: SupplierService) {}
+
+  @Get('export')
+  @Roles('*')
+  @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  async exportAll(@Query('search') search?: string): Promise<StreamableFile> {
+    const buffer = await this.supplierService.exportAll(search);
+    return toStreamableFile(buffer, 'ซัพพลายเออร์');
+  }
 
   @Get()
   @Roles('*')

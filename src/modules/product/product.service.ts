@@ -15,6 +15,8 @@ import { BulkDeleteProductDto } from './dto/bulk-delete-product.dto';
 import { Brand } from '../brand/entities/brand.entity';
 import { Category } from '../category/entities/category.entity';
 import { badRequest, conflict, notFound, paginatedResponse } from '@app/common/helpers/response';
+import { buildExcelBuffer, ExcelColumn } from '@app/common/helpers/excel.helper';
+import { ProductGetDto } from './dto/get-product.dto';
 
 @Injectable()
 export class ProductService {
@@ -246,5 +248,39 @@ export class ProductService {
     snapshot.productBarcode = barcode;
     snapshot.shopId = shopId;
     return snapshot;
+  }
+
+  async exportAll(query: Omit<ProductGetDto, 'page' | 'limit'>): Promise<Buffer> {
+    const { search, brandId, categoryId, isActive } = query;
+    const qb = this.productRepo
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.brand', 'brand')
+      .leftJoinAndSelect('p.category', 'category')
+      .orderBy('p.barcode', 'ASC');
+
+    if (search) qb.andWhere('(p.name ILIKE :q OR p.barcode ILIKE :q)', { q: `%${search}%` });
+    if (brandId) qb.andWhere('p.brandId = :brandId', { brandId });
+    if (categoryId) qb.andWhere('p.categoryId = :categoryId', { categoryId });
+    if (isActive !== undefined) qb.andWhere('p.isActive = :isActive', { isActive });
+
+    const products = await qb.getMany();
+
+    const columns: ExcelColumn<Product>[] = [
+      { header: 'Barcode', key: 'barcode', width: 18, getValue: (r) => r.barcode },
+      { header: 'ชื่อสินค้า', key: 'name', width: 30, getValue: (r) => r.name },
+      { header: 'แบรนด์', key: 'brand', width: 18, getValue: (r) => r.brand?.name ?? '' },
+      { header: 'หมวดหมู่', key: 'category', width: 18, getValue: (r) => r.category?.name ?? '' },
+      { header: 'ราคาทุน (แพ็ค)', key: 'costPack', width: 16, getValue: (r) => r.costPrice?.pack ?? 0 },
+      { header: 'ราคาทุน (ลัง)', key: 'costCarton', width: 16, getValue: (r) => r.costPrice?.carton ?? 0 },
+      { header: 'ราคาขาย (แพ็ค)', key: 'sellPack', width: 16, getValue: (r) => r.sellPrice?.pack ?? 0 },
+      { header: 'ราคาขาย (ลัง)', key: 'sellCarton', width: 16, getValue: (r) => r.sellPrice?.carton ?? 0 },
+      { header: 'สต็อกคงเหลือ', key: 'remaining', width: 14, getValue: (r) => r.remaining ?? 0 },
+      { header: 'สต็อกขั้นต่ำ', key: 'minStock', width: 14, getValue: (r) => r.minStock ?? 0 },
+      { header: 'ชิ้น/แพ็ค', key: 'piecesPerPack', width: 12, getValue: (r) => r.piecesPerPack ?? '' },
+      { header: 'แพ็ค/ลัง', key: 'packPerCarton', width: 12, getValue: (r) => r.packPerCarton ?? '' },
+      { header: 'สถานะ', key: 'isActive', width: 10, getValue: (r) => (r.isActive ? 'ใช้งาน' : 'ปิดใช้งาน') },
+    ];
+
+    return buildExcelBuffer('สินค้า', columns, products);
   }
 }
