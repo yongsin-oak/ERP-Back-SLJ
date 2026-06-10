@@ -20,14 +20,14 @@ export class TerminalService {
 
   async findOne(id: string) {
     const terminal = await this.terminalRepo.findOneBy({ id });
-    if (!terminal) throw notFound(`Terminal ${id} not found`);
+    if (!terminal) throw notFound(`ไม่พบ Terminal ที่ระบุ`);
     const { passwordHash, ...result } = terminal;
     return result;
   }
 
   async create(dto: CreateTerminalDto) {
     const existing = await this.terminalRepo.findOneBy({ terminalCode: dto.terminalCode });
-    if (existing) throw conflict(`Terminal code "${dto.terminalCode}" already exists`);
+    if (existing) throw conflict(`รหัส Terminal "${dto.terminalCode}" มีอยู่แล้ว`);
     const terminal = this.terminalRepo.create({
       terminalCode: dto.terminalCode,
       name: dto.name,
@@ -42,11 +42,11 @@ export class TerminalService {
 
   async update(id: string, dto: UpdateTerminalDto) {
     const terminal = await this.terminalRepo.findOneBy({ id });
-    if (!terminal) throw notFound(`Terminal ${id} not found`);
+    if (!terminal) throw notFound(`ไม่พบ Terminal ที่ระบุ`);
 
     if (dto.terminalCode && dto.terminalCode !== terminal.terminalCode) {
       const exists = await this.terminalRepo.findOneBy({ terminalCode: dto.terminalCode });
-      if (exists) throw conflict(`Terminal code "${dto.terminalCode}" already exists`);
+      if (exists) throw conflict(`รหัส Terminal "${dto.terminalCode}" มีอยู่แล้ว`);
       terminal.terminalCode = dto.terminalCode;
     }
     if (dto.name !== undefined) terminal.name = dto.name;
@@ -61,7 +61,7 @@ export class TerminalService {
 
   async remove(id: string) {
     const terminal = await this.terminalRepo.findOneBy({ id });
-    if (!terminal) throw notFound(`Terminal ${id} not found`);
+    if (!terminal) throw notFound(`ไม่พบ Terminal ที่ระบุ`);
     await this.terminalRepo.remove(terminal);
   }
 }

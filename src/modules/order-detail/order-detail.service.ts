@@ -59,7 +59,7 @@ export class OrderDetailService {
     });
 
     if (!details.length) {
-      throw notFound(`No order details found for order ${orderId}`);
+      throw notFound(`ไม่พบรายละเอียดออเดอร์`);
     }
 
     return details;

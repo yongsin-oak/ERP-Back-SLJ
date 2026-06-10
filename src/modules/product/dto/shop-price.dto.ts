@@ -24,6 +24,12 @@ export class CreateShopPriceDto {
   @Type(() => UnitPriceDto)
   sellPrice: ProductUnitPrice;
 
+  @ApiProperty({ required: false, type: UnitPriceDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => UnitPriceDto)
+  costPrice?: ProductUnitPrice;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsDateString()
@@ -41,6 +47,12 @@ export class UpdateShopPriceDto {
   @ValidateNested()
   @Type(() => UnitPriceDto)
   sellPrice?: ProductUnitPrice;
+
+  @ApiProperty({ required: false, type: UnitPriceDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => UnitPriceDto)
+  costPrice?: ProductUnitPrice;
 
   @ApiProperty({ required: false })
   @IsOptional()

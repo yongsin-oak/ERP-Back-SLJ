@@ -58,6 +58,12 @@ export class StockCountController {
   }
 
   @Roles('*')
+  @Post(':id/apply-adjustments')
+  applyAdjustments(@Param('id') id: string) {
+    return this.stockCountService.applyAdjustments(id);
+  }
+
+  @Roles('*')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.stockCountService.remove(id);

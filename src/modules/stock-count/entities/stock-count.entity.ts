@@ -47,6 +47,9 @@ export class StockCount {
   @Column({ type: 'timestamp', nullable: true })
   completedAt: Date;
 
+  @Column({ type: 'timestamp', nullable: true })
+  adjustedAt: Date | null;
+
   @OneToMany(() => StockCountItem, (item) => item.stockCount)
   items: StockCountItem[];
 

@@ -43,6 +43,10 @@ export class ProductShopPrice {
   sellPrice: ProductUnitPrice;
 
   @ApiProperty({ required: false })
+  @Column('jsonb', { nullable: true })
+  costPrice: ProductUnitPrice;
+
+  @ApiProperty({ required: false })
   @Column({ type: 'timestamp', nullable: true })
   effectiveFrom: Date;
 

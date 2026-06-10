@@ -11,7 +11,7 @@ export async function getEntityOrNotFound<T>(
 ): Promise<T> {
   const entity = await repo.findOne(options);
   if (!entity) {
-    throw new NotFoundException(`${entityName} not found`);
+    throw new NotFoundException(`ไม่พบ ${entityName}`);
   }
   return entity;
 }
@@ -26,6 +26,6 @@ export async function throwIfEntityExists<T>(
 ): Promise<void> {
   const existing = await repo.findOne(options);
   if (existing) {
-    throw new ConflictException(`${entityName} already exists`);
+    throw new ConflictException(`${entityName} มีอยู่ในระบบแล้ว`);
   }
 }

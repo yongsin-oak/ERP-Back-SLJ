@@ -29,25 +29,25 @@ export class SupplierService {
   }
 
   async findOne(id: string): Promise<Supplier> {
-    return getEntityOrNotFound(this.supplierRepo, { where: { id } }, `Supplier ${id}`);
+    return getEntityOrNotFound(this.supplierRepo, { where: { id } }, `ซัพพลายเออร์`);
   }
 
   async create(dto: CreateSupplierDto): Promise<Supplier> {
-    await throwIfEntityExists(this.supplierRepo, { where: { name: dto.name } }, `Supplier "${dto.name}"`);
+    await throwIfEntityExists(this.supplierRepo, { where: { name: dto.name } }, `ซัพพลายเออร์ "${dto.name}"`);
     return this.supplierRepo.save(this.supplierRepo.create(dto));
   }
 
   async update(id: string, dto: UpdateSupplierDto): Promise<Supplier> {
-    const supplier = await getEntityOrNotFound(this.supplierRepo, { where: { id } }, `Supplier ${id}`);
+    const supplier = await getEntityOrNotFound(this.supplierRepo, { where: { id } }, `ซัพพลายเออร์`);
     if (dto.name && dto.name !== supplier.name) {
-      await throwIfEntityExists(this.supplierRepo, { where: { name: dto.name } }, `Supplier "${dto.name}"`);
+      await throwIfEntityExists(this.supplierRepo, { where: { name: dto.name } }, `ซัพพลายเออร์ "${dto.name}"`);
     }
     Object.assign(supplier, dto);
     return this.supplierRepo.save(supplier);
   }
 
   async remove(id: string): Promise<Supplier> {
-    const supplier = await getEntityOrNotFound(this.supplierRepo, { where: { id } }, `Supplier ${id}`);
+    const supplier = await getEntityOrNotFound(this.supplierRepo, { where: { id } }, `ซัพพลายเออร์`);
     await this.supplierRepo.delete(id);
     return supplier;
   }

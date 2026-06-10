@@ -21,7 +21,7 @@ export class EmployeeService {
   ) {}
 
   private async employeeGetEntityOrFail(id: string): Promise<Employee> {
-    return getEntityOrNotFound(this.employeeRepo, { where: { id } }, `Employee ${id}`);
+    return getEntityOrNotFound(this.employeeRepo, { where: { id } }, `พนักงาน`);
   }
 
   async findAll(query: EmployeeGetDto): Promise<PaginatedResponseDto<EmployeeResponseDto>> {
@@ -57,7 +57,7 @@ export class EmployeeService {
     await throwIfEntityExists(
       this.employeeRepo,
       { where: [{ firstName: data.firstName, lastName: data.lastName }] },
-      `Employee "${data.firstName} ${data.lastName}"`,
+      `พนักงาน "${data.firstName} ${data.lastName}"`,
     );
     const newEmployee = this.employeeRepo.create(data);
     return this.employeeRepo.save(newEmployee);
@@ -70,7 +70,7 @@ export class EmployeeService {
       await throwIfEntityExists(
         this.employeeRepo,
         { where: [{ firstName: dto.firstName, lastName: dto.lastName }] },
-        `Employee "${dto.firstName} ${dto.lastName}"`,
+        `พนักงาน "${dto.firstName} ${dto.lastName}"`,
       );
       employees.push(this.employeeRepo.create(dto));
     }
@@ -99,7 +99,7 @@ export class EmployeeService {
         await this.employeeRepo.delete(id);
         deleted.push(id);
       } catch {
-        errors.push(`Employee ${id} not found`);
+        errors.push(`ไม่พบพนักงาน (${id})`);
       }
     }
 
@@ -108,7 +108,7 @@ export class EmployeeService {
 
   async setPin(id: string, pin: string): Promise<void> {
     const employee = await this.employeeRepo.findOneBy({ id });
-    if (!employee) throw notFound(`Employee ${id} not found`);
+    if (!employee) throw notFound(`ไม่พบพนักงาน`);
     employee.pinHash = await bcrypt.hash(pin, 10);
     await this.employeeRepo.save(employee);
   }

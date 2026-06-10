@@ -19,14 +19,14 @@ export class ShopService {
   ) {}
 
   private async shopGetEntityOrFail(id: string): Promise<Shop> {
-    return getEntityOrNotFound(this.shopRepo, { where: { id } }, `Shop ${id}`);
+    return getEntityOrNotFound(this.shopRepo, { where: { id } }, `ร้านค้า`);
   }
 
   private async shopThrowIfExists(name: string, platform: Platform): Promise<void> {
     await throwIfEntityExists(
       this.shopRepo,
       { where: { name, platform } },
-      `Shop "${name}" on ${platform}`,
+      `ร้านค้า "${name}" บน ${platform}`,
     );
   }
 

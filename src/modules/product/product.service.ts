@@ -35,11 +35,11 @@ export class ProductService {
   ) {}
 
   private async productGetEntityOrFail(barcode: string): Promise<Product> {
-    return getEntityOrNotFound(this.productRepo, { where: { barcode } }, `Product ${barcode}`);
+    return getEntityOrNotFound(this.productRepo, { where: { barcode } }, `สินค้า (${barcode})`);
   }
 
   private async productThrowIfExists(barcode: string): Promise<void> {
-    await throwIfEntityExists(this.productRepo, { where: { barcode } }, `barcode ${barcode}`);
+    await throwIfEntityExists(this.productRepo, { where: { barcode } }, `บาร์โค้ด "${barcode}"`);
   }
 
   async create(data: ProductCreateDto): Promise<Product> {
@@ -57,11 +57,11 @@ export class ProductService {
 
       if (dto.brandId) {
         const brand = await this.brandRepo.findOne({ where: { id: dto.brandId } });
-        if (!brand) throw badRequest(`Brand ${dto.brandId} does not exist`);
+        if (!brand) throw badRequest(`ไม่พบแบรนด์ที่เลือก`);
       }
       if (dto.categoryId) {
         const category = await this.categoryRepo.findOne({ where: { id: dto.categoryId } });
-        if (!category) throw badRequest(`Category ${dto.categoryId} does not exist`);
+        if (!category) throw badRequest(`ไม่พบหมวดหมู่ที่เลือก`);
       }
 
       products.push(this.productRepo.create(dto));
@@ -77,6 +77,7 @@ export class ProductService {
     brandId?: string,
     categoryId?: string,
     isActive?: boolean,
+    lowStock?: boolean,
   ): Promise<PaginatedResponseDto<ProductResponseDto>> {
     const qb = this.productRepo
       .createQueryBuilder('p')
@@ -96,6 +97,9 @@ export class ProductService {
     if (isActive !== undefined) {
       qb.andWhere('p.isActive = :isActive', { isActive });
     }
+    if (lowStock) {
+      qb.andWhere('(p.remaining = 0 OR (p.minStock IS NOT NULL AND p.remaining <= p.minStock))');
+    }
 
     const [products, total] = await qb
       .skip((page - 1) * limit)
@@ -109,7 +113,7 @@ export class ProductService {
     return getEntityOrNotFound(
       this.productRepo,
       { where: { barcode }, relations: ['brand', 'category'] },
-      `Product ${barcode}`,
+      `สินค้า (${barcode})`,
     );
   }
 
@@ -132,12 +136,12 @@ export class ProductService {
       try {
         await this.productGetEntityOrFail(item.barcode);
       } catch {
-        errors.push(`Product ${item.barcode} not found`);
+        errors.push(`ไม่พบสินค้า "${item.barcode}"`);
       }
     }
 
     if (errors.length) {
-      throw badRequest(`Bulk update failed: ${errors.join(', ')}`);
+      throw badRequest(`อัปเดตสินค้าไม่สำเร็จ: ${errors.join(', ')}`);
     }
 
     const updatedProducts: Product[] = [];
@@ -191,7 +195,7 @@ export class ProductService {
       try {
         productsToDelete.push(await this.productGetEntityOrFail(barcode));
       } catch {
-        errors.push(`Product ${barcode} not found`);
+        errors.push(`ไม่พบสินค้า "${barcode}"`);
       }
     }
 
@@ -203,7 +207,7 @@ export class ProductService {
         await this.productRepo.remove(product);
         deleted.push(product);
       } catch (error) {
-        errors.push(`Failed to delete ${product.barcode}: ${error instanceof Error ? error.message : String(error)}`);
+        errors.push(`ลบสินค้าไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
@@ -220,11 +224,12 @@ export class ProductService {
     const existing = await this.shopPriceRepo.findOne({
       where: { productBarcode: barcode, shopId: dto.shopId },
     });
-    if (existing) throw conflict(`Shop price for barcode ${barcode} shop ${dto.shopId} already exists`);
+    if (existing) throw conflict(`มีราคาร้านค้านี้อยู่แล้ว`);
     const entry = this.shopPriceRepo.create({
       productBarcode: barcode,
       shopId: dto.shopId,
       sellPrice: dto.sellPrice,
+      costPrice: dto.costPrice,
       effectiveFrom: dto.effectiveFrom ? new Date(dto.effectiveFrom) : undefined,
       effectiveTo: dto.effectiveTo ? new Date(dto.effectiveTo) : undefined,
     });
@@ -233,8 +238,9 @@ export class ProductService {
 
   async updateShopPrice(barcode: string, shopId: string, dto: UpdateShopPriceDto): Promise<ProductShopPrice> {
     const entry = await this.shopPriceRepo.findOne({ where: { productBarcode: barcode, shopId } });
-    if (!entry) throw notFound(`Shop price for barcode ${barcode} shop ${shopId} not found`);
+    if (!entry) throw notFound(`ไม่พบราคาร้านค้าที่ระบุ`);
     if (dto.sellPrice !== undefined) entry.sellPrice = dto.sellPrice;
+    if (dto.costPrice !== undefined) entry.costPrice = dto.costPrice;
     if (dto.effectiveFrom !== undefined) entry.effectiveFrom = dto.effectiveFrom ? new Date(dto.effectiveFrom) : null;
     if (dto.effectiveTo !== undefined) entry.effectiveTo = dto.effectiveTo ? new Date(dto.effectiveTo) : null;
     return this.shopPriceRepo.save(entry);
@@ -242,7 +248,7 @@ export class ProductService {
 
   async deleteShopPrice(barcode: string, shopId: string): Promise<ProductShopPrice> {
     const entry = await this.shopPriceRepo.findOne({ where: { productBarcode: barcode, shopId } });
-    if (!entry) throw notFound(`Shop price for barcode ${barcode} shop ${shopId} not found`);
+    if (!entry) throw notFound(`ไม่พบราคาร้านค้าที่ระบุ`);
     const snapshot = { ...entry } as ProductShopPrice;
     await this.shopPriceRepo.remove(entry);
     snapshot.productBarcode = barcode;

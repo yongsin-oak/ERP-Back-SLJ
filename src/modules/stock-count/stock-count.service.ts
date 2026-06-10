@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { buildExcelBuffer, ExcelColumn } from '@app/common/helpers/excel.helper';
 import { Product } from '../product/entities/product.entity';
+import { StockEntry, StockEntryType } from '../stock-entry/entities/stock-entry.entity';
 import { StockCount, StockCountStatus } from './entities/stock-count.entity';
 import { StockCountItem } from './entities/stock-count-item.entity';
 import {
@@ -20,6 +21,8 @@ export class StockCountService {
     private readonly itemRepo: Repository<StockCountItem>,
     @InjectRepository(Product)
     private readonly productRepo: Repository<Product>,
+    @InjectRepository(StockEntry)
+    private readonly stockEntryRepo: Repository<StockEntry>,
   ) {}
 
   async create(dto: CreateStockCountDto): Promise<StockCount> {
@@ -122,6 +125,46 @@ export class StockCountService {
     });
 
     return { success: true };
+  }
+
+  async applyAdjustments(id: string) {
+    const sc = await this.findOne(id);
+    if (sc.status !== StockCountStatus.COMPLETED) {
+      throw new BadRequestException('ปรับสต็อกได้เฉพาะรายการที่สิ้นสุดแล้ว');
+    }
+    if (sc.adjustedAt) {
+      throw new BadRequestException('รายการนี้ถูกปรับสต็อกไปแล้ว');
+    }
+
+    const diffItems = sc.items.filter((i) => i.diff !== null && i.diff !== 0);
+    if (diffItems.length === 0) {
+      await this.stockCountRepo.update(id, { adjustedAt: new Date() });
+      return { success: true, adjusted: 0 };
+    }
+
+    for (const item of diffItems) {
+      const product = await this.productRepo.findOne({ where: { barcode: item.productBarcode } });
+      if (!product) continue;
+
+      const previousRemaining = product.remaining;
+      const newRemaining = item.countedQty!;
+      const quantity = newRemaining - previousRemaining;
+
+      const entry = this.stockEntryRepo.create({
+        productBarcode: item.productBarcode,
+        type: StockEntryType.ADJUST,
+        quantity,
+        previousRemaining,
+        newRemaining,
+        employeeId: sc.employeeId ?? undefined,
+        note: `ปรับจากการนับสต็อก ${id}`,
+      });
+      await this.stockEntryRepo.save(entry);
+      await this.productRepo.update(item.productBarcode, { remaining: newRemaining });
+    }
+
+    await this.stockCountRepo.update(id, { adjustedAt: new Date() });
+    return { success: true, adjusted: diffItems.length };
   }
 
   async remove(id: string) {

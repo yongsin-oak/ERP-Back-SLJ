@@ -24,4 +24,10 @@ export class ProductGetDto extends PaginatedGetAllDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiProperty({ required: false, description: 'true = show only low stock / out of stock products (remaining=0 or remaining<=minStock)' })
+  @Transform(({ value }) => (value === 'true' ? true : value === 'false' ? false : value))
+  @IsOptional()
+  @IsBoolean()
+  lowStock?: boolean;
 }

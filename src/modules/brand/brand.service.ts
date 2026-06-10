@@ -15,11 +15,11 @@ export class BrandService {
   ) {}
 
   private async brandGetEntityOrFail(id: string): Promise<Brand> {
-    return getEntityOrNotFound(this.brandRepo, { where: { id } }, `Brand ${id}`);
+    return getEntityOrNotFound(this.brandRepo, { where: { id } }, `แบรนด์`);
   }
 
   private async brandThrowIfExists(name: string): Promise<void> {
-    await throwIfEntityExists(this.brandRepo, { where: { name } }, `Brand "${name}"`);
+    await throwIfEntityExists(this.brandRepo, { where: { name } }, `แบรนด์ "${name}"`);
   }
 
   async findAll(query: PaginatedGetAllDto): Promise<PaginatedResponseDto<Brand>> {

@@ -101,13 +101,13 @@ export class OrderService {
     return getEntityOrNotFound(
       this.orderRepo,
       { where: { id }, ...this.orderRelations },
-      `Order ${id}`,
+      `ออเดอร์`,
     );
   }
 
   async create(dto: OrderCreateDto): Promise<OrderResponseDto> {
-    const shop = await getEntityOrNotFound(this.shopRepo, { where: { id: dto.shopId } }, `Shop ${dto.shopId}`);
-    const recordBy = await getEntityOrNotFound(this.employeeRepo, { where: { id: dto.recordBy } }, `Employee ${dto.recordBy}`);
+    const shop = await getEntityOrNotFound(this.shopRepo, { where: { id: dto.shopId } }, `ร้านค้า`);
+    const recordBy = await getEntityOrNotFound(this.employeeRepo, { where: { id: dto.recordBy } }, `พนักงาน`);
 
     const order = this.orderRepo.create({
       id: generateIdWithPrefix({ prefix: 'ORD', withDateTime: true }),
@@ -120,7 +120,7 @@ export class OrderService {
     });
 
     if (dto.terminalId) {
-      order.terminal = await getEntityOrNotFound(this.terminalRepo, { where: { id: dto.terminalId } }, `Terminal ${dto.terminalId}`);
+      order.terminal = await getEntityOrNotFound(this.terminalRepo, { where: { id: dto.terminalId } }, `Terminal`);
       order.terminalId = dto.terminalId;
     }
 
@@ -128,12 +128,12 @@ export class OrderService {
       order.orderDetails = await Promise.all(
         dto.details.map(async (d) => {
           if (!d.quantityPack && !d.quantityCarton) {
-            throw badRequest(`Detail for ${d.productBarcode}: quantityPack or quantityCarton is required`);
+            throw badRequest(`สินค้า "${d.productBarcode}": กรุณาระบุจำนวนแพ็คหรือลัง`);
           }
           const product = await getEntityOrNotFound(
             this.productRepo,
             { where: { barcode: d.productBarcode } },
-            `Product ${d.productBarcode}`,
+            `สินค้า "${d.productBarcode}"`,
           );
           const detail = new OrderDetail();
           detail.product = product;
@@ -149,17 +149,17 @@ export class OrderService {
   }
 
   async update(id: string, dto: OrderUpdateDto): Promise<OrderResponseDto> {
-    const order = await getEntityOrNotFound(this.orderRepo, { where: { id } }, `Order ${id}`);
+    const order = await getEntityOrNotFound(this.orderRepo, { where: { id } }, `ออเดอร์`);
 
     if (dto.shopId) {
-      order.shop = await getEntityOrNotFound(this.shopRepo, { where: { id: dto.shopId } }, `Shop ${dto.shopId}`);
+      order.shop = await getEntityOrNotFound(this.shopRepo, { where: { id: dto.shopId } }, `ร้านค้า`);
     }
     if (dto.recordBy) {
-      order.recordBy = await getEntityOrNotFound(this.employeeRepo, { where: { id: dto.recordBy } }, `Employee ${dto.recordBy}`);
+      order.recordBy = await getEntityOrNotFound(this.employeeRepo, { where: { id: dto.recordBy } }, `พนักงาน`);
     }
     if (dto.terminalId !== undefined) {
       if (dto.terminalId) {
-        order.terminal = await getEntityOrNotFound(this.terminalRepo, { where: { id: dto.terminalId } }, `Terminal ${dto.terminalId}`);
+        order.terminal = await getEntityOrNotFound(this.terminalRepo, { where: { id: dto.terminalId } }, `Terminal`);
       }
       order.terminalId = dto.terminalId ?? null;
     }
@@ -174,7 +174,7 @@ export class OrderService {
           const product = await getEntityOrNotFound(
             this.productRepo,
             { where: { barcode: d.productBarcode } },
-            `Product ${d.productBarcode}`,
+            `สินค้า "${d.productBarcode}"`,
           );
           const detail = new OrderDetail();
           detail.product = product;
@@ -193,7 +193,7 @@ export class OrderService {
     const order = await getEntityOrNotFound(
       this.orderRepo,
       { where: { id }, ...this.orderRelations },
-      `Order ${id}`,
+      `ออเดอร์`,
     );
     await this.orderRepo.remove(order);
     return { ...order, id };
@@ -268,10 +268,10 @@ export class OrderService {
     for (const id of dto.ids) {
       try {
         ordersToDelete.push(
-          await getEntityOrNotFound(this.orderRepo, { where: { id }, ...this.orderRelations }, `Order ${id}`),
+          await getEntityOrNotFound(this.orderRepo, { where: { id }, ...this.orderRelations }, `ออเดอร์`),
         );
       } catch {
-        errors.push(`Order ${id} not found`);
+        errors.push(`ไม่พบออเดอร์ "${id}"`);
       }
     }
 
@@ -284,7 +284,7 @@ export class OrderService {
         await this.orderRepo.remove(order);
         deleted.push({ ...order, id });
       } catch (error) {
-        errors.push(`Failed to delete ${order.id}: ${error instanceof Error ? error.message : String(error)}`);
+        errors.push(`ลบออเดอร์ไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 

@@ -22,11 +22,11 @@ export class CategoryService {
   ) {}
 
   private async categoryGetEntityOrFail(id: string): Promise<Category> {
-    return getEntityOrNotFound(this.categoryRepository, { where: { id } }, `Category ${id}`);
+    return getEntityOrNotFound(this.categoryRepository, { where: { id } }, `หมวดหมู่`);
   }
 
   private async categoryThrowIfExists(name: string): Promise<void> {
-    await throwIfEntityExists(this.categoryRepository, { where: { name } }, `Category "${name}"`);
+    await throwIfEntityExists(this.categoryRepository, { where: { name } }, `หมวดหมู่ "${name}"`);
   }
 
   async create(dto: CategoryCreateDto): Promise<Category> {
@@ -78,7 +78,7 @@ export class CategoryService {
     return getEntityOrNotFound(
       this.categoryRepository,
       { where: { id }, relations: ['parent', 'children'] },
-      `Category ${id}`,
+      `หมวดหมู่`,
     );
   }
 
@@ -99,12 +99,12 @@ export class CategoryService {
       relations: ['children'],
     });
 
-    if (!category) throw notFound(`Category ${id} not found`);
+    if (!category) throw notFound(`ไม่พบหมวดหมู่`);
 
     if (category.children?.length > 0) {
       if (!delChild) {
         throw badRequest(
-          `Category ${id} has ${category.children.length} child(ren). Pass deleteChild=true to force delete.`,
+          `ไม่สามารถลบได้ เนื่องจากหมวดหมู่นี้มี ${category.children.length} หมวดหมู่ย่อย`,
         );
       }
       for (const child of category.children) {
