@@ -1,12 +1,9 @@
 import { PaginatedGetAllDto } from '@app/common/dto/paginated.dto';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString } from 'class-validator';
-export class CategoryGetDto extends PaginatedGetAllDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  parentId?: string;
 
-  @ApiPropertyOptional({ description: 'Search by category name' })
+export class BrandGetDto extends PaginatedGetAllDto {
+  @ApiPropertyOptional({ description: 'Search by brand name' })
   @IsOptional()
   @IsString()
   search?: string;

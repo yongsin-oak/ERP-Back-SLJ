@@ -4,7 +4,8 @@ import { Roles } from '@app/auth/role/roles.decorator';
 import { RolesGuard } from '@app/auth/role/roles.guard';
 import { NoCache } from '@app/common/decorator/cache-control.decorator';
 import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
-import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { SupplierGetDto } from './dto/get-supplier.dto';
 import { ok } from '@app/common/helpers/response';
 import { Body, Controller, Delete, Get, Header, HttpCode, HttpStatus, Param, Patch, Post, Query, StreamableFile, UseGuards } from '@nestjs/common';
 import { toStreamableFile } from '@app/common/helpers/excel.helper';
@@ -31,7 +32,7 @@ export class SupplierController {
   @Get()
   @Roles('*')
   @ApiOkResponsePaginated(Supplier)
-  async getAllSuppliers(@Query() query: PaginatedGetAllDto): Promise<PaginatedResponseDto<Supplier>> {
+  async getAllSuppliers(@Query() query: SupplierGetDto): Promise<PaginatedResponseDto<Supplier>> {
     return ok(await this.supplierService.findAll(query));
   }
 

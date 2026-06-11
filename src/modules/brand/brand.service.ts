@@ -4,7 +4,8 @@ import { Repository } from 'typeorm';
 import { Brand } from './entities/brand.entity';
 import { BrandCreateDto } from './dto/create-brand.dto';
 import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
-import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { BrandGetDto } from './dto/get-brand.dto';
 import { paginatedResponse } from '@app/common/helpers/response';
 
 @Injectable()
@@ -22,12 +23,15 @@ export class BrandService {
     await throwIfEntityExists(this.brandRepo, { where: { name } }, `แบรนด์ "${name}"`);
   }
 
-  async findAll(query: PaginatedGetAllDto): Promise<PaginatedResponseDto<Brand>> {
-    const { page, limit } = query;
-    const [brands, total] = await this.brandRepo.findAndCount({
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+  async findAll(query: BrandGetDto): Promise<PaginatedResponseDto<Brand>> {
+    const { page, limit, search } = query;
+    const qb = this.brandRepo.createQueryBuilder('b');
+    if (search) qb.where('b.name ILIKE :q', { q: `%${search}%` });
+    const [brands, total] = await qb
+      .orderBy('b.name', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
     return paginatedResponse(brands, page, limit, total);
   }
 

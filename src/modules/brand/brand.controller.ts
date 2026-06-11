@@ -4,7 +4,8 @@ import { Roles } from '@app/auth/role/roles.decorator';
 import { RolesGuard } from '@app/auth/role/roles.guard';
 import { NoCache } from '@app/common/decorator/cache-control.decorator';
 import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
-import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { BrandGetDto } from './dto/get-brand.dto';
 import { ok } from '@app/common/helpers/response';
 import {
   Body,
@@ -35,7 +36,7 @@ export class BrandController {
   @Get()
   @Roles('*')
   @ApiOkResponsePaginated(Brand)
-  async getAllBrands(@Query() query: PaginatedGetAllDto): Promise<PaginatedResponseDto<Brand>> {
+  async getAllBrands(@Query() query: BrandGetDto): Promise<PaginatedResponseDto<Brand>> {
     return ok(await this.brandService.findAll(query));
   }
 

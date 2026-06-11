@@ -38,13 +38,15 @@ export class CategoryService {
     return this.categoryRepository.save(category);
   }
 
-  async findAll({ page, limit, parentId }: CategoryGetDto): Promise<PaginatedResponseDto<CategoryResponseDto>> {
-    const [categories, total] = await this.categoryRepository.findAndCount({
-      skip: (page - 1) * limit,
-      take: limit,
-      relations: ['parent'],
-      where: { ...(parentId && { parent: { id: parentId } }) },
-    });
+  async findAll({ page, limit, parentId, search }: CategoryGetDto): Promise<PaginatedResponseDto<CategoryResponseDto>> {
+    const qb = this.categoryRepository.createQueryBuilder('c').leftJoinAndSelect('c.parent', 'parent');
+    if (parentId) qb.andWhere('parent.id = :parentId', { parentId });
+    if (search) qb.andWhere('c.name ILIKE :q', { q: `%${search}%` });
+    const [categories, total] = await qb
+      .orderBy('c.name', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
 
     return paginatedResponse(
       categories.map(({ parent, ...rest }) => ({

@@ -5,7 +5,8 @@ import { Supplier } from './entities/supplier.entity';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { PartialType } from '@nestjs/swagger';
 import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
-import { PaginatedGetAllDto, PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { SupplierGetDto } from './dto/get-supplier.dto';
 import { paginatedResponse } from '@app/common/helpers/response';
 import { buildExcelBuffer, ExcelColumn } from '@app/common/helpers/excel.helper';
 
@@ -18,13 +19,15 @@ export class SupplierService {
     private readonly supplierRepo: Repository<Supplier>,
   ) {}
 
-  async findAll(query: PaginatedGetAllDto): Promise<PaginatedResponseDto<Supplier>> {
-    const { page, limit } = query;
-    const [suppliers, total] = await this.supplierRepo.findAndCount({
-      skip: (page - 1) * limit,
-      take: limit,
-      order: { name: 'ASC' },
-    });
+  async findAll(query: SupplierGetDto): Promise<PaginatedResponseDto<Supplier>> {
+    const { page, limit, search } = query;
+    const qb = this.supplierRepo.createQueryBuilder('s');
+    if (search) qb.where('s.name ILIKE :q', { q: `%${search}%` });
+    const [suppliers, total] = await qb
+      .orderBy('s.name', 'ASC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
     return paginatedResponse(suppliers, page, limit, total);
   }
 

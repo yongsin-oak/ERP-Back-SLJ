@@ -169,7 +169,15 @@ export class ProductService {
       .take(limit);
 
     if (dto.search) {
-      qb.where('(p.name ILIKE :q OR p.barcode ILIKE :q)', { q: `%${dto.search}%` });
+      const tokens = dto.search.trim().split(/\s+/).filter(Boolean);
+      tokens.forEach((token, i) => {
+        qb.andWhere(`(p.name ILIKE :q${i} OR p.barcode ILIKE :q${i})`, { [`q${i}`]: `%${token}%` });
+      });
+      // Relevance: exact barcode first, then barcode starts-with, then name starts-with, then any match
+      qb.orderBy(
+        `CASE WHEN p.barcode = :exact THEN 0 WHEN p.barcode ILIKE :starts THEN 1 WHEN p.name ILIKE :starts THEN 2 ELSE 3 END`,
+        'ASC',
+      ).addOrderBy('p.name', 'ASC').setParameter('exact', dto.search.trim()).setParameter('starts', `${dto.search.trim()}%`);
     }
 
     const [data, total] = await qb.getManyAndCount();
