@@ -12,7 +12,8 @@ import { CategoryUpdateDto } from './dto/update-category.dto';
 import { Category } from './entities/category.entity';
 import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
-import { badRequest, notFound, paginatedResponse } from '@app/common/helpers/response';
+import { badRequest, notFound } from '@app/common/helpers/response';
+import { applyKeywordSearch, paginateQuery } from '@app/common/helpers/query.helper';
 
 @Injectable()
 export class CategoryService {
@@ -39,24 +40,17 @@ export class CategoryService {
   }
 
   async findAll({ page, limit, parentId, search }: CategoryGetDto): Promise<PaginatedResponseDto<CategoryResponseDto>> {
-    const qb = this.categoryRepository.createQueryBuilder('c').leftJoinAndSelect('c.parent', 'parent');
+    const qb = this.categoryRepository
+      .createQueryBuilder('c')
+      .leftJoinAndSelect('c.parent', 'parent')
+      .orderBy('c.name', 'ASC');
     if (parentId) qb.andWhere('parent.id = :parentId', { parentId });
-    if (search) qb.andWhere('c.name ILIKE :q', { q: `%${search}%` });
-    const [categories, total] = await qb
-      .orderBy('c.name', 'ASC')
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
+    applyKeywordSearch(qb, ['c.name'], search);
 
-    return paginatedResponse(
-      categories.map(({ parent, ...rest }) => ({
-        ...rest,
-        parentId: parent?.id ?? null,
-      })),
-      page,
-      limit,
-      total,
-    );
+    return paginateQuery(qb, page, limit, ({ parent, ...rest }) => ({
+      ...rest,
+      parentId: parent?.id ?? null,
+    }));
   }
 
   async findAllTree(): Promise<CategoryResponseWithChildrenDto[]> {

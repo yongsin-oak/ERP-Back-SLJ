@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Brand } from './entities/brand.entity';
 import { BrandCreateDto } from './dto/create-brand.dto';
 import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { BrandGetDto } from './dto/get-brand.dto';
-import { paginatedResponse } from '@app/common/helpers/response';
+import { applyKeywordSearch, paginateQuery } from '@app/common/helpers/query.helper';
+import { conflict } from '@app/common/helpers/response';
 
 @Injectable()
 export class BrandService {
@@ -25,14 +26,9 @@ export class BrandService {
 
   async findAll(query: BrandGetDto): Promise<PaginatedResponseDto<Brand>> {
     const { page, limit, search } = query;
-    const qb = this.brandRepo.createQueryBuilder('b');
-    if (search) qb.where('b.name ILIKE :q', { q: `%${search}%` });
-    const [brands, total] = await qb
-      .orderBy('b.name', 'ASC')
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
-    return paginatedResponse(brands, page, limit, total);
+    const qb = this.brandRepo.createQueryBuilder('b').orderBy('b.name', 'ASC');
+    applyKeywordSearch(qb, ['b.name'], search);
+    return paginateQuery(qb, page, limit);
   }
 
   async findOne(id: string): Promise<Brand> {
@@ -46,12 +42,15 @@ export class BrandService {
   }
 
   async createMultiple(dtos: BrandCreateDto[]): Promise<Brand[]> {
-    const brands: Brand[] = [];
-    for (const dto of dtos) {
-      await this.brandThrowIfExists(dto.name);
-      brands.push(this.brandRepo.create(dto));
+    if (!dtos.length) return [];
+
+    const names = dtos.map((d) => d.name);
+    const existing = await this.brandRepo.find({ where: { name: In(names) }, select: { name: true } });
+    if (existing.length) {
+      throw conflict(`แบรนด์ "${existing.map((b) => b.name).join('", "')}" มีอยู่ในระบบแล้ว`);
     }
-    return this.brandRepo.save(brands);
+
+    return this.brandRepo.save(dtos.map((dto) => this.brandRepo.create(dto)));
   }
 
   async update(id: string, name: string, description?: string): Promise<Brand> {

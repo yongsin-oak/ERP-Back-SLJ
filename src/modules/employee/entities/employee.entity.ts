@@ -6,6 +6,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -45,6 +46,7 @@ export class Employee {
   startDate?: Date;
 
   @ApiProperty()
+  @Index()
   @Column()
   department: Role;
 

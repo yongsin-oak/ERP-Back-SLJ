@@ -3,8 +3,12 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { Terminal } from './terminal.entity';
-import { CreateTerminalDto, UpdateTerminalDto } from './dto/terminal.dto';
+import { CreateTerminalDto, GetTerminalDto, UpdateTerminalDto } from './dto/terminal.dto';
 import { conflict, notFound } from '@app/common/helpers/response';
+import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { applyKeywordSearch, paginateQuery } from '@app/common/helpers/query.helper';
+
+type TerminalView = Omit<Terminal, 'passwordHash' | 'generateId'>;
 
 @Injectable()
 export class TerminalService {
@@ -13,9 +17,12 @@ export class TerminalService {
     private readonly terminalRepo: Repository<Terminal>,
   ) {}
 
-  async findAll() {
-    const terminals = await this.terminalRepo.find({ order: { createdAt: 'DESC' } });
-    return terminals.map(({ passwordHash, ...t }) => t);
+  async findAll(query: GetTerminalDto): Promise<PaginatedResponseDto<TerminalView>> {
+    const { page = 1, limit = 20, search } = query;
+    const qb = this.terminalRepo.createQueryBuilder('t').orderBy('t.createdAt', 'DESC');
+    applyKeywordSearch(qb, ['t.name', 't.terminalCode'], search);
+    // passwordHash is select:false, so it isn't loaded; strip defensively anyway.
+    return paginateQuery(qb, page, limit, ({ passwordHash, ...t }) => t);
   }
 
   async findOne(id: string) {

@@ -6,6 +6,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryColumn,
@@ -33,11 +34,13 @@ export class StockEntry {
   @JoinColumn({ name: 'productBarcode' })
   product: Product;
 
+  @Index()
   @Column()
   productBarcode: string;
 
+  @Index()
   @Column({ type: 'enum', enum: StockEntryType })
-  type: StockEntryType; 
+  type: StockEntryType;
 
   @Column('int')
   quantity: number;
@@ -52,6 +55,7 @@ export class StockEntry {
   @JoinColumn({ name: 'employeeId' })
   employee: Employee;
 
+  @Index()
   @Column({ nullable: true })
   employeeId: string;
 
@@ -61,6 +65,7 @@ export class StockEntry {
   @Column({ nullable: true })
   note: string;
 
+  @Index()
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 

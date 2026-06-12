@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -18,7 +19,7 @@ import { Role } from '@app/auth/role/role.enum';
 import { NoCache } from '@app/common/decorator/cache-control.decorator';
 import { ok } from '@app/common/helpers/response';
 import { TerminalService } from './terminal.service';
-import { CreateTerminalDto, UpdateTerminalDto } from './dto/terminal.dto';
+import { CreateTerminalDto, GetTerminalDto, UpdateTerminalDto } from './dto/terminal.dto';
 
 @ApiTags('terminal')
 @ApiBearerAuth()
@@ -30,8 +31,8 @@ export class TerminalController {
   constructor(private readonly terminalService: TerminalService) {}
 
   @Get()
-  async findAll() {
-    return ok(await this.terminalService.findAll());
+  async findAll(@Query() query: GetTerminalDto) {
+    return ok(await this.terminalService.findAll(query));
   }
 
   @Get(':id')

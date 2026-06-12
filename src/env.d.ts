@@ -13,6 +13,8 @@ declare namespace NodeJS {
     POSTGRES_USER?: string;
     POSTGRES_PASSWORD?: string;
     POSTGRES_DB?: string;
+    // Override TypeORM schema auto-sync per environment (default: on in dev, off in prod)
+    DB_SYNCHRONIZE?: 'true' | 'false';
 
     // CORS
     CORS_ORIGIN?: string;

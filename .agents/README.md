@@ -5,19 +5,6 @@ Runtime: **Bun** | DB: **PostgreSQL + TypeORM** | Auth: **JWT via HTTP-only cook
 
 ---
 
-## RULE: อัปเดต API.md ทุกครั้ง
-
-**เมื่อมีการเปลี่ยนแปลงใดๆ ต่อไปนี้ต้องอัปเดต `API.md` ทุกครั้ง:**
-- เพิ่ม/ลบ/เปลี่ยน endpoint (path, method, query, body, response)
-- เพิ่ม module ใหม่
-- เปลี่ยน response shape (ทั้ง success และ error)
-- เปลี่ยน auth/versioning logic
-- เปลี่ยน enum values หรือ ID format
-
-`API.md` อยู่ที่ root ของ repo และเป็น source of truth สำหรับ frontend agent
-
----
-
 ## Stack
 
 - **Framework**: NestJS 11 + Express adapter
@@ -269,7 +256,6 @@ SuperAdmin — full access
 - **No comments**: ห้ามเขียน comment อธิบาย WHAT — comment ใช้เฉพาะ WHY ที่ไม่ชัดเจน
 - **Path aliases**: `@app/*` → `./src/*`, `@db/*` → `./db/*`
 - **No `baseUrl`**: TypeScript 6.0 — ไม่ใช้ `baseUrl` ใน tsconfig แล้ว, ใช้ explicit paths แทน
-- **API.md**: ต้องอัปเดตทุกครั้งที่มีการเปลี่ยนแปลง endpoint หรือ response shape
 
 ---
 

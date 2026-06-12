@@ -4,6 +4,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   PrimaryColumn,
   Unique,
   UpdateDateColumn,
@@ -35,6 +36,7 @@ export class Shop {
   description?: string;
 
   @ApiProperty()
+  @Index()
   @Column()
   platform: Platform;
 

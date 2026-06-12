@@ -104,10 +104,16 @@ generateIdWithPrefix({ prefix?, withDateTime = true, length = 10 })
 `encryptData(text, keyBase64)` / `decryptData(enc, iv, keyBase64)` — AES-GCM via
 WebCrypto. Key is base64. Use these for symmetric encryption; don't hand-roll crypto.
 
-## Middleware
+## Logging & request id — `nestjs-pino`
 
-- `RequestIdMiddleware` — assigns `req.requestId` (uuid) and `X-Request-ID` header.
-- `LoggingMiddleware` — request logging. Both run for all routes via AppModule.
+Request logging and the request id are handled by **`nestjs-pino`** + `pino-http`
+(configured in `AppModule` via `LoggerModule.forRoot`), **not** custom middleware
+(the old `RequestIdMiddleware`/`LoggingMiddleware` were removed).
+
+- `genReqId` mints a UUID per request, sets the `X-Request-ID` response header, and
+  binds it to a request-scoped child logger (`req.log`).
+- For request-correlated logs, inject `PinoLogger` (singleton-safe via `req.log`)
+  or use `(req as any).log`. `AllExceptionsFilter` logs 5xx through it. See [[standard-logging]].
 
 ## Conventions & gotchas
 

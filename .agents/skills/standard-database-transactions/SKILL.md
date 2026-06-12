@@ -19,12 +19,19 @@ write runs in a single transaction.** A partial success is a bug.
 A single `repo.save(oneEntity)` or a single cascade `save` (TypeORM wraps one
 `save` in its own transaction) does **not** need an explicit transaction.
 
-## Known gaps in this repo (documented, not yet fixed)
+## Implemented reference (stock writes)
 
-- **stock-entry** ([src/modules/stock-entry/stock-entry.service.ts](../../../src/modules/stock-entry/stock-entry.service.ts),
-  see [[route-stock-entry]]) mutates `product.remaining` **and** saves a
-  `stock_entry` **without** a transaction. If the second write fails, stock and
-  its audit trail desync. This is the canonical case to fix first.
+- **stock-entry** / **stock-count** wrap the `product.remaining` update **and** the
+  `stock_entry` write in one `dataSource.transaction`, loading the product with a
+  **`pessimistic_write`** lock (`SELECT … FOR UPDATE`) so the read-modify-write
+  can't lose a concurrent update — see `applyStockEntry` in
+  [stock-entry.service.ts](../../../src/modules/stock-entry/stock-entry.service.ts)
+  and `applyAdjustments` in
+  [stock-count.service.ts](../../../src/modules/stock-count/stock-count.service.ts).
+  Copy this shape for any new multi-table stock/inventory write. Bulk endpoints run
+  **one transaction per item** (partial-success error collection); apply-all
+  operations run one transaction and lock rows in a deterministic order (sorted by
+  key) to avoid deadlock.
 - **order** creation persists order + cascaded details via one `save` (cascade) —
   acceptable today — but if order creation ever also writes stock or audit rows,
   it must become transactional.
@@ -36,10 +43,15 @@ A single `repo.save(oneEntity)` or a single cascade `save` (TypeORM wraps one
 constructor(private readonly dataSource: DataSource) {}
 
 await this.dataSource.transaction(async (manager) => {
-  const product = await manager.findOne(Product, { where: { barcode } });
-  product.remaining += qty;
-  await manager.save(product);
-  await manager.save(manager.create(StockEntry, { ... }));
+  // Lock the row so concurrent writers serialise (no lost update). Keep this read
+  // join-free — Postgres rejects FOR UPDATE on the nullable side of an outer join.
+  const product = await manager.findOne(Product, {
+    where: { barcode },
+    lock: { mode: 'pessimistic_write' },
+  });
+  const previousRemaining = product.remaining;
+  await manager.update(Product, { barcode }, { remaining: previousRemaining + qty });
+  await manager.save(manager.create(StockEntry, { previousRemaining, ... }));
 });
 ```
 Everything via the passed `manager` commits or rolls back together.
@@ -55,7 +67,9 @@ await manager
   .execute();
 ```
 Avoids the read-modify-write race entirely. Use for `in`/`return` increments;
-`adjust` (absolute set) can be a plain `set({ remaining: qty })`.
+`adjust` (absolute set) can be a plain `set({ remaining: qty })`. **But** when you
+must record the *previous* value (as `stock_entry` does for ADJUST), you can't get
+it from `SET … RETURNING` — use Option A's `pessimistic_write` lock instead.
 
 ### Option C — QueryRunner (manual)
 Use when you need explicit `startTransaction`/`commit`/`rollback` with custom
@@ -74,6 +88,6 @@ isolation. Always `release()` in `finally`.
 
 ## Related
 
-- [[route-stock-entry]] (the gap) · [[route-order]] (cascade write) ·
+- [[route-stock-entry]] (stock write pattern) · [[route-order]] (cascade write) ·
   [[standard-performance]] (atomic update, concurrency) ·
   [[standard-shared-helpers]].

@@ -6,6 +6,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -39,6 +40,7 @@ export class Category {
   @JoinColumn({ name: 'parentId' })
   parent?: Category;
 
+  @Index()
   @Column({ nullable: true })
   @ApiProperty({ nullable: true, example: 3 })
   parentId?: string;

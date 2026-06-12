@@ -6,6 +6,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -23,10 +24,12 @@ export class Order {
   @PrimaryColumn()
   id: string;
 
+  @Index()
   @ManyToOne(() => Employee, { nullable: true })
   @JoinColumn({ name: 'recordByEmployeeId' })
   recordBy: Employee;
 
+  @Index()
   @ManyToOne(() => Terminal, { nullable: true })
   @JoinColumn({ name: 'terminalId' })
   terminal: Terminal;
@@ -34,6 +37,7 @@ export class Order {
   @Column({ nullable: true })
   terminalId: string;
 
+  @Index()
   @ManyToOne(() => Shop, { nullable: true })
   @JoinColumn({ name: 'shopId' })
   shop: Shop;
@@ -45,9 +49,11 @@ export class Order {
   @JoinColumn()
   orderDetails: OrderDetail[];
 
+  @Index()
   @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.Completed })
   status: OrderStatus;
 
+  @Index()
   @Column({ type: 'timestamp', nullable: true })
   startRecordAt: Date;
 
@@ -57,6 +63,7 @@ export class Order {
   @Column({ nullable: true })
   note: string;
 
+  @Index()
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 

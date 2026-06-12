@@ -4,7 +4,8 @@ import { Repository } from 'typeorm';
 import { OrderDetail } from './entities/orderDetail.entity';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { GetOrderDetailDto } from './dto/get-order-detail.dto';
-import { notFound, paginatedResponse } from '@app/common/helpers/response';
+import { notFound } from '@app/common/helpers/response';
+import { applyDateRange, paginateQuery } from '@app/common/helpers/query.helper';
 
 @Injectable()
 export class OrderDetailService {
@@ -21,25 +22,11 @@ export class OrderDetailService {
       .leftJoinAndSelect('d.product', 'product')
       .orderBy('d.createdAt', 'DESC');
 
-    if (orderId) {
-      qb.andWhere('d.orderId = :orderId', { orderId });
-    }
-    if (productBarcode) {
-      qb.andWhere('d.productBarcode = :productBarcode', { productBarcode });
-    }
-    if (dateFrom) {
-      qb.andWhere('d.createdAt >= :dateFrom', { dateFrom: new Date(dateFrom) });
-    }
-    if (dateTo) {
-      qb.andWhere('d.createdAt <= :dateTo', { dateTo: new Date(dateTo) });
-    }
+    if (orderId) qb.andWhere('d.orderId = :orderId', { orderId });
+    if (productBarcode) qb.andWhere('d.productBarcode = :productBarcode', { productBarcode });
+    applyDateRange(qb, 'd.createdAt', dateFrom, dateTo);
 
-    const [orderDetails, total] = await qb
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
-
-    return paginatedResponse(orderDetails, page, limit, total);
+    return paginateQuery(qb, page, limit);
   }
 
   async findByOrderId(orderId: string): Promise<OrderDetail[]> {

@@ -23,7 +23,7 @@ export class ActorGuard implements CanActivate {
 
     const req = context.switchToHttp().getRequest<Request>();
     const actorToken = req.headers['x-actor-token'] as string;
-    if (!actorToken) throw new UnauthorizedException('Actor token required');
+    if (!actorToken) throw new UnauthorizedException('กรุณายืนยัน PIN ก่อนดำเนินการ');
 
     try {
       const payload = this.verifyToken(actorToken);
@@ -36,7 +36,7 @@ export class ActorGuard implements CanActivate {
       };
       return true;
     } catch {
-      throw new UnauthorizedException('Invalid or expired actor token');
+      throw new UnauthorizedException('การยืนยัน PIN หมดอายุ กรุณายืนยัน PIN ใหม่อีกครั้ง');
     }
   }
 

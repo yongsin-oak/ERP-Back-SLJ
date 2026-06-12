@@ -7,6 +7,7 @@ import {
   ManyToOne,
   JoinColumn,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { Dimensions, ProductUnitPrice } from './product.interface';
@@ -22,6 +23,7 @@ export class Product {
   barcode: string;
 
   @ApiProperty()
+  @Index()
   @Column()
   name: string;
 
@@ -32,6 +34,7 @@ export class Product {
   @ApiProperty({ type: () => Brand, required: false })
   brand: Brand;
 
+  @Index()
   @Column({ nullable: true })
   brandId: string;
 
@@ -42,6 +45,7 @@ export class Product {
   @JoinColumn({ name: 'categoryId' })
   category: Category;
 
+  @Index()
   @Column({ nullable: true })
   categoryId: string;
 

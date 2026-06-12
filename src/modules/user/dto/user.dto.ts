@@ -1,6 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsString, MinLength } from 'class-validator';
 import { Role } from '@app/auth/role/role.enum';
+import { PaginatedListQueryDto } from '@app/common/dto/paginated.dto';
+
+export class GetUserDto extends PaginatedListQueryDto {}
 
 export class CreateUserDto {
   @ApiProperty({ example: 'john_doe' })

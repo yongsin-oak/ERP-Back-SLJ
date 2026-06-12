@@ -1,5 +1,5 @@
 import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix.helper';
-import { BeforeInsert, Column, CreateDateColumn, Entity, PrimaryColumn } from 'typeorm';
+import { BeforeInsert, Column, CreateDateColumn, Entity, Index, PrimaryColumn } from 'typeorm';
 
 export enum AuditActorType {
   User = 'user',
@@ -56,6 +56,7 @@ export class AuditLog {
   @Column({ nullable: true })
   ipAddress: string;
 
+  @Index()
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 }

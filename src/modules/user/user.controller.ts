@@ -14,10 +14,12 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
-import { CreateUserDto, UpdateUserRoleDto, UserResponseDto } from './dto/user.dto';
+import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import { CreateUserDto, GetUserDto, UpdateUserRoleDto, UserResponseDto } from './dto/user.dto';
 import { UserService } from './user.service';
 
 @ApiTags('User Management')
@@ -37,9 +39,9 @@ export class UserController {
 
   @Roles(Role.SuperAdmin)
   @Get()
-  @ApiOkResponse({ type: UserResponseDto, isArray: true })
-  async findAll() {
-    return ok(await this.userService.findAll());
+  @ApiOkResponsePaginated(UserResponseDto)
+  async findAll(@Query() query: GetUserDto) {
+    return ok(await this.userService.findAll(query));
   }
 
   @Roles(Role.SuperAdmin)

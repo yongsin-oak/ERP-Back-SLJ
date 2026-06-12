@@ -21,9 +21,12 @@ export class AuthService {
 
   async validateUser(username: string, password: string): Promise<any> {
     const user = await this.usersRepo.findOneBy({ username });
-    if (!user) throw new UnauthorizedException('User not found');
+    // Same message for "no such user" and "wrong password" — avoids leaking
+    // which usernames exist (user enumeration).
+    const invalidCredentials = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+    if (!user) throw new UnauthorizedException(invalidCredentials);
     if (!(await bcrypt.compare(password, user.password))) {
-      throw new UnauthorizedException('Invalid password');
+      throw new UnauthorizedException(invalidCredentials);
     }
     const { password: _pw, refreshTokenHash: _rth, ...result } = user as any;
     return result;
@@ -38,7 +41,7 @@ export class AuthService {
   }
 
   async refresh(providedRefreshToken: string) {
-    if (!providedRefreshToken) throw new UnauthorizedException('Unauthorized');
+    if (!providedRefreshToken) throw new UnauthorizedException('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
     let userId: string;
     try {
       const decoded = this.jwtService.verify(providedRefreshToken, {
@@ -47,12 +50,12 @@ export class AuthService {
       if (decoded?.type !== 'refresh' || !decoded?.sub) throw new Error();
       userId = decoded.sub;
     } catch {
-      throw new UnauthorizedException('Unauthorized');
+      throw new UnauthorizedException('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
     }
     const user = await this.usersRepo.findOne({ where: { id: userId } });
-    if (!user || !user.refreshTokenHash) throw new UnauthorizedException('Unauthorized');
+    if (!user || !user.refreshTokenHash) throw new UnauthorizedException('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
     const isMatch = await bcrypt.compare(providedRefreshToken, user.refreshTokenHash);
-    if (!isMatch) throw new UnauthorizedException('Unauthorized');
+    if (!isMatch) throw new UnauthorizedException('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
     const newAccessToken = this.signAccessToken(user);
     const newRefreshToken = await this.signRefreshToken(user);
     const newHash = await bcrypt.hash(newRefreshToken, 10);
@@ -67,7 +70,7 @@ export class AuthService {
   async updatePassword(username: string, currentPass: string, newPass: string) {
     const user = await this.usersRepo.findOne({ where: { username } });
     if (!user || !(await bcrypt.compare(currentPass, user.password))) {
-      throw new UnauthorizedException('Invalid current password');
+      throw new UnauthorizedException('รหัสผ่านปัจจุบันไม่ถูกต้อง');
     }
     user.password = await bcrypt.hash(newPass, 10);
     return this.usersRepo.save(user);
@@ -77,9 +80,12 @@ export class AuthService {
 
   async validateTerminal(terminalCode: string, password: string) {
     const terminal = await this.terminalRepo.findOneBy({ terminalCode, isActive: true });
-    if (!terminal) throw new UnauthorizedException('Terminal not found or inactive');
+    // Generic message so an invalid/disabled terminal code can't be distinguished
+    // from a wrong password.
+    const invalidTerminal = 'รหัสเครื่องหรือรหัสผ่านไม่ถูกต้อง';
+    if (!terminal) throw new UnauthorizedException(invalidTerminal);
     const match = await bcrypt.compare(password, terminal.passwordHash);
-    if (!match) throw new UnauthorizedException('Invalid terminal credentials');
+    if (!match) throw new UnauthorizedException(invalidTerminal);
     return terminal;
   }
 
@@ -108,10 +114,10 @@ export class AuthService {
       .getOne();
 
     if (!employee || !employee.pinHash) {
-      throw new UnauthorizedException('Employee not found or PIN not set');
+      throw new UnauthorizedException('พนักงานคนนี้ยังไม่ได้ตั้งรหัส PIN');
     }
     const match = await bcrypt.compare(pin, employee.pinHash);
-    if (!match) throw new UnauthorizedException('Invalid PIN');
+    if (!match) throw new UnauthorizedException('รหัส PIN ไม่ถูกต้อง');
 
     const expiresInSeconds = this.parseExpiry(process.env.ACTOR_TOKEN_EXPIRES_IN ?? '5m');
     const payload = {

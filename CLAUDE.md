@@ -38,7 +38,7 @@ Skills live one level under `.claude/skills/` (nesting is not discovered):
   `standard-constants-no-hardcode`, `standard-database-transactions`,
   `standard-performance`, `standard-project-structure`, `standard-shared-helpers`,
   `standard-testing`, `standard-naming-conventions`).
-The frontend API contract is in **`/API.md`** + **`docs/frontend/`**.
+The frontend API contract is exposed via **Swagger** at `/swagger` (auto-generated from controllers + DTOs).
 
 Hard rules (see `.claude/README.md` for detail):
 
@@ -51,8 +51,6 @@ Hard rules (see `.claude/README.md` for detail):
 - Use `generateIdWithPrefix` for IDs; match the existing per-table ID format.
 - Path aliases: `@app/*` → `src/*`, `@db/*` → `db/*`. No `baseUrl`.
 - Comments explain **WHY**, never **WHAT**. Match surrounding code style.
-- Keep `API.md` / the relevant `.claude/skills/api/*.md` in sync when you change
-  any endpoint, response shape, enum, or ID format.
 
 ## 4. Be careful with risky actions
 
@@ -91,5 +89,5 @@ bun run test           # jest
 - Architecture & domain model: `.claude/README.md`
 - Module dev guides: `.claude/skills/route-<module>/SKILL.md`
 - Engineering standards: `.claude/skills/standard-<topic>/SKILL.md`
-- Frontend API contract: `/API.md`, `docs/frontend/*.md`, `.claude/skills/api/*.md`
+- Frontend API contract: Swagger at `/swagger` (auto-generated)
 - Deploy / Docker: `DEPLOY.md`, `.claude/skills/docker/SKILL.md`

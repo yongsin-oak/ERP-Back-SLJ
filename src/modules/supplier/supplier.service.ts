@@ -7,7 +7,7 @@ import { PartialType } from '@nestjs/swagger';
 import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { SupplierGetDto } from './dto/get-supplier.dto';
-import { paginatedResponse } from '@app/common/helpers/response';
+import { applyKeywordSearch, paginateQuery } from '@app/common/helpers/query.helper';
 import { buildExcelBuffer, ExcelColumn } from '@app/common/helpers/excel.helper';
 
 export class UpdateSupplierDto extends PartialType(CreateSupplierDto) {}
@@ -21,14 +21,9 @@ export class SupplierService {
 
   async findAll(query: SupplierGetDto): Promise<PaginatedResponseDto<Supplier>> {
     const { page, limit, search } = query;
-    const qb = this.supplierRepo.createQueryBuilder('s');
-    if (search) qb.where('s.name ILIKE :q', { q: `%${search}%` });
-    const [suppliers, total] = await qb
-      .orderBy('s.name', 'ASC')
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
-    return paginatedResponse(suppliers, page, limit, total);
+    const qb = this.supplierRepo.createQueryBuilder('s').orderBy('s.name', 'ASC');
+    applyKeywordSearch(qb, ['s.name'], search);
+    return paginateQuery(qb, page, limit);
   }
 
   async findOne(id: string): Promise<Supplier> {
@@ -57,7 +52,7 @@ export class SupplierService {
 
   async exportAll(search?: string): Promise<Buffer> {
     const qb = this.supplierRepo.createQueryBuilder('s').orderBy('s.name', 'ASC');
-    if (search) qb.andWhere('s.name ILIKE :q OR s.contactName ILIKE :q', { q: `%${search}%` });
+    applyKeywordSearch(qb, ['s.name', 's.contactName'], search);
 
     const suppliers = await qb.getMany();
 

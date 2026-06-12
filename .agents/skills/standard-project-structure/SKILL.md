@@ -13,8 +13,8 @@ and how to add a feature module** consistently.
 
 ```
 src/
-├── main.ts                 # bootstrap: global prefix 'api', URI versioning, ValidationPipe, AllExceptionsFilter, cookieParser, CORS, Swagger
-├── app.module.ts           # registers every feature module + APP_INTERCEPTOR (TransformResponseInterceptor) + middleware
+├── main.ts                 # bootstrap: global prefix 'api', URI versioning, ValidationPipe, cookieParser, CORS, Swagger, pino logger (bufferLogs)
+├── app.module.ts           # feature modules + APP_INTERCEPTOR (TransformResponseInterceptor) + APP_FILTER (AllExceptionsFilter) + LoggerModule (nestjs-pino)
 ├── app.controller.ts / app.service.ts
 ├── auth/                   # authentication (not under modules/) — see [[route-auth]]
 ├── common/                 # cross-cutting building blocks (see [[standard-shared-helpers]])
@@ -22,8 +22,8 @@ src/
 │   ├── dto/                # api-response.dto.ts, paginated.dto.ts
 │   ├── filters/            # all-exceptions.filter.ts (global)
 │   ├── helpers/            # response.ts, entity.helper.ts, generateIdWithPrefix.helper.ts, encryption.helper.ts
-│   ├── interceptors/       # transform-response, cache-control
-│   └── middleware/         # request-id, logging
+│   └── interceptors/       # transform-response, cache-control
+│                           # (no middleware/ — request id + logging come from nestjs-pino in AppModule)
 ├── modules/<feature>/      # one folder per domain feature
 └── seed/                   # seed scripts
 db/                         # data-source.ts and DB config (alias @db/*)
@@ -96,8 +96,11 @@ entity live alongside it (e.g. `product.interface.ts`).
 - `setGlobalPrefix('api')` + URI versioning → every route is `/api/v1/...`.
 - `TransformResponseInterceptor` is registered globally via `APP_INTERCEPTOR`;
   it wraps every non-raw response. Do **not** wrap responses manually.
-- `AllExceptionsFilter` is the global filter (HttpException + PG error mapping).
-- `RequestIdMiddleware` + `LoggingMiddleware` run for all routes.
+- `AllExceptionsFilter` is the global filter, registered via `APP_FILTER`
+  (HttpException + PG error mapping; logs 5xx with stack via the request logger).
+- Request logging + request id come from **`nestjs-pino`** (`LoggerModule.forRoot`
+  in AppModule); `genReqId` sets the `X-Request-ID` header. No custom logging
+  middleware exists. See [[standard-logging]].
 - `ValidationPipe` is global with whitelist — DTOs are mandatory.
 
 ## Conventions & gotchas

@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Injectable, OnModuleInit } from '@nestjs/common';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { CheckExistProductDto } from './dto/check-exist-product.dto';
 import { ProductCreateDto } from './dto/create-product.dto';
 import { ProductDropdownItemDto, ProductDropdownSearchDto } from './dto/dropdown-search-product.dto';
@@ -14,12 +14,16 @@ import { BulkUpdateProductDto } from './dto/bulk-update-product.dto';
 import { BulkDeleteProductDto } from './dto/bulk-delete-product.dto';
 import { Brand } from '../brand/entities/brand.entity';
 import { Category } from '../category/entities/category.entity';
-import { badRequest, conflict, notFound, paginatedResponse } from '@app/common/helpers/response';
+import { badRequest, conflict, notFound } from '@app/common/helpers/response';
+import { applyKeywordSearch, applySmartSearch, paginateQuery } from '@app/common/helpers/query.helper';
 import { buildExcelBuffer, ExcelColumn } from '@app/common/helpers/excel.helper';
 import { ProductGetDto } from './dto/get-product.dto';
 
 @Injectable()
-export class ProductService {
+export class ProductService implements OnModuleInit {
+  /** Whether pg_trgm is installed — gates fuzzy search (set once at startup). */
+  private trigramEnabled = false;
+
   constructor(
     @InjectRepository(Product)
     private readonly productRepo: Repository<Product>,
@@ -32,7 +36,32 @@ export class ProductService {
 
     @InjectRepository(ProductShopPrice)
     private readonly shopPriceRepo: Repository<ProductShopPrice>,
+
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    // Fuzzy search needs pg_trgm. In dev we provision it automatically (consistent
+    // with synchronize:true); in prod it's a deploy step. Either way we only
+    // *detect* it here and degrade to substring search when absent — never 500.
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        await this.dataSource.query('CREATE EXTENSION IF NOT EXISTS pg_trgm');
+        await this.dataSource.query(
+          'CREATE INDEX IF NOT EXISTS product_name_trgm_idx ON product USING gin (name gin_trgm_ops)',
+        );
+      } catch {
+        // best-effort in dev; missing privilege just means no fuzzy search
+      }
+    }
+    try {
+      const rows = await this.dataSource.query("SELECT 1 FROM pg_extension WHERE extname = 'pg_trgm'");
+      this.trigramEnabled = Array.isArray(rows) && rows.length > 0;
+    } catch {
+      this.trigramEnabled = false;
+    }
+  }
 
   private async productGetEntityOrFail(barcode: string): Promise<Product> {
     return getEntityOrNotFound(this.productRepo, { where: { barcode } }, `สินค้า (${barcode})`);
@@ -51,62 +80,45 @@ export class ProductService {
   async createMultiple(dtos: ProductCreateDto[]): Promise<Product[]> {
     if (!dtos.length) return [];
 
-    const products: Product[] = [];
-    for (const dto of dtos) {
-      await this.productThrowIfExists(dto.barcode);
-
-      if (dto.brandId) {
-        const brand = await this.brandRepo.findOne({ where: { id: dto.brandId } });
-        if (!brand) throw badRequest(`ไม่พบแบรนด์ที่เลือก`);
-      }
-      if (dto.categoryId) {
-        const category = await this.categoryRepo.findOne({ where: { id: dto.categoryId } });
-        if (!category) throw badRequest(`ไม่พบหมวดหมู่ที่เลือก`);
-      }
-
-      products.push(this.productRepo.create(dto));
+    // Validate uniqueness + FK references in bulk — one query each, not per row.
+    const barcodes = dtos.map((d) => d.barcode);
+    const existing = await this.productRepo.find({ where: { barcode: In(barcodes) }, select: { barcode: true } });
+    if (existing.length) {
+      throw conflict(`บาร์โค้ด "${existing.map((p) => p.barcode).join('", "')}" มีอยู่ในระบบแล้ว`);
     }
 
-    return this.productRepo.save(products);
+    const brandIds = [...new Set(dtos.map((d) => d.brandId).filter(Boolean) as string[])];
+    if (brandIds.length) {
+      const found = await this.brandRepo.count({ where: { id: In(brandIds) } });
+      if (found !== brandIds.length) throw badRequest(`ไม่พบแบรนด์ที่เลือก`);
+    }
+
+    const categoryIds = [...new Set(dtos.map((d) => d.categoryId).filter(Boolean) as string[])];
+    if (categoryIds.length) {
+      const found = await this.categoryRepo.count({ where: { id: In(categoryIds) } });
+      if (found !== categoryIds.length) throw badRequest(`ไม่พบหมวดหมู่ที่เลือก`);
+    }
+
+    return this.productRepo.save(dtos.map((dto) => this.productRepo.create(dto)));
   }
 
-  async findAll(
-    page: number,
-    limit: number,
-    search?: string,
-    brandId?: string,
-    categoryId?: string,
-    isActive?: boolean,
-    lowStock?: boolean,
-  ): Promise<PaginatedResponseDto<ProductResponseDto>> {
+  async findAll(query: ProductGetDto): Promise<PaginatedResponseDto<ProductResponseDto>> {
+    const { page, limit, search, brandId, categoryId, isActive, lowStock } = query;
     const qb = this.productRepo
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.brand', 'brand')
       .leftJoinAndSelect('p.category', 'category')
       .orderBy('p.barcode', 'ASC');
 
-    if (search) {
-      qb.andWhere('(p.name ILIKE :q OR p.barcode ILIKE :q)', { q: `%${search}%` });
-    }
-    if (brandId) {
-      qb.andWhere('p.brandId = :brandId', { brandId });
-    }
-    if (categoryId) {
-      qb.andWhere('p.categoryId = :categoryId', { categoryId });
-    }
-    if (isActive !== undefined) {
-      qb.andWhere('p.isActive = :isActive', { isActive });
-    }
+    applyKeywordSearch(qb, ['p.name', 'p.barcode'], search);
+    if (brandId) qb.andWhere('p.brandId = :brandId', { brandId });
+    if (categoryId) qb.andWhere('p.categoryId = :categoryId', { categoryId });
+    if (isActive !== undefined) qb.andWhere('p.isActive = :isActive', { isActive });
     if (lowStock) {
       qb.andWhere('(p.remaining = 0 OR (p.minStock IS NOT NULL AND p.remaining <= p.minStock))');
     }
 
-    const [products, total] = await qb
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
-
-    return paginatedResponse(products, page, limit, total);
+    return paginateQuery(qb, page, limit);
   }
 
   async findOne(barcode: string): Promise<Product> {
@@ -130,31 +142,28 @@ export class ProductService {
   }
 
   async bulkUpdate(bulkUpdateDto: BulkUpdateProductDto): Promise<Product[]> {
-    const errors: string[] = [];
+    const barcodes = bulkUpdateDto.products.map((p) => p.barcode);
 
-    for (const item of bulkUpdateDto.products) {
-      try {
-        await this.productGetEntityOrFail(item.barcode);
-      } catch {
-        errors.push(`ไม่พบสินค้า "${item.barcode}"`);
-      }
+    // Validate existence in one query instead of one per row.
+    const existing = await this.productRepo.find({ where: { barcode: In(barcodes) }, select: { barcode: true } });
+    const existingSet = new Set(existing.map((p) => p.barcode));
+    const missing = barcodes.filter((b) => !existingSet.has(b));
+    if (missing.length) {
+      throw badRequest(`อัปเดตสินค้าไม่สำเร็จ: ${missing.map((b) => `ไม่พบสินค้า "${b}"`).join(', ')}`);
     }
 
-    if (errors.length) {
-      throw badRequest(`อัปเดตสินค้าไม่สำเร็จ: ${errors.join(', ')}`);
-    }
-
-    const updatedProducts: Product[] = [];
+    // Each row carries its own patch, so the UPDATEs can't be collapsed — but the
+    // refetch is a single In(...) query, then re-ordered to match the input.
     for (const item of bulkUpdateDto.products) {
       await this.productRepo.update({ barcode: item.barcode }, item.data);
-      const updated = await this.productRepo.findOne({
-        where: { barcode: item.barcode },
-        relations: ['brand', 'category'],
-      });
-      if (updated) updatedProducts.push(updated);
     }
 
-    return updatedProducts;
+    const updated = await this.productRepo.find({
+      where: { barcode: In(barcodes) },
+      relations: ['brand', 'category'],
+    });
+    const byBarcode = new Map(updated.map((p) => [p.barcode, p]));
+    return barcodes.map((b) => byBarcode.get(b)).filter((p): p is Product => p !== undefined);
   }
 
   async dropdownSearch(dto: ProductDropdownSearchDto): Promise<PaginatedResponseDto<ProductDropdownItemDto>> {
@@ -164,24 +173,12 @@ export class ProductService {
     const qb = this.productRepo
       .createQueryBuilder('p')
       .select(['p.barcode', 'p.name', 'p.remaining', 'p.sellPrice'])
-      .orderBy('p.name', 'ASC')
-      .skip((page - 1) * limit)
-      .take(limit);
+      .orderBy('p.name', 'ASC');
 
-    if (dto.search) {
-      const tokens = dto.search.trim().split(/\s+/).filter(Boolean);
-      tokens.forEach((token, i) => {
-        qb.andWhere(`(p.name ILIKE :q${i} OR p.barcode ILIKE :q${i})`, { [`q${i}`]: `%${token}%` });
-      });
-      // Relevance: exact barcode first, then barcode starts-with, then name starts-with, then any match
-      qb.orderBy(
-        `CASE WHEN p.barcode = :exact THEN 0 WHEN p.barcode ILIKE :starts THEN 1 WHEN p.name ILIKE :starts THEN 2 ELSE 3 END`,
-        'ASC',
-      ).addOrderBy('p.name', 'ASC').setParameter('exact', dto.search.trim()).setParameter('starts', `${dto.search.trim()}%`);
-    }
+    // Relevance-ranked (barcode-exact first) + typo-tolerant when pg_trgm is available.
+    applySmartSearch(qb, ['p.barcode', 'p.name'], dto.search, { fuzzy: this.trigramEnabled });
 
-    const [data, total] = await qb.getManyAndCount();
-    return paginatedResponse(data as unknown as ProductDropdownItemDto[], page, limit, total);
+    return paginateQuery<Product, ProductDropdownItemDto>(qb, page, limit);
   }
 
   async checkExist(dto: CheckExistProductDto): Promise<{ existing: string[]; missing: string[] }> {
@@ -272,7 +269,7 @@ export class ProductService {
       .leftJoinAndSelect('p.category', 'category')
       .orderBy('p.barcode', 'ASC');
 
-    if (search) qb.andWhere('(p.name ILIKE :q OR p.barcode ILIKE :q)', { q: `%${search}%` });
+    applyKeywordSearch(qb, ['p.name', 'p.barcode'], search);
     if (brandId) qb.andWhere('p.brandId = :brandId', { brandId });
     if (categoryId) qb.andWhere('p.categoryId = :categoryId', { categoryId });
     if (isActive !== undefined) qb.andWhere('p.isActive = :isActive', { isActive });

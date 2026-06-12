@@ -6,7 +6,9 @@ import { User } from '@app/auth/user/user.entity';
 import { Role } from '@app/auth/role/role.enum';
 import { getEntityOrNotFound } from '@app/common/helpers/entity.helper';
 import { conflict } from '@app/common/helpers/response';
-import { CreateUserDto, UserResponseDto } from './dto/user.dto';
+import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { applyKeywordSearch, paginateQuery } from '@app/common/helpers/query.helper';
+import { CreateUserDto, GetUserDto, UserResponseDto } from './dto/user.dto';
 
 @Injectable()
 export class UserService {
@@ -23,9 +25,11 @@ export class UserService {
     return Object.values(Role);
   }
 
-  async findAll(): Promise<UserResponseDto[]> {
-    const users = await this.userRepo.find({ order: { username: 'ASC' } });
-    return users.map((u) => this.toResponse(u));
+  async findAll(query: GetUserDto): Promise<PaginatedResponseDto<UserResponseDto>> {
+    const { page = 1, limit = 20, search } = query;
+    const qb = this.userRepo.createQueryBuilder('u').orderBy('u.username', 'ASC');
+    applyKeywordSearch(qb, ['u.username'], search);
+    return paginateQuery(qb, page, limit, (u) => this.toResponse(u));
   }
 
   async findOne(id: string): Promise<UserResponseDto> {

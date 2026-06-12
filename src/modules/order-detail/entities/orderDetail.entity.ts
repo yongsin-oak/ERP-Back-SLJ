@@ -9,6 +9,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryColumn,
@@ -33,6 +34,7 @@ export class OrderDetail {
   }
 
   @ApiProperty({ type: () => Product })
+  @Index()
   @ManyToOne(() => Product, (product) => product.orderDetails, {
     nullable: false,
   })
@@ -48,6 +50,7 @@ export class OrderDetail {
   order: Promise<Order> | Order;
 
   @ApiProperty()
+  @Index()
   @Column({ nullable: false })
   orderId: string;
 
@@ -60,6 +63,7 @@ export class OrderDetail {
   quantityCarton: number;
 
   @ApiProperty()
+  @Index()
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 

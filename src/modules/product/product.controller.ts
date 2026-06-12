@@ -73,7 +73,7 @@ export class ProductController {
   @Get()
   @ApiOkResponsePaginated(ProductResponseDto)
   async findAll(@Query() query: ProductGetDto): Promise<PaginatedResponseDto<ProductResponseDto>> {
-    return ok(await this.productService.findAll(query.page, query.limit, query.search, query.brandId, query.categoryId, query.isActive, query.lowStock));
+    return ok(await this.productService.findAll(query));
   }
 
   @Roles('*')

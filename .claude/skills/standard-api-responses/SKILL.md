@@ -95,4 +95,4 @@ TypeORM `QueryFailedError` is mapped centrally:
 
 - [[standard-shared-helpers]] (the helpers) · [[standard-constants-no-hardcode]]
   (`ERROR` builders) · [[route-auth]] (401/refresh) ·
-  the frontend contract in [/API.md](../../../API.md) and `docs/frontend/`.
+  the live contract via Swagger at `/swagger` (auto-generated from controllers + DTOs).

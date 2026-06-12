@@ -5,6 +5,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryColumn,
@@ -13,6 +14,7 @@ import {
 import { StockCount } from './stock-count.entity';
 
 @Entity()
+@Index(['stockCountId', 'productBarcode'])
 export class StockCountItem {
   @PrimaryColumn()
   id: string;

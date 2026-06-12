@@ -16,7 +16,8 @@ import { GetOrderDto } from './dto/get-order.dto';
 import { Order } from './entities/order.entity';
 import { getEntityOrNotFound } from '@app/common/helpers/entity.helper';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
-import { badRequest, paginatedResponse } from '@app/common/helpers/response';
+import { badRequest } from '@app/common/helpers/response';
+import { applyDateRange, applyKeywordSearch, paginateQuery } from '@app/common/helpers/query.helper';
 import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix.helper';
 
 @Injectable()
@@ -67,34 +68,14 @@ export class OrderService {
       ])
       .orderBy('o.createdAt', 'DESC');
 
-    if (search) {
-      qb.andWhere('o.note ILIKE :search', { search: `%${search}%` });
-    }
-    if (status) {
-      qb.andWhere('o.status = :status', { status });
-    }
-    if (shopId) {
-      qb.andWhere('o.shopId = :shopId', { shopId });
-    }
-    if (employeeId) {
-      qb.andWhere('o.recordByEmployeeId = :employeeId', { employeeId });
-    }
-    if (terminalId) {
-      qb.andWhere('o.terminalId = :terminalId', { terminalId });
-    }
-    if (dateFrom) {
-      qb.andWhere('o.startRecordAt >= :dateFrom', { dateFrom: new Date(dateFrom) });
-    }
-    if (dateTo) {
-      qb.andWhere('o.startRecordAt <= :dateTo', { dateTo: new Date(dateTo) });
-    }
+    applyKeywordSearch(qb, ['o.note'], search);
+    if (status) qb.andWhere('o.status = :status', { status });
+    if (shopId) qb.andWhere('o.shopId = :shopId', { shopId });
+    if (employeeId) qb.andWhere('o.recordByEmployeeId = :employeeId', { employeeId });
+    if (terminalId) qb.andWhere('o.terminalId = :terminalId', { terminalId });
+    applyDateRange(qb, 'o.startRecordAt', dateFrom, dateTo);
 
-    const [orders, total] = await qb
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
-
-    return paginatedResponse(orders, page, limit, total);
+    return paginateQuery(qb, page, limit);
   }
 
   async findOne(id: string): Promise<OrderResponseDto> {
@@ -229,13 +210,12 @@ export class OrderService {
       ])
       .orderBy('o.createdAt', 'DESC');
 
-    if (search) qb.andWhere('o.note ILIKE :search', { search: `%${search}%` });
+    applyKeywordSearch(qb, ['o.note'], search);
     if (status) qb.andWhere('o.status = :status', { status });
     if (shopId) qb.andWhere('o.shopId = :shopId', { shopId });
     if (employeeId) qb.andWhere('o.recordByEmployeeId = :employeeId', { employeeId });
     if (terminalId) qb.andWhere('o.terminalId = :terminalId', { terminalId });
-    if (dateFrom) qb.andWhere('o.startRecordAt >= :dateFrom', { dateFrom: new Date(dateFrom) });
-    if (dateTo) qb.andWhere('o.startRecordAt <= :dateTo', { dateTo: new Date(dateTo) });
+    applyDateRange(qb, 'o.startRecordAt', dateFrom, dateTo);
 
     const orders = await qb.getMany();
 

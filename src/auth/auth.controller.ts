@@ -53,7 +53,7 @@ export class AuthController {
       });
     }
 
-    if (!body.username) throw new BadRequestException('username or terminalCode is required');
+    if (!body.username) throw new BadRequestException('กรุณาระบุชื่อผู้ใช้หรือรหัสเครื่อง');
     const username = body.username.trim().toLocaleLowerCase();
     const user = await this.authService.validateUser(username, body.password);
     const authUser = await this.authService.login(user);
@@ -74,7 +74,7 @@ export class AuthController {
   async refresh(@Req() req: Request, @Res() res: Response) {
     const refreshToken =
       (req.cookies && (req.cookies as any).refreshToken) || req.body?.refreshToken;
-    if (!refreshToken) throw new UnauthorizedException('Unauthorized');
+    if (!refreshToken) throw new UnauthorizedException('เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่');
     const { token, refreshToken: newRefreshToken } = await this.authService.refresh(refreshToken);
     const cookieOptions = getCookieOptions();
     res.cookie('token', token, { ...cookieOptions, maxAge: TOKEN_MAX_AGE });
@@ -94,7 +94,7 @@ export class AuthController {
     const isBypass =
       process.env.NODE_ENV === 'development' && process.env.BYPASS_AUTH === 'true';
     if (!isBypass && user.type !== 'terminal') {
-      throw new UnauthorizedException('Terminal authentication required for PIN verification');
+      throw new UnauthorizedException('กรุณาเข้าสู่ระบบด้วยเครื่อง (Terminal) ก่อนยืนยัน PIN');
     }
     const terminalId = isBypass ? 'dev-terminal' : user.sub;
     return this.authService.verifyPin(terminalId, body.pin, body.employeeId);
@@ -106,7 +106,7 @@ export class AuthController {
   @Roles('*')
   async updatePassword(@Req() req: Request, @Body() body: UpdatePasswordDto) {
     const username = (req.user as any).username;
-    if (!username) throw new UnauthorizedException('Only user accounts can update password');
+    if (!username) throw new UnauthorizedException('เฉพาะบัญชีผู้ใช้เท่านั้นที่เปลี่ยนรหัสผ่านได้');
     return this.authService.updatePassword(username, body.currentPassword, body.newPassword);
   }
 

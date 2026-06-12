@@ -5,6 +5,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -31,6 +32,7 @@ export class StockCount {
   @Column({ type: 'date' })
   countDate: string;
 
+  @Index()
   @Column({ type: 'enum', enum: StockCountStatus, default: StockCountStatus.DRAFT })
   status: StockCountStatus;
 
@@ -53,6 +55,7 @@ export class StockCount {
   @OneToMany(() => StockCountItem, (item) => item.stockCount)
   items: StockCountItem[];
 
+  @Index()
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 

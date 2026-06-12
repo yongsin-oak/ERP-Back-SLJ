@@ -8,6 +8,9 @@ import {
   MinLength,
 } from 'class-validator';
 import { Role } from '@app/auth/role/role.enum';
+import { PaginatedListQueryDto } from '@app/common/dto/paginated.dto';
+
+export class GetTerminalDto extends PaginatedListQueryDto {}
 
 export class CreateTerminalDto {
   @ApiProperty({ example: 'POS-01', description: 'Unique terminal code' })

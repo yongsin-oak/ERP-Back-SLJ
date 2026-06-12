@@ -2,10 +2,11 @@ import 'module-alias/register';
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { ValidationPipe, VersioningType } from '@nestjs/common';
+import { BadRequestException, ValidationPipe, VersioningType } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import cookieParser from 'cookie-parser';
 import { DateTime } from 'luxon';
+import { humanizeValidationErrors } from './common/helpers/validation.helper';
 
 async function bootstrap() {
   DateTime.now().setZone('Asia/Bangkok').toISO();
@@ -24,7 +25,14 @@ async function bootstrap() {
   app.use(cookieParser());
   app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI });
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      // Surface friendly Thai messages instead of class-validator's English defaults.
+      exceptionFactory: (errors) => new BadRequestException(humanizeValidationErrors(errors)),
+    }),
+  );
 
   const config = new DocumentBuilder()
     .setTitle('ERP API')

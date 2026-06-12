@@ -11,7 +11,8 @@ import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/en
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { EmployeeGetDto } from './dto/get-employee.dto';
 import { BulkDeleteEmployeeDto } from './dto/bulk-delete-employee.dto';
-import { paginatedResponse, notFound } from '@app/common/helpers/response';
+import { conflict, notFound } from '@app/common/helpers/response';
+import { applyKeywordSearch, paginateQuery } from '@app/common/helpers/query.helper';
 
 @Injectable()
 export class EmployeeService {
@@ -28,12 +29,7 @@ export class EmployeeService {
     const { page, limit, search, department, isActive } = query;
     const qb = this.employeeRepo.createQueryBuilder('e');
 
-    if (search) {
-      qb.andWhere(
-        '(e.firstName ILIKE :q OR e.lastName ILIKE :q OR e.nickname ILIKE :q)',
-        { q: `%${search}%` },
-      );
-    }
+    applyKeywordSearch(qb, ['e.firstName', 'e.lastName', 'e.nickname'], search);
     if (department) {
       qb.andWhere('e.department = :department', { department });
     }
@@ -41,12 +37,7 @@ export class EmployeeService {
       qb.andWhere('e.isActive = :isActive', { isActive });
     }
 
-    const [employees, total] = await qb
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
-
-    return paginatedResponse(employees, page, limit, total);
+    return paginateQuery(qb, page, limit);
   }
 
   async findOne(id: string): Promise<EmployeeResponseDto> {
@@ -65,16 +56,18 @@ export class EmployeeService {
 
   async createMultiple(dtos: EmployeeCreateDto[]): Promise<Employee[]> {
     if (!dtos.length) return [];
-    const employees: Employee[] = [];
-    for (const dto of dtos) {
-      await throwIfEntityExists(
-        this.employeeRepo,
-        { where: [{ firstName: dto.firstName, lastName: dto.lastName }] },
-        `พนักงาน "${dto.firstName} ${dto.lastName}"`,
-      );
-      employees.push(this.employeeRepo.create(dto));
+
+    // Check existing (firstName, lastName) pairs in one query instead of per row.
+    const existing = await this.employeeRepo.find({
+      where: dtos.map((d) => ({ firstName: d.firstName, lastName: d.lastName })),
+      select: { firstName: true, lastName: true },
+    });
+    if (existing.length) {
+      const names = existing.map((e) => `"${e.firstName} ${e.lastName}"`).join(', ');
+      throw conflict(`พนักงาน ${names} มีอยู่ในระบบแล้ว`);
     }
-    return this.employeeRepo.save(employees);
+
+    return this.employeeRepo.save(dtos.map((dto) => this.employeeRepo.create(dto)));
   }
 
   async update(id: string, data: Partial<EmployeeUpdateDto>): Promise<EmployeeResponseDto> {
@@ -117,7 +110,7 @@ export class EmployeeService {
     const { search, department, isActive } = query;
     const qb = this.employeeRepo.createQueryBuilder('e');
 
-    if (search) qb.andWhere('(e.firstName ILIKE :q OR e.lastName ILIKE :q OR e.nickname ILIKE :q)', { q: `%${search}%` });
+    applyKeywordSearch(qb, ['e.firstName', 'e.lastName', 'e.nickname'], search);
     if (department) qb.andWhere('e.department = :department', { department });
     if (isActive !== undefined) qb.andWhere('e.isActive = :isActive', { isActive });
 

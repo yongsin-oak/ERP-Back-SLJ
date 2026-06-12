@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { buildExcelBuffer, ExcelColumn } from '@app/common/helpers/excel.helper';
+import { paginateQuery } from '@app/common/helpers/query.helper';
 import { Product } from '../product/entities/product.entity';
 import { StockEntry, StockEntryType } from '../stock-entry/entities/stock-entry.entity';
 import { StockCount, StockCountStatus } from './entities/stock-count.entity';
@@ -21,8 +22,8 @@ export class StockCountService {
     private readonly itemRepo: Repository<StockCountItem>,
     @InjectRepository(Product)
     private readonly productRepo: Repository<Product>,
-    @InjectRepository(StockEntry)
-    private readonly stockEntryRepo: Repository<StockEntry>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(dto: CreateStockCountDto): Promise<StockCount> {
@@ -63,16 +64,9 @@ export class StockCountService {
       )
       .orderBy('sc.createdAt', 'DESC');
 
-    if (status) {
-      qb.andWhere('sc.status = :status', { status });
-    }
+    if (status) qb.andWhere('sc.status = :status', { status });
 
-    const [data, total] = await qb
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
-
-    return { data, pagination: { total, page, limit } };
+    return paginateQuery(qb, page, limit);
   }
 
   async findOne(id: string): Promise<StockCount> {
@@ -136,34 +130,48 @@ export class StockCountService {
       throw new BadRequestException('รายการนี้ถูกปรับสต็อกไปแล้ว');
     }
 
-    const diffItems = sc.items.filter((i) => i.diff !== null && i.diff !== 0);
+    const diffItems = sc.items
+      .filter((i) => i.diff !== null && i.diff !== 0)
+      // Lock product rows in a deterministic order so two concurrent runs over
+      // overlapping products can't deadlock.
+      .sort((a, b) => a.productBarcode.localeCompare(b.productBarcode));
+
     if (diffItems.length === 0) {
       await this.stockCountRepo.update(id, { adjustedAt: new Date() });
       return { success: true, adjusted: 0 };
     }
 
-    for (const item of diffItems) {
-      const product = await this.productRepo.findOne({ where: { barcode: item.productBarcode } });
-      if (!product) continue;
+    // Apply every adjustment + the stock_entry audit rows atomically: a completed
+    // count is applied all-or-none. Each product row is locked (`FOR UPDATE`) so
+    // the read-modify-write of `remaining` can't lose a concurrent update.
+    await this.dataSource.transaction(async (manager) => {
+      for (const item of diffItems) {
+        const product = await manager.findOne(Product, {
+          where: { barcode: item.productBarcode },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!product) continue;
 
-      const previousRemaining = product.remaining;
-      const newRemaining = item.countedQty!;
-      const quantity = newRemaining - previousRemaining;
+        const previousRemaining = product.remaining;
+        const newRemaining = item.countedQty!;
+        const quantity = newRemaining - previousRemaining;
 
-      const entry = this.stockEntryRepo.create({
-        productBarcode: item.productBarcode,
-        type: StockEntryType.ADJUST,
-        quantity,
-        previousRemaining,
-        newRemaining,
-        employeeId: sc.employeeId ?? undefined,
-        note: `ปรับจากการนับสต็อก ${id}`,
-      });
-      await this.stockEntryRepo.save(entry);
-      await this.productRepo.update(item.productBarcode, { remaining: newRemaining });
-    }
+        const entry = manager.create(StockEntry, {
+          productBarcode: item.productBarcode,
+          type: StockEntryType.ADJUST,
+          quantity,
+          previousRemaining,
+          newRemaining,
+          employeeId: sc.employeeId ?? undefined,
+          note: `ปรับจากการนับสต็อก ${id}`,
+        });
+        await manager.save(entry);
+        await manager.update(Product, { barcode: item.productBarcode }, { remaining: newRemaining });
+      }
 
-    await this.stockCountRepo.update(id, { adjustedAt: new Date() });
+      await manager.update(StockCount, { id }, { adjustedAt: new Date() });
+    });
+
     return { success: true, adjusted: diffItems.length };
   }
 

@@ -1,6 +1,33 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsInt, Min } from 'class-validator';
+import { IsArray, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+
+/**
+ * Base query for paginated list endpoints where page/limit are optional and
+ * defaulted in the service (used by admin lists that fetch a large page at once).
+ * Extend it to add filters; reuse instead of redefining page/limit/search.
+ */
+export class PaginatedListQueryDto {
+  @ApiPropertyOptional({ example: 1, description: 'Page number (default 1)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ example: 20, description: 'Items per page — max 200 (default 20)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  limit?: number;
+
+  @ApiPropertyOptional({ description: 'Search keyword' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+}
 
 export class PaginatedGetAllDto {
   @ApiProperty({ example: 1, description: 'Page number' })

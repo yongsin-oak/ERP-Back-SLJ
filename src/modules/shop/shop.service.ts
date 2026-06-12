@@ -9,7 +9,7 @@ import { Shop } from './entities/shop.entity';
 import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { ShopGetDto } from './dto/get-shop.dto';
-import { paginatedResponse } from '@app/common/helpers/response';
+import { applyKeywordSearch, paginateQuery } from '@app/common/helpers/query.helper';
 
 @Injectable()
 export class ShopService {
@@ -32,15 +32,10 @@ export class ShopService {
 
   async findAll(query: ShopGetDto): Promise<PaginatedResponseDto<Shop>> {
     const { page, limit, platform, search } = query;
-    const qb = this.shopRepo.createQueryBuilder('s');
+    const qb = this.shopRepo.createQueryBuilder('s').orderBy('s.name', 'ASC');
     if (platform) qb.andWhere('s.platform = :platform', { platform });
-    if (search) qb.andWhere('s.name ILIKE :q', { q: `%${search}%` });
-    const [shops, total] = await qb
-      .orderBy('s.name', 'ASC')
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
-    return paginatedResponse(shops, page, limit, total);
+    applyKeywordSearch(qb, ['s.name'], search);
+    return paginateQuery(qb, page, limit);
   }
 
   async findOne(id: string): Promise<Shop> {

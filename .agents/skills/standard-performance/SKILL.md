@@ -11,32 +11,33 @@ reference real code so you can copy the good ones and avoid the known traps.
 
 ## 1. Always paginate lists
 
-Never return an unbounded `find()`. Use a QueryBuilder with `skip/take` +
-`getManyAndCount`, then `paginatedResponse(...)` (see [[standard-shared-helpers]]). The
-canonical example is [product.service.ts](../../../src/modules/product/product.service.ts) `findAll`:
+Never return an unbounded `find()`. Build a QueryBuilder, apply filters, and hand
+it to **`paginateQuery(qb, page, limit, map?)`** — the shared helper does
+`skip/take` + `getManyAndCount` + the paginated envelope. Don't hand-roll that
+boilerplate per service. Full details: [[standard-list-query]].
 
 ```ts
-const [rows, total] = await qb
-  .skip((page - 1) * limit)
-  .take(limit)
-  .getManyAndCount();
-return paginatedResponse(rows, page, limit, total);
+const qb = this.repo.createQueryBuilder('x').orderBy('x.name', 'ASC');
+applyKeywordSearch(qb, ['x.name'], search);   // smart multi-token search helper
+return paginateQuery(qb, page, limit);
 ```
 
-- Extend `PaginatedGetAllDto` for query DTOs; enforce a sane max `limit`.
-- For typeahead/dropdowns, cap hard (`.limit(50)`) and `select` only what the UI
-  needs (see `dropdownSearch`).
+- Extend `PaginatedGetAllDto` (required page/limit) or `PaginatedListQueryDto`
+  (optional, defaulted, max 200) for query DTOs; enforce a sane max `limit`.
+- For typeahead/dropdowns, cap hard and `select` only what the UI needs (see
+  `product.dropdownSearch`).
 
 ## 2. Avoid N+1 — join, don't loop
 
 - Load relations in one query with `leftJoinAndSelect` (QueryBuilder) or
   `relations: [...]` (`find`), as in `findAll`/`findOne`. Don't fetch a list then
   query each row's relation in a loop.
-- **Known trap:** `bulkUpdate` in product loops `getEntityOrFail` then `findOne`
-  per item — O(n) round-trips. When writing new bulk reads, prefer a single
-  `In([...])` query (as `checkExist` does:
-  `repo.find({ where: { barcode: In(ids) } })`) and build a `Map` in memory.
-- Validate referenced FKs in bulk with one `In(...)` lookup, not one query per row.
+- **Pattern to follow (already applied):** bulk reads use a single `In([...])`
+  query + a `Map` in memory — never one query per row. `product.bulkUpdate`
+  validates existence with one `In(...)` then refetches with one `In(...)` reordered
+  to the input; `product/brand/employee.createMultiple` check duplicates with one
+  query; `checkExist` does `repo.find({ where: { barcode: In(ids) } })`.
+- Validate referenced FKs in bulk with one `In(...)`/`count()` lookup, not one query per row.
 
 ## 3. Batch writes
 
@@ -50,13 +51,15 @@ return paginatedResponse(rows, page, limit, total);
 Any operation that writes more than one row and must stay consistent should run
 in a transaction (`dataSource.transaction(...)` or a QueryRunner).
 
-- **Known gap:** stock-entry mutates `product.remaining` **and** saves a
-  stock_entry **without** a transaction (see
+- **Reference pattern (already applied):** stock mutations wrap the product update
+  **and** the stock_entry write in one `dataSource.transaction`, and load the
+  product with a **`pessimistic_write`** lock (`SELECT … FOR UPDATE`) so the
+  read-modify-write of `remaining` can't lose a concurrent update — see
   [stock-entry.service.ts](../../../src/modules/stock-entry/stock-entry.service.ts)
-  and [[route-stock-entry]]) — a partial failure desyncs stock. New stock/order/inventory
-  writes that touch multiple tables **must** be transactional. For high-contention
-  counters, prefer an atomic SQL update (`UPDATE ... SET remaining = remaining + :q`)
-  over read-modify-write to avoid lost updates.
+  (`applyStockEntry`) and `stock-count.service.ts` (`applyAdjustments`). New
+  stock/order/inventory writes that touch multiple tables **must** be transactional.
+  The locked read must stay **join-free** (Postgres rejects `FOR UPDATE` on the
+  nullable side of an outer join). See [[standard-database-transactions]].
 
 ## 5. Select only what you need
 
