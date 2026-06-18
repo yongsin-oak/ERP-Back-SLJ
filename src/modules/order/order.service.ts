@@ -63,7 +63,7 @@ export class OrderService {
         'recordBy.id', 'recordBy.firstName', 'recordBy.lastName', 'recordBy.nickname',
         'terminal.id', 'terminal.terminalCode', 'terminal.name', 'terminal.role', 'terminal.location', 'terminal.isActive',
         'shop.id', 'shop.name', 'shop.platform',
-        'product.barcode', 'product.name',
+        'product.barcode', 'product.name', 'product.sellPrice',
         'orderDetails.id', 'orderDetails.orderId', 'orderDetails.quantityPack', 'orderDetails.quantityCarton',
       ])
       .orderBy('o.createdAt', 'DESC');

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import { Product } from '@app/modules/product/entities/product.entity';
 import { CategoryCreateDto } from './dto/create-category.dto';
 import { CategoryGetDto } from './dto/get-category.dto';
 import {
@@ -89,6 +90,28 @@ export class CategoryService {
     return rest;
   }
 
+  /** รวบรวม id ของหมวดหมู่ทั้งสาย (ตัวเอง + ลูกหลานทุกชั้น) เรียงจากบนลงล่าง (BFS) */
+  private async collectSubtreeIds(rootId: string): Promise<string[]> {
+    const all = await this.categoryRepository.find({
+      select: { id: true, parentId: true },
+    });
+    const childrenOf = new Map<string, string[]>();
+    for (const c of all) {
+      if (!c.parentId) continue;
+      const siblings = childrenOf.get(c.parentId) ?? [];
+      siblings.push(c.id);
+      childrenOf.set(c.parentId, siblings);
+    }
+    const ordered: string[] = [];
+    const queue = [rootId];
+    while (queue.length) {
+      const cur = queue.shift() as string;
+      ordered.push(cur);
+      queue.push(...(childrenOf.get(cur) ?? []));
+    }
+    return ordered;
+  }
+
   async remove(id: string, delChild = false): Promise<CategoryResponseWithChildrenDto> {
     const category = await this.categoryRepository.findOne({
       where: { id },
@@ -97,18 +120,33 @@ export class CategoryService {
 
     if (!category) throw notFound(`ไม่พบหมวดหมู่`);
 
-    if (category.children?.length > 0) {
-      if (!delChild) {
-        throw badRequest(
-          `ไม่สามารถลบได้ เนื่องจากหมวดหมู่นี้มี ${category.children.length} หมวดหมู่ย่อย`,
-        );
-      }
-      for (const child of category.children) {
-        await this.remove(child.id, true);
-      }
+    // หา id ทั้งสายที่จะถูกลบ (ตัวเอง + ลูกหลานทั้งหมด) — backend ลบแบบ cascade ลึก
+    const subtreeIds = await this.collectSubtreeIds(id);
+    const childCount = subtreeIds.length - 1;
+
+    if (childCount > 0 && !delChild) {
+      throw badRequest(
+        `ไม่สามารถลบได้ เนื่องจากหมวดหมู่นี้มี ${childCount} หมวดหมู่ย่อย`,
+      );
     }
 
-    await this.categoryRepository.delete(id);
+    // กันข้อมูลสูญหาย: ถ้ามีสินค้าอยู่ในหมวดใดในสายนี้ ห้ามลบ (สินค้าไม่ถูก cascade)
+    const productCount = await this.categoryRepository.manager.count(Product, {
+      where: { categoryId: In(subtreeIds) },
+    });
+    if (productCount > 0) {
+      throw badRequest(
+        `ไม่สามารถลบได้ เนื่องจากมีสินค้า ${productCount} รายการอยู่ในหมวดหมู่นี้หรือหมวดย่อย กรุณาย้ายสินค้าออกก่อน`,
+      );
+    }
+
+    // ลบทั้งสายในทรานแซกชันเดียว ลบลูกก่อนพ่อ (กัน FK parentId พังกลางคัน)
+    await this.categoryRepository.manager.transaction(async (em) => {
+      for (const cid of [...subtreeIds].reverse()) {
+        await em.delete(Category, cid);
+      }
+    });
+
     const { parent, children, ...rest } = category;
     return { ...rest, children: [] };
   }
