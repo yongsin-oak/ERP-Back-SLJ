@@ -15,4 +15,7 @@ export class ProductDropdownItemDto {
 
   @ApiProperty()
   sellPrice: { pack: number; carton: number };
+
+  @ApiProperty()
+  costPrice: { pack: number; carton: number };
 }

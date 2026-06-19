@@ -172,7 +172,7 @@ export class ProductService implements OnModuleInit {
 
     const qb = this.productRepo
       .createQueryBuilder('p')
-      .select(['p.barcode', 'p.name', 'p.remaining', 'p.sellPrice'])
+      .select(['p.barcode', 'p.name', 'p.remaining', 'p.sellPrice', 'p.costPrice'])
       .orderBy('p.name', 'ASC');
 
     // Relevance-ranked (barcode-exact first) + typo-tolerant when pg_trgm is available.
