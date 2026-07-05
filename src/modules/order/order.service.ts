@@ -19,6 +19,7 @@ import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { badRequest } from '@app/common/helpers/response';
 import { applyDateRange, applyKeywordSearch, paginateQuery } from '@app/common/helpers/query.helper';
 import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix.helper';
+import { ActorContext } from '@app/auth/jwt/actor.decorator';
 
 @Injectable()
 export class OrderService {
@@ -68,7 +69,7 @@ export class OrderService {
       ])
       .orderBy('o.createdAt', 'DESC');
 
-    applyKeywordSearch(qb, ['o.note'], search);
+    applyKeywordSearch(qb, ['o.note', 'o.orderNumber'], search);
     if (status) qb.andWhere('o.status = :status', { status });
     if (shopId) qb.andWhere('o.shopId = :shopId', { shopId });
     if (employeeId) qb.andWhere('o.recordByEmployeeId = :employeeId', { employeeId });
@@ -86,23 +87,26 @@ export class OrderService {
     );
   }
 
-  async create(dto: OrderCreateDto): Promise<OrderResponseDto> {
+  async create(dto: OrderCreateDto, actor: ActorContext): Promise<OrderResponseDto> {
     const shop = await getEntityOrNotFound(this.shopRepo, { where: { id: dto.shopId } }, `ร้านค้า`);
-    const recordBy = await getEntityOrNotFound(this.employeeRepo, { where: { id: dto.recordBy } }, `พนักงาน`);
+    // ผู้บันทึก (recordBy) มาจาก actor ที่ยืนยัน PIN เท่านั้น — ไม่เชื่อค่าจาก client
+    const recordBy = await getEntityOrNotFound(this.employeeRepo, { where: { id: actor.employeeId } }, `พนักงาน`);
 
     const order = this.orderRepo.create({
       id: generateIdWithPrefix({ prefix: 'ORD', withDateTime: true }),
       shop,
       recordBy,
+      orderNumber: dto.orderNumber,
       status: dto.status,
       startRecordAt: dto.startRecordAt ? new Date(dto.startRecordAt) : undefined,
       completedRecordAt: dto.completedRecordAt ? new Date(dto.completedRecordAt) : undefined,
       note: dto.note,
     });
 
-    if (dto.terminalId) {
-      order.terminal = await getEntityOrNotFound(this.terminalRepo, { where: { id: dto.terminalId } }, `Terminal`);
-      order.terminalId = dto.terminalId;
+    // terminal มาจาก actor token (เครื่องที่ยืนยัน PIN) — ไม่เชื่อค่าจาก client
+    if (actor.terminalId) {
+      order.terminal = await getEntityOrNotFound(this.terminalRepo, { where: { id: actor.terminalId } }, `Terminal`);
+      order.terminalId = actor.terminalId;
     }
 
     if (dto.details?.length) {
@@ -135,15 +139,8 @@ export class OrderService {
     if (dto.shopId) {
       order.shop = await getEntityOrNotFound(this.shopRepo, { where: { id: dto.shopId } }, `ร้านค้า`);
     }
-    if (dto.recordBy) {
-      order.recordBy = await getEntityOrNotFound(this.employeeRepo, { where: { id: dto.recordBy } }, `พนักงาน`);
-    }
-    if (dto.terminalId !== undefined) {
-      if (dto.terminalId) {
-        order.terminal = await getEntityOrNotFound(this.terminalRepo, { where: { id: dto.terminalId } }, `Terminal`);
-      }
-      order.terminalId = dto.terminalId ?? null;
-    }
+    // recordBy + terminal ถูกกำหนดตอนสร้างจาก actor token เท่านั้น — แก้ไขภายหลังไม่ได้
+    if (dto.orderNumber !== undefined) order.orderNumber = dto.orderNumber;
     if (dto.status !== undefined) order.status = dto.status;
     if (dto.startRecordAt !== undefined) order.startRecordAt = dto.startRecordAt ? new Date(dto.startRecordAt) : null;
     if (dto.completedRecordAt !== undefined) order.completedRecordAt = dto.completedRecordAt ? new Date(dto.completedRecordAt) : null;
@@ -210,7 +207,7 @@ export class OrderService {
       ])
       .orderBy('o.createdAt', 'DESC');
 
-    applyKeywordSearch(qb, ['o.note'], search);
+    applyKeywordSearch(qb, ['o.note', 'o.orderNumber'], search);
     if (status) qb.andWhere('o.status = :status', { status });
     if (shopId) qb.andWhere('o.shopId = :shopId', { shopId });
     if (employeeId) qb.andWhere('o.recordByEmployeeId = :employeeId', { employeeId });
@@ -221,6 +218,7 @@ export class OrderService {
 
     const columns: ExcelColumn<Order>[] = [
       { header: 'เลขออเดอร์', key: 'id', width: 22, getValue: (r) => r.id },
+      { header: 'เลขคำสั่งซื้อ', key: 'orderNumber', width: 18, getValue: (r) => r.orderNumber ?? '' },
       { header: 'ร้านค้า', key: 'shop', width: 18, getValue: (r) => r.shop?.name ?? '' },
       { header: 'แพลตฟอร์ม', key: 'platform', width: 14, getValue: (r) => r.shop?.platform ?? '' },
       { header: 'พนักงาน', key: 'employee', width: 18, getValue: (r) => r.recordBy ? `${r.recordBy.firstName} ${r.recordBy.lastName}` : '' },

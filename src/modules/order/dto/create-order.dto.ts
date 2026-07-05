@@ -4,20 +4,18 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsArray, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class OrderCreateDto {
-  @ApiProperty({ description: 'Employee ID (ผู้บันทึก)', example: 'EMP-xxxx' })
-  @IsString()
-  @IsNotEmpty()
-  recordBy: string;
+  // recordBy (ผู้บันทึก) + terminalId ถูก derive จาก actor token ฝั่ง server —
+  // ไม่รับจาก client เพื่อกันการปลอมแปลง (ดู ActorGuard + order.service.create)
 
   @ApiProperty({ description: 'Shop ID', example: 'SHOP-xxxx' })
   @IsString()
   @IsNotEmpty()
   shopId: string;
 
-  @ApiProperty({ description: 'Terminal ID (ถ้าสร้างผ่าน terminal)', example: 'TERM-xxxx', required: false })
+  @ApiProperty({ description: 'เลขคำสั่งซื้อจากแพลตฟอร์ม', example: '2504XXXX', required: false })
   @IsOptional()
   @IsString()
-  terminalId?: string;
+  orderNumber?: string;
 
   @ApiProperty({ description: 'สถานะ order', enum: OrderStatus, required: false })
   @IsOptional()

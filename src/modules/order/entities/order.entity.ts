@@ -64,6 +64,10 @@ export class Order {
   note: string;
 
   @Index()
+  @Column({ nullable: true })
+  orderNumber: string;
+
+  @Index()
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 

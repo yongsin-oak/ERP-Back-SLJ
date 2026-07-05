@@ -30,6 +30,9 @@ export class OrderResponseDto {
   @ApiProperty()
   note: string | null;
 
+  @ApiProperty({ description: 'เลขคำสั่งซื้อจากแพลตฟอร์ม' })
+  orderNumber: string | null;
+
   @ApiProperty()
   createdAt: Date;
 

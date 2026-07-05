@@ -77,29 +77,96 @@ export class ProductService implements OnModuleInit {
     return this.productRepo.save(newProduct);
   }
 
-  async createMultiple(dtos: ProductCreateDto[]): Promise<Product[]> {
-    if (!dtos.length) return [];
+  /**
+   * แปลงรายชื่อ (แบรนด์/หมวดหมู่) → id แบบ find-or-create:
+   * ชื่อที่มีอยู่แล้ว map ไปหา id เดิม, ชื่อใหม่สร้างให้อัตโนมัติ
+   * คืน Map ที่ key = ชื่อ (trim + lowercase) → id
+   */
+  private async resolveNamesToIds<T extends { id: string; name: string }>(
+    repo: Repository<T>,
+    rawNames: (string | undefined | null)[],
+  ): Promise<Map<string, string>> {
+    const names = [...new Set(rawNames.map((n) => n?.trim()).filter(Boolean) as string[])];
+    const map = new Map<string, string>();
+    if (!names.length) return map;
 
-    // Validate uniqueness + FK references in bulk — one query each, not per row.
-    const barcodes = dtos.map((d) => d.barcode);
-    const existing = await this.productRepo.find({ where: { barcode: In(barcodes) }, select: { barcode: true } });
-    if (existing.length) {
-      throw conflict(`บาร์โค้ด "${existing.map((p) => p.barcode).join('", "')}" มีอยู่ในระบบแล้ว`);
+    const existing = await repo.find({ where: { name: In(names) } as never });
+    for (const e of existing) map.set(e.name.trim().toLowerCase(), e.id);
+
+    const missing = names.filter((n) => !map.has(n.toLowerCase()));
+    for (const name of missing) {
+      const saved = await repo.save(repo.create({ name } as never));
+      map.set(name.toLowerCase(), (saved as unknown as T).id);
     }
+    return map;
+  }
 
+  /**
+   * Bulk create สำหรับ import — partial success:
+   * - แบรนด์/หมวดหมู่ส่งมาเป็น "ชื่อ" ได้ (brandName/categoryName) → find-or-create
+   * - barcode ที่ซ้ำในระบบหรือซ้ำกันเองในไฟล์ จะถูก "ข้าม" และรายงานใน errors (ไม่ล้มทั้งชุด)
+   * - แถวที่บันทึกไม่สำเร็จ (เช่น sku ซ้ำ) ถูกเก็บใน errors รายแถว
+   */
+  async createMultiple(
+    dtos: ProductCreateDto[],
+  ): Promise<{ created: Product[]; errors: string[] }> {
+    if (!dtos.length) return { created: [], errors: [] };
+
+    const errors: string[] = [];
+
+    // resolve ชื่อ → id ทีเดียวแบบ batch (find-or-create)
+    const brandMap = await this.resolveNamesToIds(this.brandRepo, dtos.map((d) => d.brandName));
+    const categoryMap = await this.resolveNamesToIds(this.categoryRepo, dtos.map((d) => d.categoryName));
+
+    // ตรวจ FK id ที่ส่งมาตรงๆ (ไม่ผ่านชื่อ) ว่ามีจริง
     const brandIds = [...new Set(dtos.map((d) => d.brandId).filter(Boolean) as string[])];
     if (brandIds.length) {
       const found = await this.brandRepo.count({ where: { id: In(brandIds) } });
       if (found !== brandIds.length) throw badRequest(`ไม่พบแบรนด์ที่เลือก`);
     }
-
     const categoryIds = [...new Set(dtos.map((d) => d.categoryId).filter(Boolean) as string[])];
     if (categoryIds.length) {
       const found = await this.categoryRepo.count({ where: { id: In(categoryIds) } });
       if (found !== categoryIds.length) throw badRequest(`ไม่พบหมวดหมู่ที่เลือก`);
     }
 
-    return this.productRepo.save(dtos.map((dto) => this.productRepo.create(dto)));
+    const existing = new Set(
+      (
+        await this.productRepo.find({
+          where: { barcode: In(dtos.map((d) => d.barcode)) },
+          select: { barcode: true },
+        })
+      ).map((p) => p.barcode),
+    );
+
+    const seen = new Set<string>();
+    const created: Product[] = [];
+
+    for (const dto of dtos) {
+      if (existing.has(dto.barcode)) {
+        errors.push(`บาร์โค้ด "${dto.barcode}" มีอยู่ในระบบแล้ว — ข้าม`);
+        continue;
+      }
+      if (seen.has(dto.barcode)) {
+        errors.push(`บาร์โค้ด "${dto.barcode}" ซ้ำในไฟล์ — ข้าม`);
+        continue;
+      }
+      seen.add(dto.barcode);
+
+      const { brandName, categoryName, ...rest } = dto;
+      try {
+        const entity = this.productRepo.create({
+          ...rest,
+          brandId: brandName ? brandMap.get(brandName.trim().toLowerCase()) : rest.brandId,
+          categoryId: categoryName ? categoryMap.get(categoryName.trim().toLowerCase()) : rest.categoryId,
+        });
+        created.push(await this.productRepo.save(entity));
+      } catch (e) {
+        errors.push(`บาร์โค้ด "${dto.barcode}": ${(e as Error)?.message ?? 'บันทึกไม่สำเร็จ'}`);
+      }
+    }
+
+    return { created, errors };
   }
 
   async findAll(query: ProductGetDto): Promise<PaginatedResponseDto<ProductResponseDto>> {

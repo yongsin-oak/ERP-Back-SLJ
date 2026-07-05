@@ -55,7 +55,16 @@ export class ProductController {
   @Roles(Role.SuperAdmin)
   @Post('bulk')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOkResponse({ description: 'Create multiple products', type: Product, isArray: true })
+  @ApiOkResponse({
+    description: 'Bulk create (partial success) — { created: Product[], errors: string[] }',
+    schema: {
+      type: 'object',
+      properties: {
+        created: { type: 'array', items: { $ref: '#/components/schemas/Product' } },
+        errors: { type: 'array', items: { type: 'string' } },
+      },
+    },
+  })
   @ApiBody({ type: ProductCreateDto, isArray: true })
   async createMany(@Body() dtos: ProductCreateDto[]) {
     return ok(await this.productService.createMultiple(dtos));

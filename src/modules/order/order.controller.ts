@@ -1,4 +1,6 @@
 import { JwtAuthGuard } from '@app/auth/jwt/jwt-auth.guard';
+import { ActorGuard } from '@app/auth/jwt/actor.guard';
+import { Actor, ActorContext } from '@app/auth/jwt/actor.decorator';
 import { Roles } from '@app/auth/role/roles.decorator';
 import { RolesGuard } from '@app/auth/role/roles.guard';
 import { NoCache } from '@app/common/decorator/cache-control.decorator';
@@ -37,12 +39,15 @@ import { OrderService } from './order.service';
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
+  // การบันทึกออเดอร์ต้องยืนยัน PIN (ActorGuard) — recordBy + terminal ถูก derive
+  // จาก actor token ฝั่ง server เท่านั้น client ปลอมไม่ได้
   @Roles('*')
+  @UseGuards(ActorGuard)
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOkResponse({ type: OrderResponseDto })
-  async createOrder(@Body() body: OrderCreateDto) {
-    return ok(await this.orderService.create(body));
+  async createOrder(@Body() body: OrderCreateDto, @Actor() actor: ActorContext) {
+    return ok(await this.orderService.create(body, actor));
   }
 
   @Roles('*')

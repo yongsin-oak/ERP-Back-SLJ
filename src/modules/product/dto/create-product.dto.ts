@@ -22,6 +22,11 @@ export class ProductCreateDto {
   @IsString({ message: 'Name must be a string' })
   name: string;
 
+  @ApiProperty({ example: 'SKU-001', required: false })
+  @IsOptional()
+  @IsString()
+  sku?: string;
+
   @ApiProperty({ example: 1, required: false })
   @IsOptional()
   brandId?: string;
@@ -29,6 +34,22 @@ export class ProductCreateDto {
   @ApiProperty({ example: 2, required: false })
   @IsOptional()
   categoryId?: string;
+
+  @ApiProperty({ required: false, description: 'ชื่อแบรนด์ (import) — ถ้าไม่มีในระบบจะสร้างให้อัตโนมัติ' })
+  @IsOptional()
+  @IsString()
+  brandName?: string;
+
+  @ApiProperty({ required: false, description: 'ชื่อหมวดหมู่ (import) — ถ้าไม่มีในระบบจะสร้างให้อัตโนมัติ' })
+  @IsOptional()
+  @IsString()
+  categoryName?: string;
+
+  @ApiProperty({ example: 500, required: false })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  maxStock?: number;
 
   @ApiProperty({
     example: {
