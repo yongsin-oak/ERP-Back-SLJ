@@ -31,7 +31,9 @@ export class StockCountItem {
   @Column()
   stockCountId: string;
 
-  @ManyToOne(() => Product, { eager: true })
+  // Not eager: a sheet holds one row per product, so an implicit join would drag
+  // Product's four jsonb columns into every read. Callers ask for it explicitly.
+  @ManyToOne(() => Product)
   @JoinColumn({ name: 'productBarcode' })
   product: Product;
 

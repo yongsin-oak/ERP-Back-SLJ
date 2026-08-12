@@ -25,11 +25,44 @@ DELETE `Deleted`); override with `@ResponseMessage('...')`. Controllers
 ## Error shape (every failure)
 
 ```ts
-{ success: false, statusCode, message: string | string[], error, timestamp, path }
+{ success: false, statusCode, message: string | string[], error, code?, timestamp, path }
 ```
 - `message` — human-readable; **array** for validation (one entry per failed rule).
 - `error` — short label (`Bad Request`, `Conflict`, `Not Found`, ...).
+- `code` — **optional**, machine-readable (`ErrorCode` enum). See below.
 - `timestamp`, `path` — for logs/support.
+
+## `code` — for branching, not for display
+
+Add a `code` only when the client must take a **different action**, not merely show
+different text. If the frontend just renders the string, `message` already covers it.
+
+```ts
+// src/common/constants/error-code.enum.ts
+export enum ErrorCode {
+  ActorTokenInvalid = 'ACTOR_TOKEN_INVALID',
+}
+
+// throw with it — AllExceptionsFilter passes `code` straight through
+throw new UnauthorizedException({
+  message: 'การยืนยัน PIN หมดอายุ กรุณายืนยัน PIN ใหม่อีกครั้ง',
+  error: 'Unauthorized',
+  code: ErrorCode.ActorTokenInvalid,
+});
+```
+
+Rules:
+- **Never overload `error`** with a domain code — it is the HTTP label, and consumers
+  read it as such.
+- `code` is **omitted** when not set, so the existing contract is unchanged.
+- Never make the client branch on `message` text — wording changes are not a
+  breaking change, but they would silently break a string match.
+
+Worked example — why `ActorTokenInvalid` exists: `POST /order` sits behind both
+`JwtAuthGuard` (session) and `ActorGuard` (PIN). Both throw **401**. Without a code
+the frontend cannot tell "session died" from "PIN expired", so it ran its
+session-refresh → redirect-to-login path for an expired PIN — reloading the app and
+destroying the operator's in-progress order. The code lets it just re-prompt the PIN.
 
 ## Core principle: the message must say WHAT failed and WHY
 

@@ -9,6 +9,10 @@ import { Shop } from './entities/shop.entity';
 import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { ShopGetDto } from './dto/get-shop.dto';
+import { ShopDropdownItemDto } from './dto/dropdown-shop.dto';
+import { DROPDOWN_DEFAULT_LIMIT, DropdownQueryDto } from '@app/common/dto/dropdown-query.dto';
+import { DropdownResponseDto } from '@app/common/dto/dropdown-response.dto';
+import { cursorPaginateQuery } from '@app/common/helpers/cursor.helper';
 import { applyKeywordSearch, paginateQuery } from '@app/common/helpers/query.helper';
 
 @Injectable()
@@ -36,6 +40,19 @@ export class ShopService {
     if (platform) qb.andWhere('s.platform = :platform', { platform });
     applyKeywordSearch(qb, ['s.name'], search);
     return paginateQuery(qb, page, limit);
+  }
+
+  /** Cursor-paginated options for `ShopSearchSelect`. */
+  async dropdownSearch(query: DropdownQueryDto): Promise<DropdownResponseDto<ShopDropdownItemDto>> {
+    const qb = this.shopRepo.createQueryBuilder('s').select(['s.id', 's.name', 's.platform']);
+    applyKeywordSearch(qb, ['s.name'], query.search);
+    return cursorPaginateQuery(qb, {
+      limit: query.limit ?? DROPDOWN_DEFAULT_LIMIT,
+      cursor: query.cursor,
+      sortColumn: 's.name',
+      idColumn: 's.id',
+      map: ({ id, name, platform }) => ({ id, name, platform }),
+    });
   }
 
   async findOne(id: string): Promise<Shop> {

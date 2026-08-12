@@ -3,6 +3,13 @@ import { Type } from 'class-transformer';
 import { IsArray, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
 /**
+ * Upper bound for `limit` on every paginated list DTO. A caller-supplied page
+ * size is an unbounded amount of work for the DB and the response serializer,
+ * so the API caps it instead of trusting the client.
+ */
+const MAX_PAGE_LIMIT = 200;
+
+/**
  * Base query for paginated list endpoints where page/limit are optional and
  * defaulted in the service (used by admin lists that fetch a large page at once).
  * Extend it to add filters; reuse instead of redefining page/limit/search.
@@ -20,7 +27,7 @@ export class PaginatedListQueryDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(200)
+  @Max(MAX_PAGE_LIMIT)
   limit?: number;
 
   @ApiPropertyOptional({ description: 'Search keyword' })
@@ -36,10 +43,11 @@ export class PaginatedGetAllDto {
   @Min(1, { message: 'Page must be at least 1.' })
   page: number;
 
-  @ApiProperty({ example: 10, description: 'Number of items per page' })
+  @ApiProperty({ example: 10, description: 'Number of items per page — max 200' })
   @Type(() => Number)
   @IsInt({ message: 'Limit must be an integer.' })
   @Min(1, { message: 'Limit must be at least 1.' })
+  @Max(MAX_PAGE_LIMIT)
   limit: number;
 }
 

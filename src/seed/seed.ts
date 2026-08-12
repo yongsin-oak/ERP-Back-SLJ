@@ -1,4 +1,7 @@
 import { config } from 'dotenv';
+// Load .env.<NODE_ENV> first (defaults to development locally), then .env as a
+// fallback — so `bun run seed` targets the same DB the dev app connects to.
+config({ path: `.env.${process.env.NODE_ENV || 'development'}` });
 config();
 
 import { DataSource } from 'typeorm';
@@ -27,14 +30,36 @@ const orderId = () => `ORD-${today}-${nanoid(10).toUpperCase()}`;
 const detailId = () => `ORDDETAIL-${today}-${nanoid(8).toUpperCase()}`;
 const stkId = () => `STK-${today}-${nanoid(10).toUpperCase()}`;
 
+// entrypoint.sh runs this on every container start, production included, so the
+// script must never invent a credential. Production gets the admin bootstrap and
+// nothing else; the demo fixtures below it are dev/UAT-only.
+const isProduction = process.env.NODE_ENV === 'production';
+
+const databaseUrl = process.env.DATABASE_URL;
+
+// Remote/managed Postgres (Supabase) needs SSL; local/container DB does not.
+const useSsl =
+  process.env.DB_SSL !== undefined
+    ? process.env.DB_SSL === 'true'
+    : !!databaseUrl && !/@(localhost|127\.0\.0\.1|db)[:/]/.test(databaseUrl);
+
+// Prefer DATABASE_URL; fall back to POSTGRES_* for the self-hosted setup.
+const connection = databaseUrl
+  ? { url: databaseUrl }
+  : {
+      host: process.env.POSTGRES_HOST || 'localhost',
+      port: Number(process.env.POSTGRES_PORT) || 5432,
+      username: process.env.POSTGRES_USER,
+      password: process.env.POSTGRES_PASSWORD,
+      database: process.env.POSTGRES_DB,
+    };
+
 const AppDataSource = new DataSource({
   type: 'postgres',
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: Number(process.env.POSTGRES_PORT) || 5432,
-  username: process.env.POSTGRES_USER,
-  password: process.env.POSTGRES_PASSWORD,
-  database: process.env.POSTGRES_DB,
-  synchronize: true,
+  ...connection,
+  ssl: useSsl ? { rejectUnauthorized: false } : false,
+  // Mirrors db/data-source.ts: never auto-alter a production schema from a seed run.
+  synchronize: !isProduction,
   logging: false,
   entities: [User, Terminal, Brand, Category, Employee, Shop, Product, Order, OrderDetail, StockEntry, AuditLog, Supplier],
 });
@@ -55,20 +80,53 @@ async function seed() {
   const stkRepo      = AppDataSource.getRepository(StockEntry);
   const supplierRepo = AppDataSource.getRepository(Supplier);
 
-  // ─── Users ────────────────────────────────────────────────────────────────
-  console.log('👤 Seeding users...');
-  const users = [
-    { id: nanoid(12), username: 'superadmin', password: 'superadmin1234', role: Role.SuperAdmin },
-    { id: nanoid(12), username: 'operator',   password: 'operator1234',   role: Role.Operator  },
-    { id: nanoid(12), username: 'warehouse',  password: 'warehouse1234',  role: Role.Warehouse },
-  ];
-  for (const u of users) {
-    if (!(await userRepo.findOneBy({ username: u.username }))) {
-      await userRepo.save({ ...u, password: await bcrypt.hash(u.password, 10) });
+  // ─── SuperAdmin bootstrap ─────────────────────────────────────────────────
+  // Credentials come from the environment with no fallback: a default password
+  // here would be a published credential on every deployment. Unset is tolerated
+  // only once an admin already exists, so restarts of a bootstrapped instance
+  // don't fail — but an un-bootstrappable instance aborts loudly instead of
+  // silently starting with no way in.
+  console.log('👤 Bootstrapping SuperAdmin...');
+  const adminUsername = process.env.SEED_SUPERADMIN_USERNAME;
+  const adminPassword = process.env.SEED_SUPERADMIN_PASSWORD;
+
+  if (adminUsername && adminPassword) {
+    if (!(await userRepo.findOneBy({ username: adminUsername }))) {
+      await userRepo.save({
+        id: nanoid(12),
+        username: adminUsername,
+        password: await bcrypt.hash(adminPassword, 10),
+        role: Role.SuperAdmin,
+      });
+      console.log(`   created SuperAdmin "${adminUsername}"`);
+    } else {
+      console.log(`   SuperAdmin "${adminUsername}" already exists — left unchanged`);
     }
+  } else if (await userRepo.findOneBy({ role: Role.SuperAdmin })) {
+    console.log('   SEED_SUPERADMIN_* unset; a SuperAdmin already exists — skipping');
+  } else {
+    console.error(
+      '\n❌ Cannot bootstrap: no SuperAdmin exists and SEED_SUPERADMIN_USERNAME / ' +
+        'SEED_SUPERADMIN_PASSWORD are not set.\n' +
+        '   Set both in the environment and restart.\n',
+    );
+    await AppDataSource.destroy();
+    process.exit(1);
+  }
+
+  // Everything past this point is demo/fixture data. It must never touch a
+  // production database — sample brands, products and orders in a live ERP are
+  // as damaging as the default credentials this replaced.
+  if (isProduction) {
+    console.log('\n✅ Production bootstrap complete — demo data skipped.\n');
+    await AppDataSource.destroy();
+    process.exit(0);
   }
 
   // ─── Terminals ────────────────────────────────────────────────────────────
+  // Fixed passwords are safe here only because this block is unreachable when
+  // NODE_ENV=production (see the early return above). Real terminals are created
+  // through the admin UI, which generates their credentials.
   console.log('🖥️  Seeding terminals...');
   const terminalData = [
     { terminalCode: 'POS-01', name: 'POS หน้าร้าน 1',  role: Role.Operator,  password: 'terminal1234',  location: 'ห้องแพ็คของ 1' },
@@ -162,6 +220,7 @@ async function seed() {
   if (!catCookie) catCookie = await catRepo.save(catRepo.create({ id: id('CAT'), name: 'บิสกิต/คุกกี้', description: 'บิสกิตและคุกกี้', parent: catSnack }));
 
   // ─── Employees ────────────────────────────────────────────────────────────
+  // Sequential PINs are development fixtures — production never reaches here.
   console.log('👷 Seeding employees...');
   const empData = [
     { id: id('EMP'), firstName: 'สมชาย',  lastName: 'ใจดี',    nickname: 'ชาย',  department: Role.Warehouse, phoneNumber: '081-111-1111', startDate: new Date('2022-01-10'), isActive: true, pin: '1111' },
@@ -706,12 +765,9 @@ async function seed() {
     }
   }
 
-  console.log('\n✅ Seed complete!\n');
+  console.log('\n✅ Seed complete!  (development fixtures — not for production)\n');
   console.log('─────────────────────────────────────────────');
-  console.log('🔑 User credentials:');
-  console.log('   superadmin / superadmin1234  (SuperAdmin)');
-  console.log('   operator   / operator1234    (Operator)');
-  console.log('   warehouse  / warehouse1234   (Warehouse)');
+  console.log('🔑 SuperAdmin: set via SEED_SUPERADMIN_USERNAME / _PASSWORD');
   console.log('');
   console.log('🖥️  Terminal credentials:');
   console.log('   POS-01 / terminal1234  (Operator)   — ห้องแพ็คของ 1');

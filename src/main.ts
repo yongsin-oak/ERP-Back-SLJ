@@ -4,16 +4,44 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { BadRequestException, ValidationPipe, VersioningType } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
+import { DataSource } from 'typeorm';
 import cookieParser from 'cookie-parser';
 import { DateTime } from 'luxon';
 import { humanizeValidationErrors } from './common/helpers/validation.helper';
+
+// Describe the DB target without leaking credentials (host:port/db only).
+function describeDb(dataSource: DataSource): string {
+  const opts = dataSource.options as { url?: string; host?: string; port?: number; database?: string };
+  if (opts.url) {
+    try {
+      const u = new URL(opts.url);
+      return `${u.host}${u.pathname}`;
+    } catch {
+      return 'DATABASE_URL';
+    }
+  }
+  return `${opts.host}:${opts.port}/${opts.database}`;
+}
 
 async function bootstrap() {
   DateTime.now().setZone('Asia/Bangkok').toISO();
 
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
-  const corsOrigin = [process.env.CORS_ORIGIN, 'http://localhost:5173'];
+
+  // TypeOrmModule opens the connection during create(); if it fails the app
+  // never reaches here (see the bootstrap().catch below). Report the result.
+  const dataSource = app.get(DataSource);
+  const dbTarget = describeDb(dataSource);
+  const dbStatus = dataSource.isInitialized ? `connected (${dbTarget})` : `NOT connected (${dbTarget})`;
+  // MAIN_SITE_URL is the documented name; CORS_ORIGIN is kept as a fallback so
+  // existing deployments keep working. Undefined entries are dropped — leaving
+  // them in the array makes the allowlist harder to reason about.
+  const corsOrigin = [
+    process.env.MAIN_SITE_URL,
+    process.env.CORS_ORIGIN,
+    'http://localhost:5173',
+  ].filter((origin): origin is string => !!origin);
   const port = process.env.PORT || 3000;
 
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
@@ -60,10 +88,16 @@ async function bootstrap() {
   printLine(' SLJ Supply Center API ', ' ');
   console.log('|' + '-'.repeat(LINE_WIDTH - 2) + '|');
   printLine(` Environment: ${process.env.NODE_ENV || 'development'} `);
+  printLine(` Database: ${dbStatus} `);
   printLine(` Port: ${port} `);
   printLine(` CORS Origin: ${corsOrigin.join(', ')} `);
   printLine(` API Base URL: ${currentURL}/api/v1 `);
   printLine(` Swagger URL: ${currentURL}/swagger `);
   console.log('|' + '-'.repeat(LINE_WIDTH - 2) + '|');
 }
-bootstrap();
+bootstrap().catch((err) => {
+  // A DB connection failure during module init surfaces here too — the message
+  // above ("Database: NOT connected") won't have printed in that case.
+  console.error('❌ Failed to start:', err?.message ?? err);
+  process.exit(1);
+});

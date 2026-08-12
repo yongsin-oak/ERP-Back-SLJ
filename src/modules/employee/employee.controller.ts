@@ -3,15 +3,17 @@ import { Role } from '@app/auth/role/role.enum';
 import { Roles } from '@app/auth/role/roles.decorator';
 import { RolesGuard } from '@app/auth/role/roles.guard';
 import { NoCache } from '@app/common/decorator/cache-control.decorator';
-import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import { ApiOkResponseDropdown, ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { DropdownQueryDto } from '@app/common/dto/dropdown-query.dto';
+import { DropdownResponseDto } from '@app/common/dto/dropdown-response.dto';
+import { EmployeeDropdownItemDto } from './dto/dropdown-employee.dto';
 import { ok } from '@app/common/helpers/response';
 import {
   Body,
   Controller,
   Delete,
   Get,
-  Header,
   HttpCode,
   HttpStatus,
   Param,
@@ -21,7 +23,6 @@ import {
   StreamableFile,
   UseGuards,
 } from '@nestjs/common';
-import { toStreamableFile } from '@app/common/helpers/excel.helper';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { BulkDeleteEmployeeDto } from './dto/bulk-delete-employee.dto';
 import { BulkCreateEmployeeDto } from './dto/bulk-create-employee.dto';
@@ -57,10 +58,10 @@ export class EmployeeController {
 
   @Roles('*')
   @Get('export')
-  @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  // No @Header('Content-Type'): the StreamableFile carries it, and pinning it up
+  // front would label a rejected export (row ceiling) as an xlsx file too.
   async exportAll(@Query() query: EmployeeGetDto): Promise<StreamableFile> {
-    const buffer = await this.employerService.exportAll(query);
-    return toStreamableFile(buffer, 'พนักงาน');
+    return this.employerService.exportAll(query);
   }
 
   @Roles('*')
@@ -68,6 +69,14 @@ export class EmployeeController {
   @ApiOkResponsePaginated(EmployeeResponseDto)
   async getAllEmployees(@Query() query: EmployeeGetDto): Promise<PaginatedResponseDto<EmployeeResponseDto>> {
     return ok(await this.employerService.findAll(query));
+  }
+
+  // Must stay above `@Get(':id')` — Nest matches routes in declaration order.
+  @Roles('*')
+  @Get('dropdown-search')
+  @ApiOkResponseDropdown(EmployeeDropdownItemDto)
+  async dropdownSearch(@Query() query: DropdownQueryDto): Promise<DropdownResponseDto<EmployeeDropdownItemDto>> {
+    return ok(await this.employerService.dropdownSearch(query));
   }
 
   @Roles('*')

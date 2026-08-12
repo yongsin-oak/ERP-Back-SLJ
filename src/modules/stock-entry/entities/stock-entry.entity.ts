@@ -30,7 +30,10 @@ export class StockEntry {
     this.id = generateIdWithPrefix({ prefix: 'STK', withDateTime: true });
   }
 
-  @ManyToOne(() => Product, { nullable: false, eager: true })
+  // Not eager: an implicit join would hydrate Product's four jsonb columns on
+  // every read of the ledger. findAll/exportAll join it explicitly, and the write
+  // path attaches the product it already loaded.
+  @ManyToOne(() => Product, { nullable: false })
   @JoinColumn({ name: 'productBarcode' })
   product: Product;
 
@@ -51,7 +54,8 @@ export class StockEntry {
   @Column('int')
   newRemaining: number;
 
-  @ManyToOne(() => Employee, { nullable: true, eager: true })
+  // Not eager, same reason as `product` — loaded explicitly where it is rendered.
+  @ManyToOne(() => Employee, { nullable: true })
   @JoinColumn({ name: 'employeeId' })
   employee: Employee;
 

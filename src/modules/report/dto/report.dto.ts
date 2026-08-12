@@ -7,13 +7,22 @@ export enum ReportGroupBy {
   Month = 'month',
 }
 
+/**
+ * Widest span a single report request may cover. Every report aggregates the
+ * whole range in one query, so an unbounded span would scan the entire table.
+ * Enforced in ReportService.resolveDateRange (applies to /export too).
+ */
+export const MAX_REPORT_RANGE_DAYS = 366;
+
+const DATE_RANGE_DESCRIPTION = `ISO8601 (ช่วง dateFrom–dateTo ต้องไม่เกิน ${MAX_REPORT_RANGE_DAYS} วัน)`;
+
 export class SalesSummaryQueryDto {
-  @ApiProperty({ description: 'ISO8601' })
+  @ApiProperty({ description: DATE_RANGE_DESCRIPTION })
   @IsDateString()
   @IsNotEmpty()
   dateFrom: string;
 
-  @ApiProperty({ description: 'ISO8601' })
+  @ApiProperty({ description: DATE_RANGE_DESCRIPTION })
   @IsDateString()
   @IsNotEmpty()
   dateTo: string;
@@ -30,24 +39,24 @@ export class SalesSummaryQueryDto {
 }
 
 export class SalesByShopQueryDto {
-  @ApiProperty({ description: 'ISO8601' })
+  @ApiProperty({ description: DATE_RANGE_DESCRIPTION })
   @IsDateString()
   @IsNotEmpty()
   dateFrom: string;
 
-  @ApiProperty({ description: 'ISO8601' })
+  @ApiProperty({ description: DATE_RANGE_DESCRIPTION })
   @IsDateString()
   @IsNotEmpty()
   dateTo: string;
 }
 
 export class SalesByProductQueryDto {
-  @ApiProperty({ description: 'ISO8601' })
+  @ApiProperty({ description: DATE_RANGE_DESCRIPTION })
   @IsDateString()
   @IsNotEmpty()
   dateFrom: string;
 
-  @ApiProperty({ description: 'ISO8601' })
+  @ApiProperty({ description: DATE_RANGE_DESCRIPTION })
   @IsDateString()
   @IsNotEmpty()
   dateTo: string;
@@ -69,12 +78,12 @@ export class SalesByProductQueryDto {
 }
 
 export class ManHourQueryDto {
-  @ApiProperty({ description: 'ISO8601' })
+  @ApiProperty({ description: DATE_RANGE_DESCRIPTION })
   @IsDateString()
   @IsNotEmpty()
   dateFrom: string;
 
-  @ApiProperty({ description: 'ISO8601' })
+  @ApiProperty({ description: DATE_RANGE_DESCRIPTION })
   @IsDateString()
   @IsNotEmpty()
   dateTo: string;

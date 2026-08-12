@@ -3,12 +3,14 @@ import { Role } from '@app/auth/role/role.enum';
 import { Roles } from '@app/auth/role/roles.decorator';
 import { RolesGuard } from '@app/auth/role/roles.guard';
 import { NoCache } from '@app/common/decorator/cache-control.decorator';
-import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import { ApiOkResponseDropdown, ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { DropdownItemDto } from '@app/common/dto/dropdown-item.dto';
+import { DropdownQueryDto } from '@app/common/dto/dropdown-query.dto';
+import { DropdownResponseDto } from '@app/common/dto/dropdown-response.dto';
 import { SupplierGetDto } from './dto/get-supplier.dto';
 import { ok } from '@app/common/helpers/response';
-import { Body, Controller, Delete, Get, Header, HttpCode, HttpStatus, Param, Patch, Post, Query, StreamableFile, UseGuards } from '@nestjs/common';
-import { toStreamableFile } from '@app/common/helpers/excel.helper';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, StreamableFile, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { Supplier } from './entities/supplier.entity';
@@ -23,10 +25,10 @@ export class SupplierController {
 
   @Get('export')
   @Roles('*')
-  @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  // No @Header('Content-Type'): the StreamableFile carries it, and pinning it up
+  // front would label a rejected export (row ceiling) as an xlsx file too.
   async exportAll(@Query('search') search?: string): Promise<StreamableFile> {
-    const buffer = await this.supplierService.exportAll(search);
-    return toStreamableFile(buffer, 'ซัพพลายเออร์');
+    return this.supplierService.exportAll(search);
   }
 
   @Get()
@@ -34,6 +36,14 @@ export class SupplierController {
   @ApiOkResponsePaginated(Supplier)
   async getAllSuppliers(@Query() query: SupplierGetDto): Promise<PaginatedResponseDto<Supplier>> {
     return ok(await this.supplierService.findAll(query));
+  }
+
+  // Must stay above `@Get(':id')` — Nest matches routes in declaration order.
+  @Get('dropdown-search')
+  @Roles('*')
+  @ApiOkResponseDropdown(DropdownItemDto)
+  async dropdownSearch(@Query() query: DropdownQueryDto): Promise<DropdownResponseDto<DropdownItemDto>> {
+    return ok(await this.supplierService.dropdownSearch(query));
   }
 
   @Get(':id')

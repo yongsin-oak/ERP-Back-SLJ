@@ -3,7 +3,7 @@ import { Roles } from '@app/auth/role/roles.decorator';
 import { RolesGuard } from '@app/auth/role/roles.guard';
 import { ok } from '@app/common/helpers/response';
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import {
   DailyRevenueDto,
@@ -11,6 +11,7 @@ import {
   DashboardFilterQueryDto,
   DashboardStatsDto,
   LowStockDto,
+  LowStockQueryDto,
   RecentOrderDto,
   RecentOrdersQueryDto,
 } from './dto/dashboard.dto';
@@ -44,9 +45,8 @@ export class DashboardController {
 
   @Roles('*')
   @Get('low-stock')
-  @ApiQuery({ name: 'threshold', required: false, type: Number })
   @ApiOkResponse({ type: LowStockDto, isArray: true })
-  async getLowStock(@Query('threshold') threshold?: string) {
-    return ok(await this.dashboardService.getLowStock(threshold ? parseInt(threshold) : 5));
+  async getLowStock(@Query() query: LowStockQueryDto) {
+    return ok(await this.dashboardService.getLowStock(query));
   }
 }

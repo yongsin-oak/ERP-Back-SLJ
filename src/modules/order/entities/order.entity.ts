@@ -63,8 +63,10 @@ export class Order {
   @Column({ nullable: true })
   note: string;
 
+  // เลขคำสั่งซื้อจากแพลตฟอร์ม — บังคับกรอกทุกออเดอร์ (ใช้เป็นตัวระบุหลักบน UI แทน id)
+  // NOTE: เปลี่ยนจาก nullable:true → ต้อง backfill แถวเดิมที่ NULL ก่อน (ดู db/backfill-order-number.sql)
   @Index()
-  @Column({ nullable: true })
+  @Column()
   orderNumber: string;
 
   @Index()

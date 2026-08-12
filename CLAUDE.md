@@ -44,6 +44,22 @@ Hard rules (see `.claude/README.md` for detail):
 
 - Every controller uses `@Controller({ path, version: '1' })` → `/api/v1/...`.
 - Wrap controller returns in `ok(...)`; lists use `paginatedResponse(...)`.
+- **Dropdowns get their own route and their own pagination contract.** A picker
+  never shares the table's list endpoint. Give it `@Get('dropdown-search')`
+  — **declared above `@Get(':id')`**, or Nest routes it to the param handler —
+  taking `DropdownQueryDto` (`cursor`/`limit`/`search`, max 50) and returning
+  `DropdownResponseDto<T>` (`{ data, nextCursor }`) built by
+  `cursorPaginateQuery`, projected down to what the option needs.
+  Offset (`page`/`limit`/`total`) stays on table lists only: it skips and repeats
+  rows when data shifts mid-scroll, and its `COUNT(*)` is work no dropdown reads.
+  Keyset ordering must match the cursor key, so pair it with `applySmartMatch`,
+  never `applySmartSearch` (that one sets a relevance ORDER BY). Every new
+  dropdown needs its `(sortColumn, id)` index in `db/performance-indexes.sql`.
+- **A new list envelope needs a branch in `TransformResponseInterceptor`.** It
+  hoists `data` to the top level only for shapes it recognises (`pagination`,
+  `nextCursor`); anything else is wrapped whole and arrives one level deeper.
+  That mismatch type-checks on both sides and only fails at runtime, so add the
+  branch *and* a case in `transform-response.interceptor.spec.ts`.
 - Throw via the helpers in `@app/common/helpers/response`
   (`notFound`, `conflict`, `badRequest`, ...). Do not throw raw `HttpException`
   unless there is no helper for it.

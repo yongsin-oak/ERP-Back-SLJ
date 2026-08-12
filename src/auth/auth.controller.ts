@@ -68,6 +68,13 @@ export class AuthController {
     });
   }
 
+  @Get('terminals')
+  @NoCache()
+  @ApiOkResponse({ description: 'Active terminals for the login picker' })
+  async listTerminals() {
+    return this.authService.listActiveTerminals();
+  }
+
   @Post('refresh-token')
   @NoCache()
   @ApiOkResponse({ description: 'Refresh successful' })

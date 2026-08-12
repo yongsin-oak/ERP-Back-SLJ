@@ -3,8 +3,11 @@ import { Role } from '@app/auth/role/role.enum';
 import { Roles } from '@app/auth/role/roles.decorator';
 import { RolesGuard } from '@app/auth/role/roles.guard';
 import { NoCache } from '@app/common/decorator/cache-control.decorator';
-import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import { ApiOkResponseDropdown, ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { DropdownItemDto } from '@app/common/dto/dropdown-item.dto';
+import { DropdownQueryDto } from '@app/common/dto/dropdown-query.dto';
+import { DropdownResponseDto } from '@app/common/dto/dropdown-response.dto';
 import { ok } from '@app/common/helpers/response';
 import {
   Body,
@@ -56,6 +59,14 @@ export class CategoryController {
   @ApiOkResponse({ description: 'Get all categories as a tree structure', type: CategoryResponseWithChildrenDto, isArray: true })
   async getAllCategoriesTree() {
     return ok(await this.categoryservice.findAllTree());
+  }
+
+  // Must stay above `@Get(':id')` — Nest matches routes in declaration order.
+  @Get('dropdown-search')
+  @Roles('*')
+  @ApiOkResponseDropdown(DropdownItemDto)
+  async dropdownSearch(@Query() query: DropdownQueryDto): Promise<DropdownResponseDto<DropdownItemDto>> {
+    return ok(await this.categoryservice.dropdownSearch(query));
   }
 
   @Get(':id')

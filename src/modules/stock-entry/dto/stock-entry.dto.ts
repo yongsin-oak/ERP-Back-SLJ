@@ -2,6 +2,7 @@ import { PaginatedGetAllDto } from '@app/common/dto/paginated.dto';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsDateString,
   IsEnum,
@@ -15,6 +16,13 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { StockEntryType } from '../entities/stock-entry.entity';
+
+/**
+ * Upper bound for one bulk request. Each item runs in its own transaction (the
+ * per-item error-collection contract), so request cost grows linearly — beyond
+ * this the client must send batches instead of holding a connection for minutes.
+ */
+export const MAX_BULK_STOCK_ENTRY_ITEMS = 1_000;
 
 export class CreateStockEntryDto {
   @ApiProperty({ example: 'P001' })
@@ -81,8 +89,11 @@ export class BulkCreateStockEntryDto {
   @IsString()
   note?: string;
 
-  @ApiProperty({ type: [BulkStockEntryItemDto] })
+  @ApiProperty({ type: [BulkStockEntryItemDto], maxItems: MAX_BULK_STOCK_ENTRY_ITEMS })
   @IsArray()
+  @ArrayMaxSize(MAX_BULK_STOCK_ENTRY_ITEMS, {
+    message: `ส่งได้ครั้งละไม่เกิน ${MAX_BULK_STOCK_ENTRY_ITEMS} รายการ กรุณาแบ่งส่งเป็นชุด`,
+  })
   @ValidateNested({ each: true })
   @Type(() => BulkStockEntryItemDto)
   entries: BulkStockEntryItemDto[];
@@ -111,8 +122,11 @@ export class BulkAdjustStockEntryDto {
   @IsString()
   note?: string;
 
-  @ApiProperty({ type: [BulkAdjustItemDto] })
+  @ApiProperty({ type: [BulkAdjustItemDto], maxItems: MAX_BULK_STOCK_ENTRY_ITEMS })
   @IsArray()
+  @ArrayMaxSize(MAX_BULK_STOCK_ENTRY_ITEMS, {
+    message: `ส่งได้ครั้งละไม่เกิน ${MAX_BULK_STOCK_ENTRY_ITEMS} รายการ กรุณาแบ่งส่งเป็นชุด`,
+  })
   @ValidateNested({ each: true })
   @Type(() => BulkAdjustItemDto)
   adjustments: BulkAdjustItemDto[];

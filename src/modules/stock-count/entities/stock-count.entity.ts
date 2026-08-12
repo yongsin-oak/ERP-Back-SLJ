@@ -36,7 +36,9 @@ export class StockCount {
   @Column({ type: 'enum', enum: StockCountStatus, default: StockCountStatus.DRAFT })
   status: StockCountStatus;
 
-  @ManyToOne(() => Employee, { nullable: true, eager: true })
+  // Not eager — the status/apply paths only read the header. Loaded explicitly by
+  // findAll/findOne, which are the reads that actually render the employee.
+  @ManyToOne(() => Employee, { nullable: true })
   @JoinColumn({ name: 'employeeId' })
   employee: Employee;
 

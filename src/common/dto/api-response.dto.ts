@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ErrorCode } from '../constants/error-code.enum';
 import { PaginationDto, ResponseMetaDto } from './paginated.dto';
 
 export class ApiResponseDto<T> {
@@ -27,7 +28,15 @@ export class ApiErrorResponseDto {
   @ApiProperty() success: false;
   @ApiProperty() statusCode: number;
   @ApiProperty() message: string | string[];
-  @ApiProperty() error: string;
+  @ApiProperty({ description: 'HTTP label — "Unauthorized", "Conflict", "Not Found", ...' })
+  error: string;
+  @ApiPropertyOptional({
+    enum: ErrorCode,
+    description:
+      'Machine-readable code. Present only on errors the client must branch on — ' +
+      'distinct from `error`, which is the HTTP label.',
+  })
+  code?: ErrorCode;
   @ApiProperty() timestamp: string;
   @ApiProperty() path: string;
 }

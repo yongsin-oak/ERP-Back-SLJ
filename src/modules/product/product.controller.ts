@@ -3,7 +3,7 @@ import { Role } from '@app/auth/role/role.enum';
 import { Roles } from '@app/auth/role/roles.decorator';
 import { RolesGuard } from '@app/auth/role/roles.guard';
 import { NoCache } from '@app/common/decorator/cache-control.decorator';
-import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import { ApiOkResponseDropdown, ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
 import { ok } from '@app/common/helpers/response';
 import {
@@ -11,7 +11,6 @@ import {
   Controller,
   Delete,
   Get,
-  Header,
   HttpCode,
   HttpStatus,
   Param,
@@ -21,7 +20,6 @@ import {
   StreamableFile,
   UseGuards,
 } from '@nestjs/common';
-import { toStreamableFile } from '@app/common/helpers/excel.helper';
 import { ApiBearerAuth, ApiBody, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import { BulkDeleteProductDto } from './dto/bulk-delete-product.dto';
 import { BulkUpdateProductDto } from './dto/bulk-update-product.dto';
@@ -29,6 +27,7 @@ import { CheckExistProductDto } from './dto/check-exist-product.dto';
 import { ProductCreateDto } from './dto/create-product.dto';
 import { ProductDropdownItemDto, ProductDropdownSearchDto } from './dto/dropdown-search-product.dto';
 import { ProductGetDto } from './dto/get-product.dto';
+import { ProductRefDto } from './dto/ref-product.dto';
 import { ProductResponseDto } from './dto/response.dto';
 import { CreateShopPriceDto, UpdateShopPriceDto } from './dto/shop-price.dto';
 import { ProductUpdateDto } from './dto/update-product.dto';
@@ -72,10 +71,10 @@ export class ProductController {
 
   @Roles('*')
   @Get('export')
-  @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  // No @Header('Content-Type'): the StreamableFile carries it, and pinning it up
+  // front would label a rejected export (row ceiling) as an xlsx file too.
   async exportAll(@Query() query: ProductGetDto): Promise<StreamableFile> {
-    const buffer = await this.productService.exportAll(query);
-    return toStreamableFile(buffer, 'สินค้า');
+    return this.productService.exportAll(query);
   }
 
   @Roles('*')
@@ -87,7 +86,7 @@ export class ProductController {
 
   @Roles('*')
   @Get('dropdown-search')
-  @ApiOkResponsePaginated(ProductDropdownItemDto)
+  @ApiOkResponseDropdown(ProductDropdownItemDto)
   async dropdownSearch(@Query() query: ProductDropdownSearchDto) {
     return ok(await this.productService.dropdownSearch(query));
   }
@@ -140,6 +139,16 @@ export class ProductController {
   @ApiOkResponse({ description: 'Get product by barcode', type: Product })
   async findOne(@Param('barcode') barcode: string) {
     return ok(await this.productService.findOne(barcode));
+  }
+
+  @Roles('*')
+  @Get(':barcode/ref')
+  @ApiOkResponse({
+    description: 'Resolve a barcode to barcode + name only — for order scanning',
+    type: ProductRefDto,
+  })
+  async findOneRef(@Param('barcode') barcode: string) {
+    return ok(await this.productService.findOneRef(barcode));
   }
 
   @Roles(Role.SuperAdmin)

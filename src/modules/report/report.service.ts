@@ -2,10 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DateTime } from 'luxon';
+import { badRequest } from '@app/common/helpers/response';
 import { buildExcelBuffer, ExcelColumn } from '@app/common/helpers/excel.helper';
-import { Order } from '../order/entities/order.entity';
+import { Order, OrderStatus } from '../order/entities/order.entity';
 import { OrderDetail } from '../order-detail/entities/orderDetail.entity';
 import {
+  MAX_REPORT_RANGE_DAYS,
   ManHourItemDto,
   ManHourQueryDto,
   ReportGroupBy,
@@ -17,6 +19,40 @@ import {
   SalesSummaryQueryDto,
 } from './dto/report.dto';
 
+const REPORT_TZ = 'Asia/Bangkok';
+
+// `startRecordAt` is a `timestamp` (no zone): the pg driver writes and reads it
+// using the Node process zone, so the stored value is process-local wall clock.
+// SQL therefore has to re-interpret it in that zone before shifting it to
+// REPORT_TZ — that is exactly what the previous in-memory
+// `DateTime.fromJSDate(...).setZone(REPORT_TZ)` did. Containers run UTC while the
+// business day is Bangkok, so skipping this would move every bucket by 7 hours.
+const PROCESS_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+// Prices are jsonb `{ pack, carton }`. Each operand is COALESCEd because a
+// missing product row, a NULL price blob or a missing key would otherwise turn
+// the whole SUM into NULL (the JS version used `?? 0` per operand).
+const REVENUE_SUM = `SUM(
+  COALESCE(d.quantityPack, 0) * COALESCE((p.sellPrice ->> 'pack')::numeric, 0)
+  + COALESCE(d.quantityCarton, 0) * COALESCE((p.sellPrice ->> 'carton')::numeric, 0)
+)`;
+
+const COST_SUM = `SUM(
+  COALESCE(d.quantityPack, 0) * COALESCE((p.costPrice ->> 'pack')::numeric, 0)
+  + COALESCE(d.quantityCarton, 0) * COALESCE((p.costPrice ->> 'carton')::numeric, 0)
+)`;
+
+// Joining details multiplies the order row, so orders must be de-duplicated.
+const ORDER_COUNT = 'COUNT(DISTINCT o.id)';
+
+// to_char patterns that reproduce the luxon bucket keys the frontend already
+// receives: 'yyyy-MM-dd', ISO week `${weekYear}-W${weekNumber}`, and 'yyyy-MM'.
+const DATE_BUCKET_FORMAT: Record<ReportGroupBy, string> = {
+  [ReportGroupBy.Day]: 'YYYY-MM-DD',
+  [ReportGroupBy.Week]: 'IYYY-"W"IW',
+  [ReportGroupBy.Month]: 'YYYY-MM',
+};
+
 @Injectable()
 export class ReportService {
   constructor(
@@ -27,232 +63,208 @@ export class ReportService {
     private readonly detailRepo: Repository<OrderDetail>,
   ) {}
 
-  private calcDetail(detail: OrderDetail): { revenue: number; cost: number } {
-    const pack = detail.quantityPack ?? 0;
-    const carton = detail.quantityCarton ?? 0;
-    const revenue =
-      pack * (detail.product?.sellPrice?.pack ?? 0) +
-      carton * (detail.product?.sellPrice?.carton ?? 0);
-    const cost =
-      pack * (detail.product?.costPrice?.pack ?? 0) +
-      carton * (detail.product?.costPrice?.carton ?? 0);
-    return { revenue, cost };
+  /** Postgres returns numeric/bigint aggregates as strings. */
+  private num(value: string | number | null | undefined): number {
+    return Number(value ?? 0);
+  }
+
+  private resolveDateRange(dateFrom: string, dateTo: string): { start: Date; end: Date } {
+    const start = DateTime.fromISO(dateFrom, { zone: REPORT_TZ }).startOf('day');
+    const end = DateTime.fromISO(dateTo, { zone: REPORT_TZ }).endOf('day');
+
+    if (!start.isValid || !end.isValid) {
+      throw badRequest('รูปแบบวันที่ไม่ถูกต้อง');
+    }
+
+    // Reports aggregate every order in the range; without an upper bound a single
+    // request (e.g. dateFrom=2000-01-01) scans the whole table.
+    if (end.diff(start, 'days').days > MAX_REPORT_RANGE_DAYS) {
+      throw badRequest(`ช่วงวันที่กว้างเกินไป กรุณาเลือกไม่เกิน ${MAX_REPORT_RANGE_DAYS} วัน`);
+    }
+
+    return { start: start.toJSDate(), end: end.toJSDate() };
+  }
+
+  private dateBucket(groupBy: ReportGroupBy): string {
+    return `to_char((o.startRecordAt AT TIME ZONE CAST(:processTz AS text)) AT TIME ZONE CAST(:reportTz AS text), '${DATE_BUCKET_FORMAT[groupBy]}')`;
   }
 
   async getSalesSummary(query: SalesSummaryQueryDto): Promise<SalesSummaryItemDto[]> {
     const { dateFrom, dateTo, shopId, groupBy = ReportGroupBy.Day } = query;
-    const tz = 'Asia/Bangkok';
-    const start = DateTime.fromISO(dateFrom, { zone: tz }).startOf('day');
-    const end = DateTime.fromISO(dateTo, { zone: tz }).endOf('day');
+    const { start, end } = this.resolveDateRange(dateFrom, dateTo);
+    const bucket = this.dateBucket(groupBy);
 
-    const qb = this.detailRepo
-      .createQueryBuilder('d')
-      .leftJoinAndSelect('d.product', 'p')
-      .innerJoin('d.order', 'o')
-      .addSelect(['o.startRecordAt', 'o.shopId'])
-      .where('o.startRecordAt BETWEEN :start AND :end', {
-        start: start.toJSDate(),
-        end: end.toJSDate(),
-      });
+    // Driven from `order` with LEFT JOINs so an order without details still
+    // counts in its bucket (revenue 0), like the previous two-pass reduction.
+    const qb = this.orderRepo
+      .createQueryBuilder('o')
+      .leftJoin('o.orderDetails', 'd')
+      .leftJoin('d.product', 'p')
+      .select(bucket, 'date')
+      .addSelect(REVENUE_SUM, 'revenue')
+      .addSelect(COST_SUM, 'cost')
+      .addSelect(ORDER_COUNT, 'orderCount')
+      .where('o.startRecordAt BETWEEN :start AND :end', { start, end })
+      .andWhere('o.status = :status', { status: OrderStatus.Completed })
+      .setParameters({ processTz: PROCESS_TZ, reportTz: REPORT_TZ })
+      .groupBy(bucket)
+      .orderBy(bucket, 'ASC');
 
     if (shopId) {
       qb.andWhere('o.shopId = :shopId', { shopId });
     }
 
-    const details = await qb.getMany();
-    const orders = await this.orderRepo
-      .createQueryBuilder('o')
-      .select(['o.id', 'o.startRecordAt', 'o.shopId'])
-      .where('o.startRecordAt BETWEEN :start AND :end', { start: start.toJSDate(), end: end.toJSDate() })
-      .andWhere(shopId ? 'o.shopId = :shopId' : '1=1', shopId ? { shopId } : {})
-      .getMany();
+    const rows = await qb.getRawMany<{
+      date: string;
+      revenue: string;
+      cost: string;
+      orderCount: string;
+    }>();
 
-    const buckets = new Map<string, { revenue: number; cost: number; orderIds: Set<string> }>();
-
-    const getKey = (dt: DateTime): string => {
-      switch (groupBy) {
-        case ReportGroupBy.Month:
-          return dt.toFormat('yyyy-MM');
-        case ReportGroupBy.Week:
-          return `${dt.weekYear}-W${String(dt.weekNumber).padStart(2, '0')}`;
-        default:
-          return dt.toFormat('yyyy-MM-dd');
-      }
-    };
-
-    for (const order of orders) {
-      if (!order.startRecordAt) continue;
-      const key = getKey(DateTime.fromJSDate(order.startRecordAt).setZone(tz));
-      if (!buckets.has(key)) buckets.set(key, { revenue: 0, cost: 0, orderIds: new Set() });
-      buckets.get(key)!.orderIds.add(order.id);
-    }
-
-    // associate details — use order join data
-    const detailsWithOrder = await this.detailRepo
-      .createQueryBuilder('d')
-      .leftJoinAndSelect('d.product', 'p')
-      .innerJoinAndSelect('d.order', 'o')
-      .where('o.startRecordAt BETWEEN :start AND :end', { start: start.toJSDate(), end: end.toJSDate() })
-      .andWhere(shopId ? 'o.shopId = :shopId' : '1=1', shopId ? { shopId } : {})
-      .getMany();
-
-    for (const d of detailsWithOrder) {
-      const order = d.order as Order;
-      if (!order?.startRecordAt) continue;
-      const key = getKey(DateTime.fromJSDate(order.startRecordAt).setZone(tz));
-      if (!buckets.has(key)) buckets.set(key, { revenue: 0, cost: 0, orderIds: new Set() });
-      const { revenue, cost } = this.calcDetail(d);
-      buckets.get(key)!.revenue += revenue;
-      buckets.get(key)!.cost += cost;
-    }
-
-    return Array.from(buckets.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, { revenue, cost, orderIds }]) => ({
-        date,
+    return rows.map((row) => {
+      const revenue = this.num(row.revenue);
+      const cost = this.num(row.cost);
+      return {
+        date: row.date,
         revenue,
         cost,
         profit: revenue - cost,
-        orderCount: orderIds.size,
-      }));
+        orderCount: this.num(row.orderCount),
+      };
+    });
   }
 
   async getSalesByShop(query: SalesByShopQueryDto): Promise<SalesByShopItemDto[]> {
     const { dateFrom, dateTo } = query;
-    const tz = 'Asia/Bangkok';
-    const start = DateTime.fromISO(dateFrom, { zone: tz }).startOf('day').toJSDate();
-    const end = DateTime.fromISO(dateTo, { zone: tz }).endOf('day').toJSDate();
+    const { start, end } = this.resolveDateRange(dateFrom, dateTo);
 
-    const detailsWithOrder = await this.detailRepo
+    const rows = await this.detailRepo
       .createQueryBuilder('d')
-      .leftJoinAndSelect('d.product', 'p')
-      .innerJoinAndSelect('d.order', 'o')
-      .innerJoinAndSelect('o.shop', 'shop')
+      .innerJoin('d.order', 'o')
+      .innerJoin('o.shop', 'shop')
+      .leftJoin('d.product', 'p')
+      .select('shop.id', 'shopId')
+      .addSelect('shop.name', 'shopName')
+      .addSelect('shop.platform', 'platform')
+      .addSelect(REVENUE_SUM, 'revenue')
+      .addSelect(COST_SUM, 'cost')
+      .addSelect(ORDER_COUNT, 'orderCount')
       .where('o.startRecordAt BETWEEN :start AND :end', { start, end })
-      .getMany();
+      .andWhere('o.status = :status', { status: OrderStatus.Completed })
+      .groupBy('shop.id')
+      .addGroupBy('shop.name')
+      .addGroupBy('shop.platform')
+      .orderBy('"revenue"', 'DESC')
+      .getRawMany<{
+        shopId: string;
+        shopName: string;
+        platform: string;
+        revenue: string;
+        cost: string;
+        orderCount: string;
+      }>();
 
-    const map = new Map<
-      string,
-      { shopName: string; platform: string; revenue: number; cost: number; orderIds: Set<string> }
-    >();
-
-    for (const d of detailsWithOrder) {
-      const order = d.order as Order;
-      const shop = (order as unknown as { shop: { id: string; name: string; platform: string } }).shop;
-      if (!shop) continue;
-      if (!map.has(shop.id)) {
-        map.set(shop.id, { shopName: shop.name, platform: shop.platform, revenue: 0, cost: 0, orderIds: new Set() });
-      }
-      const { revenue, cost } = this.calcDetail(d);
-      map.get(shop.id)!.revenue += revenue;
-      map.get(shop.id)!.cost += cost;
-      map.get(shop.id)!.orderIds.add(order.id);
-    }
-
-    return Array.from(map.entries()).map(([shopId, { shopName, platform, revenue, cost, orderIds }]) => ({
-      shopId,
-      shopName,
-      platform,
-      revenue,
-      cost,
-      orderCount: orderIds.size,
+    return rows.map((row) => ({
+      shopId: row.shopId,
+      shopName: row.shopName,
+      platform: row.platform,
+      revenue: this.num(row.revenue),
+      cost: this.num(row.cost),
+      orderCount: this.num(row.orderCount),
     }));
   }
 
   async getSalesByProduct(query: SalesByProductQueryDto): Promise<SalesByProductItemDto[]> {
     const { dateFrom, dateTo, shopId, categoryId, brandId } = query;
-    const tz = 'Asia/Bangkok';
-    const start = DateTime.fromISO(dateFrom, { zone: tz }).startOf('day').toJSDate();
-    const end = DateTime.fromISO(dateTo, { zone: tz }).endOf('day').toJSDate();
+    const { start, end } = this.resolveDateRange(dateFrom, dateTo);
 
     const qb = this.detailRepo
       .createQueryBuilder('d')
-      .leftJoinAndSelect('d.product', 'p')
       .innerJoin('d.order', 'o')
-      .addSelect(['o.shopId'])
-      .where('o.startRecordAt BETWEEN :start AND :end', { start, end });
+      .innerJoin('d.product', 'p')
+      .select('p.barcode', 'barcode')
+      .addSelect('p.name', 'name')
+      .addSelect('SUM(COALESCE(d.quantityPack, 0))', 'quantityPack')
+      .addSelect('SUM(COALESCE(d.quantityCarton, 0))', 'quantityCarton')
+      .addSelect(REVENUE_SUM, 'revenue')
+      .addSelect(COST_SUM, 'cost')
+      .where('o.startRecordAt BETWEEN :start AND :end', { start, end })
+      .andWhere('o.status = :status', { status: OrderStatus.Completed })
+      .groupBy('p.barcode')
+      .addGroupBy('p.name')
+      .orderBy('"revenue"', 'DESC');
 
     if (shopId) qb.andWhere('o.shopId = :shopId', { shopId });
     if (categoryId) qb.andWhere('p.categoryId = :categoryId', { categoryId });
     if (brandId) qb.andWhere('p.brandId = :brandId', { brandId });
 
-    const details = await qb.getMany();
+    const rows = await qb.getRawMany<{
+      barcode: string;
+      name: string;
+      quantityPack: string;
+      quantityCarton: string;
+      revenue: string;
+      cost: string;
+    }>();
 
-    const map = new Map<
-      string,
-      { name: string; quantityPack: number; quantityCarton: number; revenue: number; cost: number }
-    >();
-
-    for (const d of details) {
-      const barcode = d.product?.barcode ?? 'unknown';
-      if (!map.has(barcode)) {
-        map.set(barcode, { name: d.product?.name ?? '', quantityPack: 0, quantityCarton: 0, revenue: 0, cost: 0 });
-      }
-      const { revenue, cost } = this.calcDetail(d);
-      const row = map.get(barcode)!;
-      row.quantityPack += d.quantityPack ?? 0;
-      row.quantityCarton += d.quantityCarton ?? 0;
-      row.revenue += revenue;
-      row.cost += cost;
-    }
-
-    return Array.from(map.entries()).map(([barcode, row]) => ({
-      barcode,
-      name: row.name,
-      quantityPack: row.quantityPack,
-      quantityCarton: row.quantityCarton,
-      revenue: row.revenue,
-      cost: row.cost,
-      profit: row.revenue - row.cost,
-    }));
+    return rows.map((row) => {
+      const revenue = this.num(row.revenue);
+      const cost = this.num(row.cost);
+      return {
+        barcode: row.barcode,
+        name: row.name,
+        quantityPack: this.num(row.quantityPack),
+        quantityCarton: this.num(row.quantityCarton),
+        revenue,
+        cost,
+        profit: revenue - cost,
+      };
+    });
   }
 
   async getManHour(query: ManHourQueryDto): Promise<ManHourItemDto[]> {
     const { dateFrom, dateTo, employeeId } = query;
-    const tz = 'Asia/Bangkok';
-    const start = DateTime.fromISO(dateFrom, { zone: tz }).startOf('day').toJSDate();
-    const end = DateTime.fromISO(dateTo, { zone: tz }).endOf('day').toJSDate();
+    const { start, end } = this.resolveDateRange(dateFrom, dateTo);
 
     const qb = this.orderRepo
       .createQueryBuilder('o')
-      .leftJoinAndSelect('o.recordBy', 'emp')
+      .innerJoin('o.recordBy', 'emp')
+      .select('emp.id', 'employeeId')
+      .addSelect('emp.firstName', 'firstName')
+      .addSelect('emp.lastName', 'lastName')
+      .addSelect('COUNT(o.id)', 'orderCount')
+      .addSelect('SUM(EXTRACT(EPOCH FROM (o.completedRecordAt - o.startRecordAt)) / 60)', 'totalMinutes')
       .where('o.startRecordAt BETWEEN :start AND :end', { start, end })
       .andWhere('o.startRecordAt IS NOT NULL')
-      .andWhere('o.completedRecordAt IS NOT NULL');
+      .andWhere('o.completedRecordAt IS NOT NULL')
+      .andWhere('o.status = :status', { status: OrderStatus.Completed })
+      .groupBy('emp.id')
+      .addGroupBy('emp.firstName')
+      .addGroupBy('emp.lastName')
+      .orderBy('"totalMinutes"', 'DESC');
 
     if (employeeId) qb.andWhere('o.recordByEmployeeId = :employeeId', { employeeId });
 
-    const orders = await qb.getMany();
+    const rows = await qb.getRawMany<{
+      employeeId: string;
+      firstName: string;
+      lastName: string;
+      orderCount: string;
+      totalMinutes: string;
+    }>();
 
-    const map = new Map<
-      string,
-      { name: string; orderCount: number; totalMinutes: number }
-    >();
-
-    for (const order of orders) {
-      const emp = order.recordBy;
-      if (!emp) continue;
-      if (!map.has(emp.id)) {
-        map.set(emp.id, {
-          name: `${emp.firstName} ${emp.lastName}`.trim(),
-          orderCount: 0,
-          totalMinutes: 0,
-        });
-      }
-      const minutes =
-        (new Date(order.completedRecordAt).getTime() - new Date(order.startRecordAt).getTime()) / 60000;
-      const row = map.get(emp.id)!;
-      row.orderCount += 1;
-      row.totalMinutes += minutes;
-    }
-
-    return Array.from(map.entries()).map(([empId, { name, orderCount, totalMinutes }]) => ({
-      employeeId: empId,
-      name,
-      orderCount,
-      totalMinutes: Math.round(totalMinutes),
-      avgMinutesPerOrder: orderCount > 0 ? Math.round(totalMinutes / orderCount) : 0,
-    }));
+    return rows.map((row) => {
+      const orderCount = this.num(row.orderCount);
+      // Round only on the way out — the average is derived from the unrounded total.
+      const totalMinutes = this.num(row.totalMinutes);
+      return {
+        employeeId: row.employeeId,
+        name: `${row.firstName} ${row.lastName}`.trim(),
+        orderCount,
+        totalMinutes: Math.round(totalMinutes),
+        avgMinutesPerOrder: orderCount > 0 ? Math.round(totalMinutes / orderCount) : 0,
+      };
+    });
   }
 
   async exportSalesSummary(query: SalesSummaryQueryDto): Promise<Buffer> {

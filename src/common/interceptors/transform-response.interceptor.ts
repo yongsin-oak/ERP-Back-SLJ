@@ -28,6 +28,22 @@ function isPaginatedShape(
   );
 }
 
+/**
+ * `DropdownResponseDto` — the cursor counterpart of `isPaginatedShape`.
+ *
+ * Both envelopes get the same treatment: `data` is hoisted to the top level and
+ * its metadata sits beside it (`pagination` there, `nextCursor` here). Without
+ * this branch the whole DTO falls through to the generic wrap and arrives as
+ * `data: { data: [...], nextCursor }` — one level deeper than every other list
+ * response, which breaks callers that map over `body.data`.
+ */
+function isCursorShape(value: unknown): value is { data: unknown[]; nextCursor: string | null } {
+  if (value === null || typeof value !== 'object' || !Array.isArray((value as any).data)) return false;
+  const cursor = (value as any).nextCursor;
+  // `null` is a meaningful value here (list exhausted), so test the key, not truthiness.
+  return 'nextCursor' in value && (cursor === null || typeof cursor === 'string');
+}
+
 function buildMeta() {
   return {
     requestId: crypto.randomUUID(),
@@ -58,6 +74,10 @@ export class TransformResponseInterceptor implements NestInterceptor {
         if (isPaginatedShape(value)) {
           const base = { success: true, statusCode, message, data: value.data, pagination: value.pagination, meta };
           return value.summary !== undefined ? { ...base, summary: value.summary } : base;
+        }
+
+        if (isCursorShape(value)) {
+          return { success: true, statusCode, message, data: value.data, nextCursor: value.nextCursor, meta };
         }
 
         return { success: true, statusCode, message, data: value, meta };

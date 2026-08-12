@@ -17,6 +17,7 @@ dto/create-<feature>.dto.ts
 dto/update-<feature>.dto.ts
 dto/get-<feature>.dto.ts
 dto/response.dto.ts  (or response-<feature>.dto.ts)
+dto/ref-<feature>.dto.ts       (projection — see § Projections below)
 <thing>.spec.ts  beside the code; *.e2e-spec.ts in test/
 ```
 - kebab-case for files and folders; one entity per file.
@@ -31,6 +32,33 @@ dto/response.dto.ts  (or response-<feature>.dto.ts)
   **Prefer `<Feature><Verb>Dto`** for new DTOs to match the dominant style.
 - Enums: PascalCase name, PascalCase members (`Role.SuperAdmin`, `Platform.Shopee`).
 - Service/Controller/Module: `XService`, `XController`, `XModule`.
+
+## Projections (field-subset responses)
+
+When a client needs fewer fields than the canonical response, do **not** invent an
+ad-hoc adjective (`lite`, `mini`, `slim`, `basic`). Those are relative, unbounded,
+and say nothing about what is inside — the next subset has nowhere to go
+(`lite-plus`?). Name a projection by **what it contains**, from this fixed ladder:
+
+| Name | Contains | Route | DTO |
+| --- | --- | --- | --- |
+| *(canonical)* | everything + relations | `GET /product/:barcode` | `Product` / `ProductResponseDto` |
+| `ref` | identifier + label, nothing else | `GET /product/:barcode/ref` | `ProductRefDto` |
+| `summary` | the set a list/grid/dropdown renders | `GET /product/dropdown-search` | `ProductDropdownItemDto` |
+
+`ref ⊂ summary ⊂ canonical`. The value of `ref` is that it is **self-bounding**:
+add a field and it is no longer a reference — it is a summary. The name enforces
+the boundary that `lite` cannot.
+
+Rules:
+- A projection exists to skip work, not just bytes — give it its own query with
+  `select` and **no relations** (see [[standard-performance]]). A projection that
+  still runs the canonical joins has bought nothing.
+- Do not name a projection after the UI that consumes it. `ProductDropdownItemDto`
+  is existing debt: the shape is a summary and is reusable, the name pretends it
+  is only for dropdowns.
+- Frontend mirrors these names (`ProductRef`, `productKeys.ref(...)`); keep both
+  sides in step when adding one.
 
 ## Identifiers
 

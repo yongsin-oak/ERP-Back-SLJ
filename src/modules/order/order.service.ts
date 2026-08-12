@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { buildExcelBuffer, ExcelColumn } from '@app/common/helpers/excel.helper';
 import { Employee } from '../employee/entities/employee.entity';
 import { Terminal } from '../terminal/terminal.entity';
 import { OrderDetail } from '../order-detail/entities/orderDetail.entity';
+import { OrderDetailCreateDto } from '../order-detail/dto/create-order-detail.dto';
 import { Product } from '../product/entities/product.entity';
 import { Shop } from '../shop/entities/shop.entity';
 import { BulkDeleteOrderDto } from './dto/bulk-delete-order.dto';
@@ -16,16 +17,29 @@ import { GetOrderDto } from './dto/get-order.dto';
 import { Order } from './entities/order.entity';
 import { getEntityOrNotFound } from '@app/common/helpers/entity.helper';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
-import { badRequest } from '@app/common/helpers/response';
+import { badRequest, notFound, unauthorized } from '@app/common/helpers/response';
 import { applyDateRange, applyKeywordSearch, paginateQuery } from '@app/common/helpers/query.helper';
 import { generateIdWithPrefix } from '@app/common/helpers/generateIdWithPrefix.helper';
 import { ActorContext } from '@app/auth/jwt/actor.decorator';
+
+/**
+ * Hard ceiling for one export request. Every filter on /order/export is optional,
+ * so without this a bare call would load every order (plus its details and
+ * products) and build the whole workbook in memory.
+ */
+const ORDER_EXPORT_MAX_ROWS = 5_000;
+
+/** Filters shared by the list and the export — the export just drops paging. */
+type OrderFilters = Omit<GetOrderDto, 'page' | 'limit'>;
 
 @Injectable()
 export class OrderService {
   constructor(
     @InjectRepository(Order)
     private readonly orderRepo: Repository<Order>,
+
+    @InjectRepository(OrderDetail)
+    private readonly orderDetailRepo: Repository<OrderDetail>,
 
     @InjectRepository(Product)
     private readonly productRepo: Repository<Product>,
@@ -49,25 +63,9 @@ export class OrderService {
     },
   };
 
-  async findAll(query: GetOrderDto): Promise<PaginatedResponseDto<OrderResponseDto>> {
-    const { page, limit, search, status, shopId, employeeId, terminalId, dateFrom, dateTo } = query;
-
-    const qb = this.orderRepo
-      .createQueryBuilder('o')
-      .leftJoinAndSelect('o.recordBy', 'recordBy')
-      .leftJoinAndSelect('o.terminal', 'terminal')
-      .leftJoinAndSelect('o.shop', 'shop')
-      .leftJoinAndSelect('o.orderDetails', 'orderDetails')
-      .leftJoinAndSelect('orderDetails.product', 'product')
-      .select([
-        'o', 'orderDetails',
-        'recordBy.id', 'recordBy.firstName', 'recordBy.lastName', 'recordBy.nickname',
-        'terminal.id', 'terminal.terminalCode', 'terminal.name', 'terminal.role', 'terminal.location', 'terminal.isActive',
-        'shop.id', 'shop.name', 'shop.platform',
-        'product.barcode', 'product.name', 'product.sellPrice',
-        'orderDetails.id', 'orderDetails.orderId', 'orderDetails.quantityPack', 'orderDetails.quantityCarton',
-      ])
-      .orderBy('o.createdAt', 'DESC');
+  /** One definition of the order filter block, shared by the list and the export. */
+  private applyOrderFilters(qb: SelectQueryBuilder<Order>, filters: OrderFilters): void {
+    const { search, status, shopId, employeeId, terminalId, dateFrom, dateTo } = filters;
 
     applyKeywordSearch(qb, ['o.note', 'o.orderNumber'], search);
     if (status) qb.andWhere('o.status = :status', { status });
@@ -75,8 +73,108 @@ export class OrderService {
     if (employeeId) qb.andWhere('o.recordByEmployeeId = :employeeId', { employeeId });
     if (terminalId) qb.andWhere('o.terminalId = :terminalId', { terminalId });
     applyDateRange(qb, 'o.startRecordAt', dateFrom, dateTo);
+  }
 
-    return paginateQuery(qb, page, limit);
+  /**
+   * Load the line items of the orders on the current page in one query.
+   * They are fetched after pagination instead of joined into the list query
+   * because a to-many join makes `getManyAndCount`'s COUNT re-join the whole
+   * filtered order⋈order_detail⋈product set on every page request.
+   */
+  private async attachOrderDetails(orders: OrderResponseDto[]): Promise<void> {
+    if (!orders.length) return;
+
+    const details = await this.orderDetailRepo.find({
+      where: { orderId: In(orders.map((o) => o.id)) },
+      relations: ['product'],
+      select: {
+        id: true,
+        orderId: true,
+        quantityPack: true,
+        quantityCarton: true,
+        createdAt: true,
+        updatedAt: true,
+        product: { barcode: true, name: true, sellPrice: true },
+      },
+      // No ORDER BY on purpose: order_detail has no sequence column, and the
+      // ids share one timestamp per order, so sorting would scramble the line
+      // order the operator entered. The join this replaced returned the same
+      // physical order.
+    });
+
+    const byOrderId = new Map<string, OrderDetail[]>();
+    for (const detail of details) {
+      const bucket = byOrderId.get(detail.orderId);
+      if (bucket) bucket.push(detail);
+      else byOrderId.set(detail.orderId, [detail]);
+    }
+
+    for (const order of orders) {
+      order.orderDetails = byOrderId.get(order.id) ?? [];
+    }
+  }
+
+  async findAll(query: GetOrderDto): Promise<PaginatedResponseDto<OrderResponseDto>> {
+    const { page, limit } = query;
+
+    const qb = this.orderRepo
+      .createQueryBuilder('o')
+      .leftJoinAndSelect('o.recordBy', 'recordBy')
+      .leftJoinAndSelect('o.terminal', 'terminal')
+      .leftJoinAndSelect('o.shop', 'shop')
+      .select([
+        'o',
+        'recordBy.id', 'recordBy.firstName', 'recordBy.lastName', 'recordBy.nickname',
+        'terminal.id', 'terminal.terminalCode', 'terminal.name', 'terminal.role', 'terminal.location', 'terminal.isActive',
+        'shop.id', 'shop.name', 'shop.platform',
+      ])
+      .orderBy('o.createdAt', 'DESC');
+
+    this.applyOrderFilters(qb, query);
+
+    const result = await paginateQuery<Order, OrderResponseDto>(qb, page, limit);
+    await this.attachOrderDetails(result.data);
+
+    return result;
+  }
+
+  /**
+   * Resolve every line item's product in ONE lookup. This is the POS write hot
+   * path, which used to issue a SELECT per line and hydrate a full Product
+   * (four jsonb columns) each time; only the primary key is needed to write the
+   * relation, so nothing else is selected.
+   */
+  private async buildOrderDetails(items: OrderDetailCreateDto[]): Promise<OrderDetail[]> {
+    const barcodes = [...new Set(items.map((d) => d.productBarcode))];
+    const products = await this.productRepo.find({
+      where: { barcode: In(barcodes) },
+      select: { barcode: true },
+    });
+    const productByBarcode = new Map(products.map((p) => [p.barcode, p]));
+
+    const details: OrderDetail[] = [];
+    const missing = new Set<string>();
+
+    for (const item of items) {
+      const product = productByBarcode.get(item.productBarcode);
+      if (!product) {
+        missing.add(item.productBarcode);
+        continue;
+      }
+      const detail = new OrderDetail();
+      detail.product = product;
+      detail.quantityPack = item.quantityPack ?? 0;
+      detail.quantityCarton = item.quantityCarton ?? 0;
+      details.push(detail);
+    }
+
+    // Report every unknown barcode at once — the operator can fix the whole order
+    // in one pass instead of resubmitting to discover the next bad line.
+    if (missing.size) {
+      throw notFound(`ไม่พบ ${[...missing].map((b) => `สินค้า "${b}"`).join(', ')}`);
+    }
+
+    return details;
   }
 
   async findOne(id: string): Promise<OrderResponseDto> {
@@ -90,7 +188,11 @@ export class OrderService {
   async create(dto: OrderCreateDto, actor: ActorContext): Promise<OrderResponseDto> {
     const shop = await getEntityOrNotFound(this.shopRepo, { where: { id: dto.shopId } }, `ร้านค้า`);
     // ผู้บันทึก (recordBy) มาจาก actor ที่ยืนยัน PIN เท่านั้น — ไม่เชื่อค่าจาก client
-    const recordBy = await getEntityOrNotFound(this.employeeRepo, { where: { id: actor.employeeId } }, `พนักงาน`);
+    // id มาจาก token ไม่ใช่ body: หาไม่เจอ = credential ใช้ไม่ได้ (401) ไม่ใช่ 404
+    const recordBy = await this.employeeRepo.findOne({ where: { id: actor.employeeId } });
+    if (!recordBy) {
+      throw unauthorized(`ไม่พบพนักงานของ PIN นี้ในระบบ กรุณายืนยัน PIN ใหม่อีกครั้ง`);
+    }
 
     const order = this.orderRepo.create({
       id: generateIdWithPrefix({ prefix: 'ORD', withDateTime: true }),
@@ -105,28 +207,22 @@ export class OrderService {
 
     // terminal มาจาก actor token (เครื่องที่ยืนยัน PIN) — ไม่เชื่อค่าจาก client
     if (actor.terminalId) {
-      order.terminal = await getEntityOrNotFound(this.terminalRepo, { where: { id: actor.terminalId } }, `Terminal`);
+      const terminal = await this.terminalRepo.findOne({ where: { id: actor.terminalId } });
+      if (!terminal) {
+        throw unauthorized(`ไม่พบเครื่องที่ยืนยัน PIN นี้ในระบบ กรุณายืนยัน PIN ใหม่อีกครั้ง`);
+      }
+      order.terminal = terminal;
       order.terminalId = actor.terminalId;
     }
 
     if (dto.details?.length) {
-      order.orderDetails = await Promise.all(
-        dto.details.map(async (d) => {
-          if (!d.quantityPack && !d.quantityCarton) {
-            throw badRequest(`สินค้า "${d.productBarcode}": กรุณาระบุจำนวนแพ็คหรือลัง`);
-          }
-          const product = await getEntityOrNotFound(
-            this.productRepo,
-            { where: { barcode: d.productBarcode } },
-            `สินค้า "${d.productBarcode}"`,
-          );
-          const detail = new OrderDetail();
-          detail.product = product;
-          detail.quantityPack = d.quantityPack ?? 0;
-          detail.quantityCarton = d.quantityCarton ?? 0;
-          return detail;
-        }),
-      );
+      // Quantity is rejected before any product lookup, as it was before.
+      for (const d of dto.details) {
+        if (!d.quantityPack && !d.quantityCarton) {
+          throw badRequest(`สินค้า "${d.productBarcode}": กรุณาระบุจำนวนแพ็คหรือลัง`);
+        }
+      }
+      order.orderDetails = await this.buildOrderDetails(dto.details);
     }
 
     const saved = await this.orderRepo.save(order);
@@ -146,21 +242,12 @@ export class OrderService {
     if (dto.completedRecordAt !== undefined) order.completedRecordAt = dto.completedRecordAt ? new Date(dto.completedRecordAt) : null;
     if (dto.note !== undefined) order.note = dto.note;
 
+    // NOTE: assigning the whole set makes the cascading save delete and reinsert
+    // every child row. It stays that way because OrderDetailCreateDto carries no
+    // detail id, so there is no stable key to diff an incoming line against an
+    // existing row (a barcode is editable and may repeat within one order).
     if (dto.details?.length) {
-      order.orderDetails = await Promise.all(
-        dto.details.map(async (d) => {
-          const product = await getEntityOrNotFound(
-            this.productRepo,
-            { where: { barcode: d.productBarcode } },
-            `สินค้า "${d.productBarcode}"`,
-          );
-          const detail = new OrderDetail();
-          detail.product = product;
-          detail.quantityPack = d.quantityPack ?? 0;
-          detail.quantityCarton = d.quantityCarton ?? 0;
-          return detail;
-        }),
-      );
+      order.orderDetails = await this.buildOrderDetails(dto.details);
     }
 
     const saved = await this.orderRepo.save(order);
@@ -188,8 +275,18 @@ export class OrderService {
     return { existing, missing };
   }
 
-  async exportAll(query: Omit<GetOrderDto, 'page' | 'limit'>): Promise<Buffer> {
-    const { search, status, shopId, employeeId, terminalId, dateFrom, dateTo } = query;
+  async exportAll(query: OrderFilters): Promise<Buffer> {
+    // Count first on a join-free builder: refuse an oversized export before
+    // loading any row, instead of dying halfway through building the workbook.
+    const countQb = this.orderRepo.createQueryBuilder('o');
+    this.applyOrderFilters(countQb, query);
+    const total = await countQb.getCount();
+
+    if (total > ORDER_EXPORT_MAX_ROWS) {
+      throw badRequest(
+        `ข้อมูลที่เลือกมี ${total} ออเดอร์ เกินขีดจำกัดการส่งออก ${ORDER_EXPORT_MAX_ROWS} ออเดอร์ต่อครั้ง กรุณาระบุช่วงวันที่ให้แคบลงแล้วลองใหม่อีกครั้ง`,
+      );
+    }
 
     const qb = this.orderRepo
       .createQueryBuilder('o')
@@ -207,12 +304,7 @@ export class OrderService {
       ])
       .orderBy('o.createdAt', 'DESC');
 
-    applyKeywordSearch(qb, ['o.note', 'o.orderNumber'], search);
-    if (status) qb.andWhere('o.status = :status', { status });
-    if (shopId) qb.andWhere('o.shopId = :shopId', { shopId });
-    if (employeeId) qb.andWhere('o.recordByEmployeeId = :employeeId', { employeeId });
-    if (terminalId) qb.andWhere('o.terminalId = :terminalId', { terminalId });
-    applyDateRange(qb, 'o.startRecordAt', dateFrom, dateTo);
+    this.applyOrderFilters(qb, query);
 
     const orders = await qb.getMany();
 
@@ -240,31 +332,32 @@ export class OrderService {
   }
 
   async bulkDelete(dto: BulkDeleteOrderDto): Promise<{ deleted: OrderResponseDto[]; errors: string[] }> {
-    const ordersToDelete: Order[] = [];
-    const errors: string[] = [];
+    if (!dto.ids.length) return { deleted: [], errors: [] };
 
-    for (const id of dto.ids) {
-      try {
-        ordersToDelete.push(
-          await getEntityOrNotFound(this.orderRepo, { where: { id }, ...this.orderRelations }, `ออเดอร์`),
-        );
-      } catch {
-        errors.push(`ไม่พบออเดอร์ "${id}"`);
-      }
-    }
+    // One lookup for the whole batch instead of a findOne per id.
+    const orders = await this.orderRepo.find({ where: { id: In(dto.ids) }, ...this.orderRelations });
+    const orderById = new Map(orders.map((o) => [o.id, o]));
 
+    const errors = dto.ids.filter((id) => !orderById.has(id)).map((id) => `ไม่พบออเดอร์ "${id}"`);
     if (errors.length) return { deleted: [], errors };
 
-    const deleted: OrderResponseDto[] = [];
-    for (const order of ordersToDelete) {
-      try {
-        const id = order.id;
-        await this.orderRepo.remove(order);
-        deleted.push({ ...order, id });
-      } catch (error) {
-        errors.push(`ลบออเดอร์ไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
-      }
+    try {
+      // order_detail.orderId is ON DELETE CASCADE (see OrderDetail.order), so one
+      // statement removes the children with their parents.
+      await this.orderRepo.delete({ id: In(dto.ids) });
+    } catch (error) {
+      // A single DELETE is atomic — nothing was removed, so `deleted` stays empty.
+      return {
+        deleted: [],
+        errors: [`ลบออเดอร์ไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`],
+      };
     }
+
+    // Keep the caller's id order, as the per-id loop did.
+    const deleted = dto.ids
+      .map((id) => orderById.get(id))
+      .filter((order): order is Order => order !== undefined)
+      .map((order) => ({ ...order }));
 
     return { deleted, errors };
   }

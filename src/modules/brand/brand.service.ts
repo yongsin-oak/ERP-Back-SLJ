@@ -5,6 +5,10 @@ import { Brand } from './entities/brand.entity';
 import { BrandCreateDto } from './dto/create-brand.dto';
 import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { DropdownItemDto } from '@app/common/dto/dropdown-item.dto';
+import { DROPDOWN_DEFAULT_LIMIT, DropdownQueryDto } from '@app/common/dto/dropdown-query.dto';
+import { DropdownResponseDto } from '@app/common/dto/dropdown-response.dto';
+import { cursorPaginateQuery } from '@app/common/helpers/cursor.helper';
 import { BrandGetDto } from './dto/get-brand.dto';
 import { applyKeywordSearch, paginateQuery } from '@app/common/helpers/query.helper';
 import { conflict } from '@app/common/helpers/response';
@@ -29,6 +33,19 @@ export class BrandService {
     const qb = this.brandRepo.createQueryBuilder('b').orderBy('b.name', 'ASC');
     applyKeywordSearch(qb, ['b.name'], search);
     return paginateQuery(qb, page, limit);
+  }
+
+  /** Cursor-paginated options for `BrandSearchSelect` — separate from findAll on purpose. */
+  async dropdownSearch(query: DropdownQueryDto): Promise<DropdownResponseDto<DropdownItemDto>> {
+    const qb = this.brandRepo.createQueryBuilder('b').select(['b.id', 'b.name']);
+    applyKeywordSearch(qb, ['b.name'], query.search);
+    return cursorPaginateQuery(qb, {
+      limit: query.limit ?? DROPDOWN_DEFAULT_LIMIT,
+      cursor: query.cursor,
+      sortColumn: 'b.name',
+      idColumn: 'b.id',
+      map: ({ id, name }) => ({ id, name }),
+    });
   }
 
   async findOne(id: string): Promise<Brand> {

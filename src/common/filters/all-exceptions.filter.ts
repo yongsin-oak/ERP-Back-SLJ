@@ -8,16 +8,11 @@ import {
 import { Request, Response } from 'express';
 import { QueryFailedError } from 'typeorm';
 import { containsThai } from '../helpers/validation.helper';
-
-const SENSITIVE_FIELDS = ['password', 'currentPassword', 'newPassword', 'currentPass', 'newPass'];
+import { maskSensitive } from '../helpers/mask-sensitive.helper';
 
 function maskBody(body: Record<string, unknown>): Record<string, unknown> {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return body;
-  const masked = { ...body };
-  for (const field of SENSITIVE_FIELDS) {
-    if (field in masked) masked[field] = '[Redacted]';
-  }
-  return masked;
+  return maskSensitive(body);
 }
 
 /**
@@ -41,6 +36,23 @@ const STATUS_THAI_MESSAGE: Record<number, string> = {
 
 const SERVER_ERROR_THAI = 'เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่อีกครั้ง';
 
+/**
+ * `error` is the HTTP label ("Unauthorized", "Not Found") per standard-api-responses.
+ * Exceptions thrown with no message — passport's bare `new UnauthorizedException()`
+ * behind JwtAuthGuard, for one — carry no `error` key, so we derive it here.
+ * `HttpStatus[status]` alone yields the enum name ("UNAUTHORIZED"), which would make
+ * the same status return two different labels depending on who threw it.
+ */
+function toErrorLabel(statusCode: number): string {
+  const enumName = HttpStatus[statusCode];
+  if (!enumName) return 'Error';
+  return enumName
+    .toLowerCase()
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
@@ -48,13 +60,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const res = ctx.getResponse<Response>();
     const req = ctx.getRequest<Request>();
 
-    const { statusCode, message, error } = this.resolveException(exception, req);
+    const { statusCode, message, error, code } = this.resolveException(exception, req);
 
     const body = {
       success: false,
       statusCode,
       message: this.toUserMessage(statusCode, message),
       error,
+      // Present only when the thrower tagged an ErrorCode — errors the client must
+      // branch on. Optional by design so the existing contract stays unchanged.
+      ...(code ? { code } : {}),
       timestamp: new Date().toISOString(),
       path: req.url,
     };
@@ -91,6 +106,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     statusCode: number;
     message: string | string[];
     error: string;
+    code?: string;
   } {
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
@@ -99,11 +115,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
         typeof response === 'object' && 'message' in response
           ? (response as any).message
           : exception.message;
-      const error =
+      const thrownError =
         typeof response === 'object' && 'error' in response
           ? (response as any).error
-          : HttpStatus[status] ?? 'Error';
-      return { statusCode: status, message, error };
+          : undefined;
+      const error =
+        typeof thrownError === 'string' && thrownError.length > 0
+          ? thrownError
+          : toErrorLabel(status);
+      const code =
+        typeof response === 'object' && 'code' in response
+          ? (response as any).code
+          : undefined;
+      return { statusCode: status, message, error, code };
     }
 
     if (exception instanceof QueryFailedError) {

@@ -16,6 +16,13 @@ import {
 } from './dto/stock-entry.dto';
 import { buildExcelBuffer, ExcelColumn } from '@app/common/helpers/excel.helper';
 
+/**
+ * Hard ceiling for one export. Every filter on the endpoint is optional, so an
+ * unfiltered call would otherwise stream the whole ledger — plus its joined
+ * products and employees — into app memory to build a single workbook.
+ */
+const MAX_EXPORT_ROWS = 20_000;
+
 /** A single stock-balance mutation to apply atomically against one product. */
 interface StockMutation {
   productBarcode: string;
@@ -196,6 +203,13 @@ export class StockEntryService {
     if (type) qb.andWhere('se.type = :type', { type });
     if (employeeId) qb.andWhere('se.employeeId = :employeeId', { employeeId });
     applyDateRange(qb, 'se.createdAt', dateFrom, dateTo);
+
+    const total = await qb.getCount();
+    if (total > MAX_EXPORT_ROWS) {
+      throw badRequest(
+        `ข้อมูลที่เลือกมี ${total} รายการ เกินขีดจำกัดการส่งออก ${MAX_EXPORT_ROWS} รายการ กรุณาระบุช่วงวันที่หรือกรองข้อมูลให้แคบลง`,
+      );
+    }
 
     const entries = await qb.getMany();
 

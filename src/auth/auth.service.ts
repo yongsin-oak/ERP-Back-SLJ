@@ -78,8 +78,28 @@ export class AuthService {
 
   // ─── Terminal Auth ─────────────────────────────────────────────────────────
 
+  /**
+   * Public projection of active terminals for the login picker.
+   * Returns only non-secret identifiers — never passwordHash. A caller still
+   * needs the terminal password to log in, so exposing codes/names is safe.
+   */
+  async listActiveTerminals() {
+    return this.terminalRepo.find({
+      where: { isActive: true },
+      select: { terminalCode: true, name: true, role: true },
+      order: { terminalCode: 'ASC' },
+    });
+  }
+
   async validateTerminal(terminalCode: string, password: string) {
-    const terminal = await this.terminalRepo.findOneBy({ terminalCode, isActive: true });
+    // passwordHash is `select: false` on the entity, so it must be added
+    // explicitly — otherwise bcrypt.compare receives undefined and throws.
+    const terminal = await this.terminalRepo
+      .createQueryBuilder('terminal')
+      .addSelect('terminal.passwordHash')
+      .where('terminal.terminalCode = :terminalCode', { terminalCode })
+      .andWhere('terminal.isActive = :isActive', { isActive: true })
+      .getOne();
     // Generic message so an invalid/disabled terminal code can't be distinguished
     // from a wrong password.
     const invalidTerminal = 'รหัสเครื่องหรือรหัสผ่านไม่ถูกต้อง';

@@ -50,6 +50,36 @@ cp .env.uat.example .env.uat
 docker-compose -f docker-compose.uat.yml up -d
 ```
 
+## SuperAdmin bootstrap (ต้องตั้งก่อน deploy ครั้งแรก)
+
+seed script จะ **ไม่สร้าง account ให้เองอีกต่อไป** — เดิมมี default password ฝังใน
+โค้ด (`superadmin/superadmin1234` ฯลฯ) ซึ่งถูกสร้างใหม่ทุกครั้งที่ container start
+ตอนนี้ต้องกำหนดเองผ่าน env:
+
+```bash
+SEED_SUPERADMIN_USERNAME=<username ที่ต้องการ>
+SEED_SUPERADMIN_PASSWORD=<password ที่แข็งแรง>
+```
+
+พฤติกรรม (`src/seed/seed.ts`):
+
+| สถานะ DB | ตั้ง `SEED_SUPERADMIN_*` | ผลลัพธ์ |
+|---|---|---|
+| ยังไม่มี SuperAdmin | ✅ ตั้งแล้ว | สร้าง SuperAdmin ตามค่าที่ให้ |
+| มี SuperAdmin แล้ว | ✅ ตั้งแล้ว | ข้าม ไม่แก้ของเดิม |
+| มี SuperAdmin แล้ว | ❌ ไม่ได้ตั้ง | ข้าม (restart ได้ปกติ) |
+| ยังไม่มี SuperAdmin | ❌ ไม่ได้ตั้ง | **หยุด startup (exit 1)** |
+
+`entrypoint.sh` ใช้ `set -e` แล้ว ดังนั้น seed ล้ม = แอปไม่ start (ตั้งใจให้เป็นแบบนี้
+เพื่อไม่ให้มี instance ที่ล็อกอินไม่ได้เงียบ ๆ)
+
+> ⚠️ ถ้า prod เคยรัน seed เวอร์ชันเก่ามาก่อน ให้ **เปลี่ยนรหัสผ่าน**
+> `superadmin` / `operator` / `warehouse` และ terminal `POS-01` / `POS-02` / `WH-01`
+> ทันที — รหัสเดิมอยู่ใน git history
+
+เมื่อ `NODE_ENV=production` seed จะสร้างแค่ SuperAdmin แล้วจบ — demo data
+(brand / category / product / order / employee PIN) จะไม่ถูกเขียนลง prod อีก
+
 ## การจัดการ Docker Containers
 
 ### ดู Logs
@@ -119,11 +149,25 @@ docker exec db-production psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
 ```
 
 GIN trigram index (perf เท่านั้น — fuzzy ทำงานได้แม้ไม่มี) ไม่ได้อยู่ใน init-script
-เพราะตาราง `product` ยังไม่ถูกสร้างตอน DB init; เพิ่มบน prod เมื่อ catalogue ใหญ่ขึ้น:
-
-```bash
-docker exec db-production psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
-  -c "CREATE INDEX IF NOT EXISTS product_name_trgm_idx ON product USING gin (name gin_trgm_ops);"
-```
+เพราะตาราง `product` ยังไม่ถูกสร้างตอน DB init
 
 > dev: แอป provision extension + index ให้อัตโนมัติตอน start (เผื่อ local dev ไม่ได้ใช้ image นี้)
+
+### Performance indexes (prod)
+
+อินเด็กซ์ทั้งหมดที่ prod ต้องมี รวมไว้ที่ [db/performance-indexes.sql](db/performance-indexes.sql)
+แล้ว (trigram สำหรับ search, composite filter+sort บน `order` / `order_detail` /
+`stock_entry`, low-stock บน `product.remaining`)
+
+```bash
+psql "$DATABASE_URL" -f db/performance-indexes.sql
+# หรือผ่าน container
+docker exec -i db-production psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+  < db/performance-indexes.sql
+```
+
+- ทุกคำสั่งใช้ `CREATE INDEX CONCURRENTLY` → **ห้าม** ครอบด้วย `BEGIN/COMMIT`
+- รันซ้ำได้ (`IF NOT EXISTS`) และควรรันช่วงที่ทราฟฟิกน้อย
+- ถ้า build ล้มกลางทางจะเหลือ index สถานะ INVALID — วิธีตรวจและแก้อยู่ในหัวไฟล์
+- อ่านหมายเหตุ "MEASURE FIRST" ในไฟล์ก่อน: ควร `EXPLAIN (ANALYZE, BUFFERS)`
+  ยืนยันว่า plan เปลี่ยนจริง แล้ว drop ตัวที่ไม่ถูกใช้ทิ้ง

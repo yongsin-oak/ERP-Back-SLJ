@@ -80,25 +80,28 @@ export interface SmartSearchOptions {
   threshold?: number;
 }
 
+/** `GREATEST(similarity(col, :skTerm), …)` over every searched column. */
+function similarityExpr(columns: string[]): string {
+  return columns.length > 1
+    ? `GREATEST(${columns.map((c) => `similarity(${c}, :skTerm)`).join(', ')})`
+    : `similarity(${columns[0]}, :skTerm)`;
+}
+
 /**
- * Relevance-ranked search for typeahead/search endpoints. Sets both the WHERE and
- * the ORDER BY, so it replaces the builder's ordering. `columns` are aliased refs
- * in priority order (most authoritative first, e.g. `['p.barcode', 'p.name']`).
- *
- * Matching:
+ * The **matching half** of `applySmartSearch` — adds the WHERE and touches the
+ * ORDER BY not at all:
  *  - multi-token substring — every whitespace-separated token must match some
  *    column (AND across tokens, OR across columns); plus
  *  - optional pg_trgm fuzzy — rows whose trigram similarity to the full term
  *    clears `threshold` are also included (catches typos), when `fuzzy` is on.
  *
- * Ranking (best first): exact match → prefix → substring → fuzzy similarity → name.
- * Rank-only (no score column) so callers keep using `paginateQuery`. Use an
- * explicit `similarity() >= threshold` (deterministic) rather than the `%`
- * operator (which depends on the session-global similarity threshold GUC).
- * Apply only to join-free builders — `ORDER BY similarity()` + `getManyAndCount`
- * conflicts with the implicit DISTINCT that to-many joins add.
+ * Use this on keyset-paginated (dropdown) endpoints: a cursor is only correct
+ * when the ORDER BY matches the cursor's key, so those endpoints own their sort
+ * and cannot accept a relevance ordering. Use an explicit
+ * `similarity() >= threshold` (deterministic) rather than the `%` operator
+ * (which depends on the session-global similarity threshold GUC).
  */
-export function applySmartSearch<T extends object>(
+export function applySmartMatch<T extends object>(
   qb: SelectQueryBuilder<T>,
   columns: string[],
   term?: string,
@@ -109,10 +112,6 @@ export function applySmartSearch<T extends object>(
 
   const threshold = opts.threshold ?? 0.3;
   const tokens = t.split(/\s+/).filter(Boolean);
-  const simExpr =
-    columns.length > 1
-      ? `GREATEST(${columns.map((c) => `similarity(${c}, :skTerm)`).join(', ')})`
-      : `similarity(${columns[0]}, :skTerm)`;
 
   // WHERE — every token must match some column, OR (fuzzy) similar enough overall.
   const tokenParams: Record<string, unknown> = {};
@@ -124,7 +123,7 @@ export function applySmartSearch<T extends object>(
     .join(' AND ');
 
   if (opts.fuzzy) {
-    qb.andWhere(`((${substringMatch}) OR ${simExpr} >= :skThreshold)`, {
+    qb.andWhere(`((${substringMatch}) OR ${similarityExpr(columns)} >= :skThreshold)`, {
       ...tokenParams,
       skTerm: t,
       skThreshold: threshold,
@@ -132,6 +131,37 @@ export function applySmartSearch<T extends object>(
   } else {
     qb.andWhere(`(${substringMatch})`, tokenParams);
   }
+
+  return qb;
+}
+
+/**
+ * Relevance-ranked search for offset-paginated typeahead/search endpoints.
+ * `applySmartMatch` for the WHERE, plus an ORDER BY that **replaces** whatever
+ * ordering the builder had. `columns` are aliased refs in priority order (most
+ * authoritative first, e.g. `['p.barcode', 'p.name']`).
+ *
+ * Ranking (best first): exact match → prefix → substring → fuzzy similarity → name.
+ * Rank-only (no score column) so callers keep using `paginateQuery`.
+ * Apply only to join-free builders — `ORDER BY similarity()` + `getManyAndCount`
+ * conflicts with the implicit DISTINCT that to-many joins add.
+ *
+ * **Not usable with `cursorPaginateQuery`** — its ordering is a computed
+ * expression, which no `(sort, id)` keyset can resume from. Reach for
+ * `applySmartMatch` there instead.
+ */
+export function applySmartSearch<T extends object>(
+  qb: SelectQueryBuilder<T>,
+  columns: string[],
+  term?: string,
+  opts: SmartSearchOptions = {},
+): SelectQueryBuilder<T> {
+  const t = term?.trim();
+  if (!t || !columns.length) return qb;
+
+  applySmartMatch(qb, columns, term, opts);
+
+  const simExpr = similarityExpr(columns);
 
   // ORDER BY relevance: exact (0..) → prefix → substring → else, then fuzzy sim, then name.
   const tiers: string[] = [];

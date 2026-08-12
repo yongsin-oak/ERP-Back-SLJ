@@ -1,23 +1,36 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, StreamableFile } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { CheckExistProductDto } from './dto/check-exist-product.dto';
 import { ProductCreateDto } from './dto/create-product.dto';
 import { ProductDropdownItemDto, ProductDropdownSearchDto } from './dto/dropdown-search-product.dto';
+import { ProductRefDto } from './dto/ref-product.dto';
 import { ProductResponseDto } from './dto/response.dto';
 import { CreateShopPriceDto, UpdateShopPriceDto } from './dto/shop-price.dto';
 import { ProductShopPrice } from './entities/product-shop-price.entity';
 import { Product } from './entities/product.entity';
 import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
-import { BulkUpdateProductDto } from './dto/bulk-update-product.dto';
+import { BulkUpdateProductDto, BulkUpdateProductItemDto } from './dto/bulk-update-product.dto';
 import { BulkDeleteProductDto } from './dto/bulk-delete-product.dto';
+import { ProductUpdateDto } from './dto/update-product.dto';
 import { Brand } from '../brand/entities/brand.entity';
 import { Category } from '../category/entities/category.entity';
 import { badRequest, conflict, notFound } from '@app/common/helpers/response';
-import { applyKeywordSearch, applySmartSearch, paginateQuery } from '@app/common/helpers/query.helper';
-import { buildExcelBuffer, ExcelColumn } from '@app/common/helpers/excel.helper';
+import { applyKeywordSearch, applySmartMatch, paginateQuery } from '@app/common/helpers/query.helper';
+import { DROPDOWN_DEFAULT_LIMIT } from '@app/common/dto/dropdown-query.dto';
+import { DropdownResponseDto } from '@app/common/dto/dropdown-response.dto';
+import { cursorPaginateQuery } from '@app/common/helpers/cursor.helper';
+import {
+  assertExportRowLimit,
+  ExcelColumn,
+  iterateQueryInBatches,
+  streamExcel,
+} from '@app/common/helpers/excel.helper';
 import { ProductGetDto } from './dto/get-product.dto';
+
+/** Worksheet tab and download file name for the product export. */
+const PRODUCT_EXPORT_NAME = 'สินค้า';
 
 @Injectable()
 export class ProductService implements OnModuleInit {
@@ -196,6 +209,20 @@ export class ProductService implements OnModuleInit {
     );
   }
 
+  /**
+   * Barcode lookup for order scanning — the hot path (operators scan all day).
+   * Returns barcode + name only and skips the brand/category joins findOne() does:
+   * the order-entry screen shows no price, stock, brand or category.
+   */
+  async findOneRef(barcode: string): Promise<ProductRefDto> {
+    const product = await this.productRepo.findOne({
+      where: { barcode },
+      select: { barcode: true, name: true },
+    });
+    if (!product) throw notFound(`ไม่พบสินค้า (${barcode})`);
+    return product;
+  }
+
   async update(barcode: string, dto: ProductCreateDto | Partial<ProductCreateDto>): Promise<Product> {
     const product = await this.productGetEntityOrFail(barcode);
     await this.productRepo.update(barcode, dto);
@@ -219,11 +246,15 @@ export class ProductService implements OnModuleInit {
       throw badRequest(`อัปเดตสินค้าไม่สำเร็จ: ${missing.map((b) => `ไม่พบสินค้า "${b}"`).join(', ')}`);
     }
 
-    // Each row carries its own patch, so the UPDATEs can't be collapsed — but the
-    // refetch is a single In(...) query, then re-ordered to match the input.
-    for (const item of bulkUpdateDto.products) {
-      await this.productRepo.update({ barcode: item.barcode }, item.data);
-    }
+    // Rows carrying different patches still need their own UPDATE, but they must
+    // land together: a mid-batch failure used to leave half the batch applied.
+    // Rows sharing an identical patch collapse into one UPDATE ... barcode IN (...).
+    const groups = this.groupIdenticalPatches(bulkUpdateDto.products);
+    await this.dataSource.transaction(async (manager) => {
+      for (const group of groups) {
+        await manager.update(Product, { barcode: In(group.barcodes) }, group.data);
+      }
+    });
 
     const updated = await this.productRepo.find({
       where: { barcode: In(barcodes) },
@@ -233,19 +264,69 @@ export class ProductService implements OnModuleInit {
     return barcodes.map((b) => byBarcode.get(b)).filter((p): p is Product => p !== undefined);
   }
 
-  async dropdownSearch(dto: ProductDropdownSearchDto): Promise<PaginatedResponseDto<ProductDropdownItemDto>> {
-    const page = dto.page ?? 1;
-    const limit = dto.limit ?? 20;
+  /**
+   * Collapse rows whose patch is identical into a single UPDATE.
+   *
+   * The signature sorts keys so property order can't split a group, and tags
+   * `undefined` apart from `null` because TypeORM skips the former and writes
+   * NULL for the latter — merging them would change what is written.
+   *
+   * Grouping is skipped when a barcode is repeated in the batch: it reorders the
+   * UPDATEs, and with two patches for the same barcode that would change which
+   * one wins. Then each row keeps its own UPDATE, in the order it was sent.
+   */
+  private groupIdenticalPatches(
+    items: BulkUpdateProductItemDto[],
+  ): { barcodes: string[]; data: ProductUpdateDto }[] {
+    const barcodes = items.map((i) => i.barcode);
+    if (new Set(barcodes).size !== barcodes.length) {
+      return items.map((item) => ({ barcodes: [item.barcode], data: item.data }));
+    }
 
+    const groups = new Map<string, { barcodes: string[]; data: ProductUpdateDto }>();
+    for (const item of items) {
+      const signature = JSON.stringify(
+        Object.entries(item.data ?? {})
+          .sort(([a], [b]) => (a < b ? -1 : 1))
+          .map(([key, value]) => [key, value === undefined ? 0 : 1, value ?? null]),
+      );
+      const group = groups.get(signature);
+      if (group) group.barcodes.push(item.barcode);
+      else groups.set(signature, { barcodes: [item.barcode], data: item.data });
+    }
+    return [...groups.values()];
+  }
+
+  /**
+   * Cursor-paginated options for `ProductSearchSelect`.
+   *
+   * Matching stays smart (multi-token + pg_trgm typo tolerance), but the result
+   * is ordered by name, not by relevance: a keyset cursor can only resume from a
+   * sort it can encode, and the relevance CASE/similarity expression is not one.
+   * Barcode-exact hits therefore appear in the list, just not pinned to the top —
+   * scanning a barcode goes through `ScanInput` → `/product/:barcode/ref`, which
+   * is the flow that actually depends on exact-match priority.
+   */
+  async dropdownSearch(dto: ProductDropdownSearchDto): Promise<DropdownResponseDto<ProductDropdownItemDto>> {
     const qb = this.productRepo
       .createQueryBuilder('p')
-      .select(['p.barcode', 'p.name', 'p.remaining', 'p.sellPrice', 'p.costPrice'])
-      .orderBy('p.name', 'ASC');
+      .select(['p.barcode', 'p.name', 'p.remaining', 'p.sellPrice', 'p.costPrice']);
 
-    // Relevance-ranked (barcode-exact first) + typo-tolerant when pg_trgm is available.
-    applySmartSearch(qb, ['p.barcode', 'p.name'], dto.search, { fuzzy: this.trigramEnabled });
+    applySmartMatch(qb, ['p.barcode', 'p.name'], dto.search, { fuzzy: this.trigramEnabled });
 
-    return paginateQuery<Product, ProductDropdownItemDto>(qb, page, limit);
+    return cursorPaginateQuery<Product, ProductDropdownItemDto>(qb, {
+      limit: dto.limit ?? DROPDOWN_DEFAULT_LIMIT,
+      cursor: dto.cursor,
+      sortColumn: 'p.name',
+      idColumn: 'p.barcode',
+      map: ({ barcode, name, remaining, sellPrice, costPrice }) => ({
+        barcode,
+        name,
+        remaining,
+        sellPrice,
+        costPrice,
+      }),
+    });
   }
 
   async checkExist(dto: CheckExistProductDto): Promise<{ existing: string[]; missing: string[] }> {
@@ -260,29 +341,29 @@ export class ProductService implements OnModuleInit {
   }
 
   async bulkDelete(bulkDeleteDto: BulkDeleteProductDto): Promise<{ deleted: Product[]; errors: string[] }> {
-    const productsToDelete: Product[] = [];
-    const errors: string[] = [];
+    const { barcodes } = bulkDeleteDto;
+    if (!barcodes.length) return { deleted: [], errors: [] };
 
-    for (const barcode of bulkDeleteDto.barcodes) {
-      try {
-        productsToDelete.push(await this.productGetEntityOrFail(barcode));
-      } catch {
-        errors.push(`ไม่พบสินค้า "${barcode}"`);
-      }
-    }
+    // One lookup for the whole batch (was a findOne per barcode). Full rows, not
+    // just the barcode, because they are echoed back as `deleted`.
+    const found = await this.productRepo.find({ where: { barcode: In(barcodes) } });
+    const byBarcode = new Map(found.map((p) => [p.barcode, p]));
 
+    const errors = barcodes.filter((b) => !byBarcode.has(b)).map((b) => `ไม่พบสินค้า "${b}"`);
     if (errors.length) return { deleted: [], errors };
 
-    const deleted: Product[] = [];
-    for (const product of productsToDelete) {
-      try {
-        await this.productRepo.remove(product);
-        deleted.push(product);
-      } catch (error) {
-        errors.push(`ลบสินค้าไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`);
-      }
+    // Single DELETE — one failure (e.g. an order still references the product)
+    // now rolls back the whole batch instead of leaving it half deleted.
+    try {
+      await this.productRepo.delete({ barcode: In(barcodes) });
+    } catch (error) {
+      return {
+        deleted: [],
+        errors: [`ลบสินค้าไม่สำเร็จ: ${error instanceof Error ? error.message : String(error)}`],
+      };
     }
 
+    const deleted = barcodes.map((b) => byBarcode.get(b)).filter((p): p is Product => p !== undefined);
     return { deleted, errors };
   }
 
@@ -328,7 +409,7 @@ export class ProductService implements OnModuleInit {
     return snapshot;
   }
 
-  async exportAll(query: Omit<ProductGetDto, 'page' | 'limit'>): Promise<Buffer> {
+  async exportAll(query: Omit<ProductGetDto, 'page' | 'limit'>): Promise<StreamableFile> {
     const { search, brandId, categoryId, isActive } = query;
     const qb = this.productRepo
       .createQueryBuilder('p')
@@ -341,7 +422,9 @@ export class ProductService implements OnModuleInit {
     if (categoryId) qb.andWhere('p.categoryId = :categoryId', { categoryId });
     if (isActive !== undefined) qb.andWhere('p.isActive = :isActive', { isActive });
 
-    const products = await qb.getMany();
+    // Every filter is optional, so a bare request would otherwise select the whole
+    // table. Counting first keeps the refusal a normal JSON error.
+    assertExportRowLimit(await qb.getCount());
 
     const columns: ExcelColumn<Product>[] = [
       { header: 'Barcode', key: 'barcode', width: 18, getValue: (r) => r.barcode },
@@ -359,6 +442,11 @@ export class ProductService implements OnModuleInit {
       { header: 'สถานะ', key: 'isActive', width: 10, getValue: (r) => (r.isActive ? 'ใช้งาน' : 'ปิดใช้งาน') },
     ];
 
-    return buildExcelBuffer('สินค้า', columns, products);
+    return streamExcel({
+      sheetName: PRODUCT_EXPORT_NAME,
+      filename: PRODUCT_EXPORT_NAME,
+      columns,
+      rows: iterateQueryInBatches(qb),
+    });
   }
 }

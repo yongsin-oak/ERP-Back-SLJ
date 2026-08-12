@@ -3,8 +3,11 @@ import { Role } from '@app/auth/role/role.enum';
 import { Roles } from '@app/auth/role/roles.decorator';
 import { RolesGuard } from '@app/auth/role/roles.guard';
 import { NoCache } from '@app/common/decorator/cache-control.decorator';
-import { ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
+import { ApiOkResponseDropdown, ApiOkResponsePaginated } from '@app/common/decorator/paginated.decorator';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { DropdownItemDto } from '@app/common/dto/dropdown-item.dto';
+import { DropdownQueryDto } from '@app/common/dto/dropdown-query.dto';
+import { DropdownResponseDto } from '@app/common/dto/dropdown-response.dto';
 import { BrandGetDto } from './dto/get-brand.dto';
 import { ok } from '@app/common/helpers/response';
 import {
@@ -38,6 +41,15 @@ export class BrandController {
   @ApiOkResponsePaginated(Brand)
   async getAllBrands(@Query() query: BrandGetDto): Promise<PaginatedResponseDto<Brand>> {
     return ok(await this.brandService.findAll(query));
+  }
+
+  // Must stay above `@Get(':id')` — Nest matches routes in declaration order, so a
+  // param route declared first swallows /brand/dropdown-search as id="dropdown-search".
+  @Get('dropdown-search')
+  @Roles('*')
+  @ApiOkResponseDropdown(DropdownItemDto)
+  async dropdownSearch(@Query() query: DropdownQueryDto): Promise<DropdownResponseDto<DropdownItemDto>> {
+    return ok(await this.brandService.dropdownSearch(query));
   }
 
   @Get(':id')

@@ -10,6 +10,10 @@ import { TransformResponseInterceptor } from './common/interceptors/transform-re
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { maskSensitive } from './common/helpers/mask-sensitive.helper';
+
+// Enough to debug a normal payload; bulk writes get a size plus a prefix.
+const MAX_LOGGED_BODY_BYTES = 2_048;
 
 import { AuthModule } from './auth/auth.module';
 import { ProductModule } from './modules/product/product.module';
@@ -56,6 +60,8 @@ import { StockCountModule } from './modules/stock-count/stock-count.module';
             'req.body.newPassword',
             'req.body.currentPass',
             'req.body.newPass',
+            'req.body.pin',
+            'req.body.refreshToken',
           ],
           censor: '[Redacted]',
         },
@@ -75,7 +81,19 @@ import { StockCountModule } from './modules/stock-count/stock-count.module';
               query: req.raw?.query,
             };
             if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
-              result.body = req.raw?.body;
+              // Mask before truncating: a truncated body becomes a plain string,
+              // which pino's `redact` paths can no longer reach into.
+              const body = maskSensitive(req.raw?.body);
+              // Bulk endpoints (/bulk, /items) post payloads that can reach
+              // megabytes; serialising them in full on every request costs more
+              // than the log line is worth. Record the shape, not the contents.
+              const serialized = body ? JSON.stringify(body) : '';
+              if (serialized.length > MAX_LOGGED_BODY_BYTES) {
+                result.bodySize = serialized.length;
+                result.body = `${serialized.slice(0, MAX_LOGGED_BODY_BYTES)}…[truncated]`;
+              } else {
+                result.body = body;
+              }
             }
             return result;
           },

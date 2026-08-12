@@ -13,6 +13,10 @@ import { CategoryUpdateDto } from './dto/update-category.dto';
 import { Category } from './entities/category.entity';
 import { getEntityOrNotFound, throwIfEntityExists } from '@app/common/helpers/entity.helper';
 import { PaginatedResponseDto } from '@app/common/dto/paginated.dto';
+import { DropdownItemDto } from '@app/common/dto/dropdown-item.dto';
+import { DROPDOWN_DEFAULT_LIMIT, DropdownQueryDto } from '@app/common/dto/dropdown-query.dto';
+import { DropdownResponseDto } from '@app/common/dto/dropdown-response.dto';
+import { cursorPaginateQuery } from '@app/common/helpers/cursor.helper';
 import { badRequest, notFound } from '@app/common/helpers/response';
 import { applyKeywordSearch, paginateQuery } from '@app/common/helpers/query.helper';
 
@@ -52,6 +56,19 @@ export class CategoryService {
       ...rest,
       parentId: parent?.id ?? null,
     }));
+  }
+
+  /** Cursor-paginated options for `CategorySearchSelect` — no parent join, the picker shows a flat list. */
+  async dropdownSearch(query: DropdownQueryDto): Promise<DropdownResponseDto<DropdownItemDto>> {
+    const qb = this.categoryRepository.createQueryBuilder('c').select(['c.id', 'c.name']);
+    applyKeywordSearch(qb, ['c.name'], query.search);
+    return cursorPaginateQuery(qb, {
+      limit: query.limit ?? DROPDOWN_DEFAULT_LIMIT,
+      cursor: query.cursor,
+      sortColumn: 'c.name',
+      idColumn: 'c.id',
+      map: ({ id, name }) => ({ id, name }),
+    });
   }
 
   async findAllTree(): Promise<CategoryResponseWithChildrenDto[]> {
